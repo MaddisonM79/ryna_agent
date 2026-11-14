@@ -283,20 +283,7 @@ fn logout(config: &Config) -> Result<ExitCode> {
 
 /// The cores this person is provisioned for, as the app last heard (the CLI runs WoW alone).
 fn cores_line(cores: &ryna_agent::provisioned::Cores) -> String {
-    let names: Vec<String> = cores
-        .cores
-        .iter()
-        .map(|c| {
-            if c.allowed {
-                c.name.clone()
-            } else {
-                format!(
-                    "{} (not allowed on this computer yet: allow it in the app)",
-                    c.name
-                )
-            }
-        })
-        .collect();
+    let names: Vec<&str> = cores.cores.iter().map(|c| c.name.as_str()).collect();
     format!("Cores: {}", names.join(", "))
 }
 
@@ -917,10 +904,10 @@ mod cores_tests {
         cores.cores.push(ProvisionedCore {
             id: "palworld".into(),
             name: "Palworld".into(),
-            scope: "palworld:ingest".into(),
-            allowed: false,
         });
-        assert!(cores_line(&cores)
-            .ends_with(", Palworld (not allowed on this computer yet: allow it in the app)"));
+        assert_eq!(
+            cores_line(&cores),
+            "Cores: World of Warcraft: Forever, Palworld"
+        );
     }
 }

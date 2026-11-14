@@ -2,15 +2,16 @@
 //! answer, `GET {api}/v1/portal/agent/cores` with the agent's access token, and the last one kept
 //! in the state folder.
 //!
-//! The answer names each core the person has (`id`, `name`, `scope`) and whether the token shown
-//! can already act for it (`allowed`), and what a sign-in covering all of them asks for
-//! (`signIn`: one resource and the cores' scopes). A core the answer leaves out doesn't exist in
-//! the window. The rules for what's shown:
+//! The answer names each core the person has (`{ id, name }`); the roster is the gate, so the
+//! token this agent already holds is admitted for every one of them, and nothing about the
+//! sign-in changes when a core is added. Fields an older answer carried (`scope`, `allowed`,
+//! `signIn`) are ignored. A core the answer leaves out doesn't exist in the window. The rules for
+//! what's shown:
 //! - An answer (`ok: true`) replaces what was kept, so a core is removed only by an answer that
 //!   leaves it out.
 //! - No answer (offline, the API failing, an `ok: false`, a route that isn't there yet) keeps the
 //!   last one, so a blip never hides a running core.
-//! - With nothing kept and no answer: the WoW core alone, allowed, as before stage 4.
+//! - With nothing kept and no answer: the WoW core alone, as before stage 4.
 //! - A 401 or 403 on this call is the sign-in's problem, said as [`Asked::SignInAgain`] (the
 //!   kept answer still stands).
 
@@ -35,21 +36,6 @@ pub const WOW_CORE_ID: &str = "wow";
 pub struct ProvisionedCore {
     pub id: String,
     pub name: String,
-    /// The core's scope on the agent resource (`palworld:ingest`).
-    #[serde(default)]
-    pub scope: String,
-    /// The token shown can already act for it; when not, the window offers Allow.
-    #[serde(default)]
-    pub allowed: bool,
-}
-
-/// What a sign-in covering every provisioned core asks for.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignInRequest {
-    pub resource: String,
-    #[serde(default)]
-    pub scopes: Vec<String>,
 }
 
 /// The cores answer, as kept.
@@ -57,51 +43,25 @@ pub struct SignInRequest {
 #[serde(rename_all = "camelCase")]
 pub struct Cores {
     pub cores: Vec<ProvisionedCore>,
-    #[serde(default)]
-    pub sign_in: Option<SignInRequest>,
     /// When it was answered (unix seconds); 0 for the built-in WoW-alone.
     #[serde(default)]
     pub at: i64,
 }
 
 impl Cores {
-    /// The WoW core alone, allowed: what's shown before any answer has been had.
+    /// The WoW core alone: what's shown before any answer has been had.
     pub fn wow_alone() -> Cores {
         Cores {
             cores: vec![ProvisionedCore {
                 id: WOW_CORE_ID.into(),
                 name: "World of Warcraft: Forever".into(),
-                scope: crate::config::INGEST_SCOPE.into(),
-                allowed: true,
             }],
-            sign_in: None,
             at: 0,
         }
     }
 
     pub fn get(&self, id: &str) -> Option<&ProvisionedCore> {
         self.cores.iter().find(|c| c.id == id)
-    }
-
-    /// A provisioned core the stored sign-in doesn't cover yet.
-    pub fn needs_allow(&self) -> bool {
-        self.cores.iter().any(|c| !c.allowed)
-    }
-
-    /// The resource and scopes an Allow asks for: the answer's `signIn`, else the config's
-    /// resource with every provisioned core's scope.
-    pub fn sign_in(&self, config: &Config) -> (String, Vec<String>) {
-        match &self.sign_in {
-            Some(s) => (s.resource.clone(), s.scopes.clone()),
-            None => (
-                config.resource.clone(),
-                self.cores
-                    .iter()
-                    .map(|c| c.scope.clone())
-                    .filter(|s| !s.is_empty())
-                    .collect(),
-            ),
-        }
     }
 }
 
@@ -215,14 +175,13 @@ mod tests {
     use serde_json::json;
 
     fn answer(cores: serde_json::Value) -> serde_json::Value {
-        json!({ "ok": true, "data": { "cores": cores,
-            "signIn": { "resource": "https://api.ryna.io/agent", "scopes": ["wow:ingest", "palworld:ingest"] } } })
+        json!({ "ok": true, "data": { "cores": cores } })
     }
 
     fn both() -> serde_json::Value {
         json!([
-            { "id": "wow", "name": "World of Warcraft: Forever", "scope": "wow:ingest", "allowed": true },
-            { "id": "palworld", "name": "Palworld", "scope": "palworld:ingest", "allowed": false }
+            { "id": "wow", "name": "World of Warcraft: Forever" },
+            { "id": "palworld", "name": "Palworld" }
         ])
     }
 
@@ -239,26 +198,52 @@ mod tests {
             panic!("{asked:?}")
         };
         assert_eq!(cores.at, 42);
-        assert_eq!(cores.cores.len(), 2);
-        assert!(cores.needs_allow());
-        assert!(!cores.get("palworld").unwrap().allowed);
         assert_eq!(
-            cores.sign_in(&test_config()),
-            (
-                "https://api.ryna.io/agent".to_string(),
-                vec!["wow:ingest".to_string(), "palworld:ingest".to_string()]
-            )
+            cores.cores,
+            [
+                ProvisionedCore {
+                    id: "wow".into(),
+                    name: "World of Warcraft: Forever".into()
+                },
+                ProvisionedCore {
+                    id: "palworld".into(),
+                    name: "Palworld".into()
+                }
+            ]
         );
+    }
+
+    #[test]
+    fn an_older_answers_extra_fields_are_ignored() {
+        // Around a deploy the API may still send what stage 4's first answer carried.
+        let http = ScriptedTransport::new();
+        http.json(
+            200,
+            json!({ "ok": true, "data": {
+                "cores": [{ "id": "palworld", "name": "Palworld", "scope": "palworld:ingest", "allowed": false }],
+                "signIn": { "resource": "https://api.ryna.io/agent", "scopes": ["palworld:ingest"] } } }),
+        );
+        let Asked::Answer(cores) = ask(&test_config(), &http, "t", 1) else {
+            panic!()
+        };
+        assert_eq!(cores.get("palworld").unwrap().name, "Palworld");
+        // And a kept file in the older shape still reads.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(CACHE_FILE),
+            r#"{ "cores": [{ "id": "wow", "name": "WoW", "scope": "wow:ingest", "allowed": true }], "signIn": null, "at": 5 }"#,
+        )
+        .unwrap();
+        assert_eq!(load(dir.path()).unwrap().cores[0].id, "wow");
     }
 
     #[test]
     fn a_core_is_removed_only_by_an_answer_that_leaves_it_out() {
         let dir = tempfile::tempdir().unwrap();
         let state = Some(dir.path());
-        // Nothing kept, no answer: WoW alone, allowed.
+        // Nothing kept, no answer: WoW alone.
         let (shown, _) = update(state, Asked::NoAnswer("offline".into()));
         assert_eq!(shown, Cores::wow_alone());
-        assert!(shown.cores[0].allowed);
         // An answer with Palworld is kept.
         let http = ScriptedTransport::new();
         http.json(200, answer(both()));
@@ -268,10 +253,19 @@ mod tests {
         // Offline, a 500, an ok:false, a 404 and a sign-in refusal all keep it.
         let http = ScriptedTransport::new();
         http.fail("dns")
-            .json(500, json!({ "ok": false, "error": { "code": "INTERNAL", "message": "boom" } }))
-            .json(200, json!({ "ok": false, "error": { "code": "X", "message": "no" } }))
+            .json(
+                500,
+                json!({ "ok": false, "error": { "code": "INTERNAL", "message": "boom" } }),
+            )
+            .json(
+                200,
+                json!({ "ok": false, "error": { "code": "X", "message": "no" } }),
+            )
             .text(404, "not found")
-            .json(401, json!({ "ok": false, "error": { "code": "UNAUTHORIZED", "message": "token expired" } }));
+            .json(
+                401,
+                json!({ "ok": false, "error": { "code": "UNAUTHORIZED", "message": "token expired" } }),
+            );
         for _ in 0..5 {
             let (shown, failed) = update(state, ask(&test_config(), &http, "t", 2));
             assert_eq!(shown.cores.len(), 2);
@@ -279,13 +273,12 @@ mod tests {
         }
         // An answer without Palworld removes it.
         let http = ScriptedTransport::new();
-        http.json(
-            200,
-            answer(json!([{ "id": "wow", "name": "WoW", "scope": "wow:ingest", "allowed": true }])),
-        );
+        http.json(200, answer(json!([{ "id": "wow", "name": "WoW" }])));
         let (shown, _) = update(state, ask(&test_config(), &http, "t", 3));
         assert_eq!(shown.cores.len(), 1);
         assert_eq!(current(state).cores.len(), 1);
+        // Without a state folder nothing is kept, and WoW alone is shown.
+        assert_eq!(current(None), Cores::wow_alone());
     }
 
     #[test]
@@ -301,21 +294,5 @@ mod tests {
                 Asked::SignInAgain("not your token".into())
             );
         }
-    }
-
-    #[test]
-    fn with_no_sign_in_named_an_allow_asks_for_every_cores_scope() {
-        let mut cores = Cores::wow_alone();
-        cores.cores.push(ProvisionedCore {
-            id: "palworld".into(),
-            name: "Palworld".into(),
-            scope: "palworld:ingest".into(),
-            allowed: false,
-        });
-        let (resource, scopes) = cores.sign_in(&test_config());
-        assert_eq!(resource, crate::config::DEFAULT_RESOURCE);
-        assert_eq!(scopes, ["wow:ingest", "palworld:ingest"]);
-        // Without a state folder nothing is kept, and WoW alone is shown.
-        assert_eq!(current(None), Cores::wow_alone());
     }
 }

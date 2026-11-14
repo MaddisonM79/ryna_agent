@@ -5,13 +5,13 @@
 pub const DEFAULT_ISSUER: &str = "https://auth.nyratech.dev";
 /// `RYNA_API`.
 pub const DEFAULT_API: &str = "https://api.ryna.io";
-/// `RYNA_RESOURCE`. The audience of the agent's tokens (RFC 8707 resource indicator): the one
-/// agent resource every core's scope is granted on (docs/ryna-agent-cores-mods.md 13.2). A new
-/// sign-in asks for it when the API hasn't said otherwise (the cores answer's `signIn`).
-pub const DEFAULT_RESOURCE: &str = "https://api.ryna.io/agent";
-/// The resource every sign-in before stage 4 was made for. A kept sign-in that recorded no
-/// resource is one of those, and goes on refreshing for this one with no new approval.
-pub const LEGACY_RESOURCE: &str = "https://api.ryna.io/wow/ingest";
+/// `RYNA_RESOURCE`. The audience of the agent's tokens (RFC 8707 resource indicator). Every sign-in
+/// asks for this one resource with `wow:ingest`, as every released build does; the API admits
+/// that token for every core its person is provisioned for (docs/ryna-agent-cores-mods.md 13.2).
+pub const DEFAULT_RESOURCE: &str = "https://api.ryna.io/wow/ingest";
+/// The resource a kept sign-in that recorded none was made for (every build before stage 4):
+/// the same as the default.
+pub const LEGACY_RESOURCE: &str = DEFAULT_RESOURCE;
 /// The scope the API requires on the agent's routes.
 pub const INGEST_SCOPE: &str = "wow:ingest";
 /// The public device client registered for this agent at auth.nyratech.dev (named `ryna-wow` there,
@@ -96,14 +96,10 @@ impl Config {
         self.client_id != PLACEHOLDER_CLIENT_ID
     }
 
-    /// The resource a kept sign-in that recorded none was made for: [`LEGACY_RESOURCE`], unless
-    /// `RYNA_RESOURCE` points elsewhere (a development IdP), whose sign-ins were made for that.
+    /// The resource a kept sign-in that recorded none was made for: this config's (the default,
+    /// [`LEGACY_RESOURCE`], unless `RYNA_RESOURCE` points a development IdP elsewhere).
     pub fn unrecorded_resource(&self) -> &str {
-        if self.resource == DEFAULT_RESOURCE {
-            LEGACY_RESOURCE
-        } else {
-            &self.resource
-        }
+        &self.resource
     }
 }
 
@@ -175,7 +171,7 @@ mod tests {
     #[test]
     fn an_unrecorded_sign_in_is_the_legacy_resource_unless_overridden() {
         let mut c = test_config();
-        assert_eq!(c.resource, "https://api.ryna.io/agent");
+        assert_eq!(c.resource, "https://api.ryna.io/wow/ingest");
         assert_eq!(c.unrecorded_resource(), LEGACY_RESOURCE);
         c.resource = "http://localhost:8797/agent".into();
         assert_eq!(c.unrecorded_resource(), "http://localhost:8797/agent");

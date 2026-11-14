@@ -13,15 +13,22 @@
 //! - a refresh that got no answer is sent again straight away with the same token, inside the
 //!   replay window, where the IdP hands back the answer that was lost.
 //!
-//! **One sign-in, every core** (docs/ryna-agent-cores-mods.md 13.2). A sign-in names ONE resource
-//! (the agent's) and a scope per core the person is provisioned for, as the API's cores answer
-//! says (`start_device_login_for`). The refresh grant sends that sign-in's resource and never a
-//! `scope` (passing one would narrow the whole chain for good), so the one access token carries
-//! every core's scope and every core uses it. The resource is kept with the refresh token, in the
-//! same keychain value; a sign-in made before stage 4 kept none and was made for
-//! `config::LEGACY_RESOURCE`, which it goes on refreshing for with no new approval. Several cores
-//! share the token, so every refresh in this process is serialised, and one that waited looks
-//! again for the token another just stored rather than spending the refresh token a second time.
+//! **One sign-in, every core** (docs/ryna-agent-cores-mods.md 13.2). Every sign-in is the same
+//! request every released build makes: the config's resource (`https://api.ryna.io/wow/ingest`)
+//! and `wow:ingest`. The API admits that token for every core its person is provisioned for (the
+//! roster is the gate), so nothing about the sign-in changes when a core is added and no sign-in
+//! is ever started from the cores answer. The refresh grant sends the stored sign-in's resource
+//! and never a `scope` (passing one would narrow the whole chain for good), and the one access
+//! token serves every core. The resource is kept with the refresh token, in the same keychain
+//! value; a bare value from before stage 4 is `config::LEGACY_RESOURCE`'s, and one stored for
+//! another resource keeps refreshing for that. Several cores share the token, so every refresh in
+//! this process is serialised, and one that waited looks again for the token another just stored
+//! rather than spending the refresh token a second time.
+//!
+//! A sign-in the IdP refuses outright (its client, scope or resource: `invalid_scope`,
+//! `invalid_target`, `invalid_client`, `unauthorized_client`) is [`AuthError::Refused`], whose
+//! words say only that Ryna couldn't start the sign-in; the IdP's own words go to the debug log
+//! (stderr), never the window.
 
 use std::cell::RefCell;
 use std::sync::{Mutex, MutexGuard};
@@ -94,8 +101,31 @@ pub enum AuthError {
     Unavailable(String),
     #[error("sign-in failed: {0}")]
     Failed(String),
+    /// The IdP refused the request itself; its words are in the debug log only.
+    #[error("Ryna couldn't start the sign-in. Try again in a little while")]
+    Refused,
     #[error("the OS keychain: {0}")]
     Store(String),
+}
+
+/// The IdP's errors that refuse the request itself (its client, scope or resource), rather than
+/// the person or the moment.
+const REFUSALS: [&str; 4] = [
+    "invalid_scope",
+    "invalid_target",
+    "invalid_client",
+    "unauthorized_client",
+];
+
+/// `Refused` for an IdP refusal, with its words in the debug log (never a token or a device
+/// code: only the error and its description); None for any other error.
+fn refused(error: Option<&str>, description: Option<&str>) -> Option<AuthError> {
+    let error = error.filter(|e| REFUSALS.contains(e))?;
+    eprintln!(
+        "the sign-in provider refused the sign-in: {error}{}",
+        description.map(|d| format!(": {d}")).unwrap_or_default()
+    );
+    Some(AuthError::Refused)
 }
 
 /// What `poll_device_login` fails with (`Cancelled` when its token fired).
@@ -670,25 +700,15 @@ impl<'a> Auth<'a> {
             .map(|_| ())
     }
 
-    /// Ask the provider for a device code for the config's resource and the WoW core's scope:
-    /// a first sign-in, before the API has said which cores the person has. Nothing is stored
-    /// until the poll succeeds.
+    /// Ask the provider for a device code: the config's resource and `wow:ingest`, the one
+    /// request every sign-in makes. Nothing is stored until the poll succeeds; then the new
+    /// refresh token and this resource replace the old.
     pub fn start_device_login(&self) -> Result<DeviceLogin, AuthError> {
-        self.start_device_login_for(&self.config.resource, &[INGEST_SCOPE])
-    }
-
-    /// Ask for a device code for one `resource` with the base scopes and `scopes` (every
-    /// provisioned core's, as the cores answer's `signIn` names them). Nothing is stored until
-    /// the poll succeeds; then the new refresh token and this resource replace the old.
-    pub fn start_device_login_for(
-        &self,
-        resource: &str,
-        scopes: &[&str],
-    ) -> Result<DeviceLogin, AuthError> {
         if !self.config.client_id_issued() {
             return Err(AuthError::NoClientId);
         }
-        let scope = scope_for(scopes);
+        let resource = self.config.resource.as_str();
+        let scope = scope();
         let res = self
             .post_form(
                 DEVICE_CODE_PATH,
@@ -708,6 +728,9 @@ impl<'a> Auth<'a> {
                 .verification_uri
                 .or(answer.verification_uri_complete.clone()),
         ) else {
+            if let Some(e) = refused(answer.error.as_deref(), answer.error_description.as_deref()) {
+                return Err(e);
+            }
             let why = answer
                 .error_description
                 .or(answer.error)
@@ -786,11 +809,14 @@ impl<'a> Auth<'a> {
                 Some("access_denied") => return Err(AuthError::Declined),
                 Some("expired_token") => return Err(AuthError::Expired),
                 other => {
+                    if let Some(e) = refused(other, t.error_description.as_deref()) {
+                        return Err(e);
+                    }
                     return Err(AuthError::Failed(
                         t.error_description
                             .or(other.map(str::to_string))
                             .unwrap_or_else(|| "unknown".into()),
-                    ))
+                    ));
                 }
             }
         }
@@ -1046,7 +1072,7 @@ mod tests {
             "{first}"
         );
         assert!(
-            first.contains("resource=https%3A%2F%2Fapi.ryna.io%2Fagent"),
+            first.contains("resource=https%3A%2F%2Fapi.ryna.io%2Fwow%2Fingest"),
             "{first}"
         );
         assert_eq!(first.matches("resource=").count(), 1, "{first}");
@@ -1061,7 +1087,7 @@ mod tests {
         // The sign-in remembers the resource it was made for.
         assert_eq!(
             store.resource.borrow().as_deref(),
-            Some("https://api.ryna.io/agent")
+            Some("https://api.ryna.io/wow/ingest")
         );
         assert_eq!(store.access.borrow().as_ref().unwrap().token, "at-1");
         assert_eq!(auth.access_token().unwrap().as_deref(), Some("at-1"));
@@ -1069,7 +1095,7 @@ mod tests {
     }
 
     #[test]
-    fn a_sign_in_for_every_provisioned_core_names_one_resource_and_their_scopes() {
+    fn every_sign_in_is_the_one_request_released_builds_make() {
         let config = test_config();
         let http = ScriptedTransport::new();
         http.json(200, device_answer()).json(
@@ -1079,22 +1105,11 @@ mod tests {
         let store = MemoryStore::with_refresh("old");
         let clock = FakeClock::at(NOW);
         let auth = Auth::new(&config, &http, &store, &clock);
-        let login = auth
-            .start_device_login_for(
-                "https://api.test/agent",
-                &["wow:ingest", "palworld:ingest wow:ingest"],
-            )
-            .unwrap();
-        assert_eq!(login.resource, "https://api.test/agent");
-        let form = http.form(0);
-        assert!(
-            form.contains("scope=openid+email+offline_access+wow%3Aingest+palworld%3Aingest&"),
-            "{form}"
-        );
-        assert_eq!(form.matches("resource=").count(), 1, "{form}");
-        assert!(
-            form.contains("resource=https%3A%2F%2Fapi.test%2Fagent"),
-            "{form}"
+        let login = auth.start_device_login().unwrap();
+        assert_eq!(login.resource, "https://api.ryna.io/wow/ingest");
+        assert_eq!(
+            http.form(0),
+            "client_id=test-client&scope=openid+email+offline_access+wow%3Aingest&resource=https%3A%2F%2Fapi.ryna.io%2Fwow%2Fingest"
         );
         auth.poll_device_login(&login, &CancelToken::new(), &mut |_| {})
             .unwrap();
@@ -1102,9 +1117,79 @@ mod tests {
         assert_eq!(store.refresh.borrow().as_deref(), Some("rt-1"));
         assert_eq!(
             store.resource.borrow().as_deref(),
-            Some("https://api.test/agent")
+            Some("https://api.ryna.io/wow/ingest")
         );
-        assert_eq!(auth.sign_in_resource().unwrap(), "https://api.test/agent");
+    }
+
+    #[test]
+    fn a_sign_in_stored_for_another_resource_keeps_refreshing_for_it() {
+        let config = test_config();
+        let clock = FakeClock::at(NOW);
+        let http = ScriptedTransport::new();
+        http.json(
+            200,
+            json!({ "access_token": "at-2", "refresh_token": "rt-2", "expires_in": 900 }),
+        );
+        let store = MemoryStore::with_refresh("rt-1");
+        *store.resource.borrow_mut() = Some("https://api.ryna.io/agent".into());
+        let auth = Auth::new(&config, &http, &store, &clock);
+        assert_eq!(auth.access_token().unwrap().as_deref(), Some("at-2"));
+        let form = http.form(0);
+        assert!(
+            form.contains("resource=https%3A%2F%2Fapi.ryna.io%2Fagent") && !form.contains("scope="),
+            "{form}"
+        );
+        assert_eq!(
+            store.resource.borrow().as_deref(),
+            Some("https://api.ryna.io/agent")
+        );
+    }
+
+    #[test]
+    fn a_sign_in_the_idp_refuses_outright_is_said_plainly() {
+        for error in REFUSALS {
+            // Refused before any code...
+            let config = test_config();
+            let http = ScriptedTransport::new();
+            http.json(
+                400,
+                json!({ "error": error, "error_description": "client does not allow scope palworld:ingest" }),
+            );
+            let store = MemoryStore::default();
+            let clock = FakeClock::at(NOW);
+            let e = Auth::new(&config, &http, &store, &clock)
+                .start_device_login()
+                .unwrap_err();
+            assert!(matches!(e, AuthError::Refused), "{error}: {e:?}");
+            assert_eq!(
+                e.to_string(),
+                "Ryna couldn't start the sign-in. Try again in a little while"
+            );
+            assert!(!e.to_string().contains("palworld"));
+            assert!(!e.needs_login());
+            // ...or while polling.
+            let http = ScriptedTransport::new();
+            http.json(200, device_answer())
+                .json(400, json!({ "error": error, "error_description": "nope" }));
+            let e = Auth::new(&config, &http, &store, &clock)
+                .login(&mut |_| {})
+                .unwrap_err();
+            assert!(matches!(e, AuthError::Refused), "{error}: {e:?}");
+            assert!(store.refresh.borrow().is_none());
+        }
+        // Expired, declined and the network keep their words.
+        let config = test_config();
+        let http = ScriptedTransport::new();
+        http.json(
+            400,
+            json!({ "error": "server_error", "error_description": "database down" }),
+        );
+        let store = MemoryStore::default();
+        let clock = FakeClock::at(NOW);
+        let e = Auth::new(&config, &http, &store, &clock)
+            .start_device_login()
+            .unwrap_err();
+        assert!(e.to_string().contains("database down"), "{e}");
     }
 
     #[test]
@@ -1334,11 +1419,12 @@ mod tests {
 
     #[test]
     fn device_code_refusal_is_reported() {
+        // An error that isn't the IdP refusing the request itself keeps its words.
         let config = test_config();
         let http = ScriptedTransport::new();
         http.json(
             400,
-            json!({ "error": "invalid_client", "error_description": "unknown client" }),
+            json!({ "error": "invalid_request", "error_description": "unknown client" }),
         );
         let store = MemoryStore::default();
         let clock = FakeClock::at(NOW);
