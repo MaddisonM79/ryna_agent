@@ -2,7 +2,35 @@
 // Getting…, Retry, not on this computer yet, stopped, off), its events as activity lines, and how many cores are
 // running. Pure, so the tests hold every state's words. Kept apart from the components so the
 // states can be restyled without touching what they say.
-import type { CoreState, CoreView, SidecarEvent } from "./api";
+import type { CoreState, CoreView, SatisfactoryEvent, SidecarEvent } from "./api";
+
+/** What a core beside WoW says about itself where the words differ by core: its ready state and its switch. */
+interface CoreWords {
+  readyText: (name: string) => string;
+  switchLabel: (name: string) => string;
+  switchNote: string;
+}
+
+const DEFAULT_WORDS: CoreWords = {
+  readyText: (name) =>
+    `Your ryna.io account has ${name}. Turning it on downloads it and starts syncing your saves from this computer. Nothing is downloaded or read until then.`,
+  switchLabel: (name) => `Sync ${name} on this computer`,
+  switchNote: "Off stops it here; your account keeps it.",
+};
+
+const WORDS: Record<string, CoreWords> = {
+  satisfactory: {
+    readyText: () =>
+      "Your ryna.io account hosts a Satisfactory factory. Turning this on lets ryna.io read the factory through this computer while Ryna is open. Nothing is read until then.",
+    switchLabel: () => "Let ryna.io read the factory through this computer",
+    switchNote: "Only while Ryna is open. Off closes the link; your account keeps the factory.",
+  },
+};
+
+/** A core's own words (the default ones for a core with none of its own). */
+export function coreWords(id: string): CoreWords {
+  return WORDS[id] ?? DEFAULT_WORDS;
+}
 
 /** What the panel's button does. */
 export type PanelAction = "turnOn" | "retry" | "start";
@@ -41,7 +69,7 @@ export function megabytes(bytes: number): string {
  * nothing to say. The words are the window's: Maddison reviews a mockup of the new states (ready
  * to turn on, Getting…, not on this computer yet) before they ship.
  */
-export function corePanel(core: Pick<CoreView, "name" | "state">): CorePanel | null {
+export function corePanel(core: Pick<CoreView, "id" | "name" | "state">): CorePanel | null {
   const { name, state } = core;
   switch (state.is) {
     case "running":
@@ -51,7 +79,7 @@ export function corePanel(core: Pick<CoreView, "name" | "state">): CorePanel | n
         state: state.is,
         tone: "",
         title: `${name} is ready to turn on`,
-        text: `Your ryna.io account has ${name}. Turning it on downloads it and starts syncing your saves from this computer. Nothing is downloaded or read until then.`,
+        text: coreWords(core.id).readyText(name),
         progress: null,
         action: { label: `Turn on ${name}`, does: "turnOn" },
       };
@@ -128,8 +156,27 @@ function sentence(s: string): string {
 }
 
 /** A sidecar core's event as an activity line, named for its core; null for none. */
-export function describeCoreEvent(name: string, e: SidecarEvent): { text: string; level: "info" | "error" } | null {
+export function describeCoreEvent(
+  name: string,
+  e: SidecarEvent | SatisfactoryEvent,
+): { text: string; level: "info" | "error" } | null {
   switch (e.event) {
+    case "connected":
+      return { text: `${name}: linked to ryna.io.`, level: "info" };
+    case "disconnected":
+      return { text: `${name}: the link to ryna.io dropped (${e.why}). Reconnecting.`, level: "error" };
+    case "frmAnswering":
+      return { text: `${name}: the factory is answering on 127.0.0.1:${e.port}.`, level: "info" };
+    case "frmNotAnswering":
+      return {
+        text: `${name}: nothing answers on 127.0.0.1:${e.port}. Is the game running with the Ficsit Remote Monitoring mod?`,
+        level: "error",
+      };
+    case "writeRefused":
+      return {
+        text: `${name}: refused a change to the factory (${e.path}): changes aren't allowed on this computer.`,
+        level: "error",
+      };
     case "started":
       return { text: `${name} started${e.version ? ` (version ${e.version})` : ""}.`, level: "info" };
     case "event":
@@ -151,16 +198,16 @@ export function describeCoreEvent(name: string, e: SidecarEvent): { text: string
 }
 
 /** How many cores are running: WoW's loop, and each fetched core that is. */
-export function runningCores(s: { watching: boolean; cores: Pick<CoreView, "kind" | "state">[] }): number {
-  const sidecars = s.cores.filter((c) => c.kind === "sidecar" && c.state.is === "running").length;
-  const wow = s.cores.some((c) => c.kind === "builtin") && s.watching ? 1 : 0;
-  return wow + sidecars;
+export function runningCores(s: { watching: boolean; cores: Pick<CoreView, "switchable" | "state">[] }): number {
+  const others = s.cores.filter((c) => c.switchable && c.state.is === "running").length;
+  const wow = s.cores.some((c) => !c.switchable) && s.watching ? 1 : 0;
+  return wow + others;
 }
 
 /** The first fetched core's failure, named: "Palworld: <words>". */
-export function sidecarProblem(cores: Pick<CoreView, "kind" | "name" | "state" | "lastError">[]): string | null {
+export function sidecarProblem(cores: Pick<CoreView, "switchable" | "name" | "state" | "lastError">[]): string | null {
   for (const c of cores) {
-    if (c.kind !== "sidecar") continue;
+    if (!c.switchable) continue;
     if (c.state.is === "stopped" && c.state.message) return `${c.name}: ${c.state.message}`;
     if (c.state.is === "fetchFailed") return `${c.name}: couldn't get it`;
     if (c.state.is === "running" && c.lastError) return `${c.name}: ${c.lastError}`;
@@ -171,4 +218,12 @@ export function sidecarProblem(cores: Pick<CoreView, "kind" | "name" | "state" |
 /** The activity lines about one fetched core, for its page. */
 export function coreLines<L extends { core?: string }>(lines: L[], core: string): L[] {
   return lines.filter((l) => l.core === core);
+}
+
+/** Why `text` isn't a port (1 to 65535), or null when it is. */
+export function portError(text: string): string | null {
+  const t = text.trim();
+  if (!/^\d+$/.test(t)) return "A port is a number.";
+  const n = Number(t);
+  return n >= 1 && n <= 65535 ? null : "A port is between 1 and 65535.";
 }

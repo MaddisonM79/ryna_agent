@@ -33,6 +33,7 @@ const THIRD_PARTY = [
   { name: "base64", what: "writing the device key and its signatures", licence: "MIT or Apache-2.0" },
   { name: "minisign-verify", what: "checking a downloaded game's package was signed by this project", licence: "MIT" },
   { name: "tar", what: "unpacking a downloaded game's package", licence: "MIT or Apache-2.0" },
+  { name: "tungstenite", what: "the Satisfactory core's link to ryna.io", licence: "MIT or Apache-2.0" },
 ];
 
 const addon = computed(() => aboutAddon(status.value?.installs ?? [], status.value?.addonBundled ?? null));

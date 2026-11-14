@@ -25,6 +25,8 @@ use ryna_agent::package::{self, Source};
 use ryna_agent::provisioned::{self, Asked, Cores, WOW_CORE_ID};
 use ryna_agent::sidecar::{SidecarCore, SidecarEvent};
 use ryna_agent::util::SystemClock;
+use ryna_satisfactory_core::relay::{RelaySettings, SatisfactoryEvent};
+use ryna_satisfactory_core::satisfactory_core::SatisfactoryCore;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -39,18 +41,47 @@ const HOURLY: Duration = Duration::from_secs(60 * 60);
 /// The updater's public key: a package is trusted exactly as far as an app update is.
 const UPDATER_PUB: &str = include_str!("../../updater.pub");
 
-/// A fetched core this build knows how to run: its id, and where it runs (its manifest's
-/// `platforms`, known here so a page can say "not on this computer yet" before anything is
-/// fetched). A provisioned core that isn't here is ignored, not shown.
-pub struct Known {
-    pub id: &'static str,
-    pub platforms: &'static [&'static str],
+/// How the app runs a core beside WoW.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// A sidecar from a signed package, fetched once it's turned on (Palworld).
+    Fetched,
+    /// Built into the app, nothing to fetch (the Satisfactory relay).
+    Relay,
 }
 
-pub const KNOWN: &[Known] = &[Known {
-    id: "palworld",
-    platforms: &["macos"],
-}];
+/// A core beside WoW this build knows how to run: its id, how, and where it runs (its manifest's
+/// `platforms`, known here so a page can say "not on this computer yet" before anything is
+/// fetched; None: everywhere). A provisioned core that isn't here is ignored, not shown.
+pub struct Known {
+    pub id: &'static str,
+    pub kind: Kind,
+    pub platforms: Option<&'static [&'static str]>,
+}
+
+pub const KNOWN: &[Known] = &[
+    Known {
+        id: "palworld",
+        kind: Kind::Fetched,
+        platforms: Some(&["macos"]),
+    },
+    Known {
+        id: "satisfactory",
+        kind: Kind::Relay,
+        platforms: None,
+    },
+];
+
+impl Known {
+    fn platforms(&self) -> Option<Vec<String>> {
+        self.platforms
+            .map(|p| p.iter().map(|p| p.to_string()).collect())
+    }
+
+    fn runs_here(&self) -> bool {
+        runs_on(self.platforms().as_deref(), this_platform())
+    }
+}
 
 pub fn known(id: &str) -> Option<&'static Known> {
     KNOWN.iter().find(|k| k.id == id)
@@ -98,7 +129,8 @@ enum Fetch {
 struct Side {
     control: Option<CoreControl>,
     worker: Option<JoinHandle<()>>,
-    core: Option<Arc<SidecarCore>>,
+    /// Its status card's rows, read from the running core.
+    rows: Option<Arc<dyn Fn() -> Vec<ryna_agent::core::StatusRow> + Send + Sync>>,
     fetch: Fetch,
     /// Its last words when it stopped by itself (and what fixes them, when it said).
     stopped: Option<(String, Option<String>)>,
@@ -247,9 +279,7 @@ pub fn reconcile(app: &AppHandle) {
         for c in cores.cores.iter().filter(|c| c.id != WOW_CORE_ID) {
             let Some(k) = known(&c.id) else { continue };
             let side = s.sides.entry(c.id.clone()).or_default();
-            let platforms: Vec<String> = k.platforms.iter().map(|p| p.to_string()).collect();
-            let runnable =
-                signed_in && runs_on(Some(&platforms), this_platform()) && settings.core_on(&c.id);
+            let runnable = signed_in && k.runs_here() && settings.core_on(&c.id);
             if !runnable {
                 if let Some(ctl) = &side.control {
                     ctl.stop();
@@ -257,6 +287,12 @@ pub fn reconcile(app: &AppHandle) {
             }
             // A package is fetched only for a core that is provisioned, runs here and is on.
             if !runnable {
+                continue;
+            }
+            if k.kind == Kind::Relay {
+                if !side.running() {
+                    to_start.push(c.id.clone());
+                }
                 continue;
             }
             let ready = state
@@ -339,13 +375,17 @@ pub fn retry_fetch(app: &AppHandle, id: &str) {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct CoreEvent<'a> {
+struct CoreEvent<'a, E: Serialize> {
     core: &'a str,
     name: &'a str,
-    event: &'a SidecarEvent,
+    event: &'a E,
 }
 
 fn start(app: &AppHandle, id: &str) {
+    if known(id).is_some_and(|k| k.kind == Kind::Relay) {
+        start_relay(app, id);
+        return;
+    }
     let config = app.state::<Agent>().config.clone();
     let Some(state) = ryna_agent::state_dir::state_dir() else {
         return;
@@ -367,7 +407,8 @@ fn start(app: &AppHandle, id: &str) {
             return;
         }
         side.control = Some(control.clone());
-        side.core = Some(core.clone());
+        let reader = core.clone();
+        side.rows = Some(Arc::new(move || reader.last_rows()));
         side.stopped = None;
         side.worker.take()
     };
@@ -420,6 +461,96 @@ fn start(app: &AppHandle, id: &str) {
     }
 }
 
+/// Start the Satisfactory relay: builtin, so nothing to fetch; its settings are the app's.
+fn start_relay(app: &AppHandle, id: &str) {
+    let config = app.state::<Agent>().config.clone();
+    let Some(state) = ryna_agent::state_dir::state_dir() else {
+        return;
+    };
+    let relay = agent::settings(app).satisfactory;
+    let core = Arc::new(SatisfactoryCore::new(&config.api, relay));
+    let name = answer(app)
+        .get(id)
+        .map(|c| c.name.clone())
+        .unwrap_or_else(|| core.manifest().name.clone());
+    let control = CoreControl::new();
+    let previous = {
+        let mut s = sidecars(app);
+        let side = s.sides.entry(id.to_string()).or_default();
+        if side.running() {
+            return;
+        }
+        side.control = Some(control.clone());
+        let reader = core.clone();
+        side.rows = Some(Arc::new(move || reader.rows_now()));
+        side.stopped = None;
+        side.worker.take()
+    };
+    let ctx = CoreContext {
+        state_dir: package::core_dir(&state, id),
+        tokens: Arc::new(KeychainTokens::new(config)),
+        device_key: None,
+        game_folder: None,
+    };
+    let (handle, core_id) = (app.clone(), id.to_string());
+    let worker = std::thread::spawn(move || {
+        let (app, id) = (handle, core_id);
+        if let Some(previous) = previous {
+            let _ = previous.join();
+        }
+        agent::drive(core.as_ref(), Some(&ctx), &control, &mut |event| {
+            let activity = core.activity(event);
+            {
+                let mut s = sidecars(&app);
+                let side = s.sides.entry(id.clone()).or_default();
+                agent::apply(&mut side.phases, &mut side.last_error, &activity);
+                if let SatisfactoryEvent::Stopped { message, fix } = event {
+                    side.stopped = Some((message.clone(), fix.clone()));
+                }
+            }
+            let _ = app.emit(
+                CORE_EVENT,
+                CoreEvent {
+                    core: &id,
+                    name: &name,
+                    event,
+                },
+            );
+        });
+        let _ = app.emit(CORE_FETCH, serde_json::json!({ "core": id }));
+    });
+    if let Some(side) = sidecars(app).sides.get_mut(id) {
+        side.worker = Some(worker);
+    }
+}
+
+/// Change the Satisfactory core's settings (FRM's port, 1 to 65535, and whether ryna.io may change
+/// the factory), keep them, and restart the relay if it runs so it uses them.
+pub fn set_relay_settings(app: &AppHandle, port: u16, allow_changes: bool) -> Result<(), String> {
+    if port == 0 {
+        return Err("The port must be between 1 and 65535.".to_string());
+    }
+    agent::update_settings(app, |s| {
+        s.satisfactory = RelaySettings {
+            port,
+            allow_changes,
+        };
+    })?;
+    let restart = {
+        let s = sidecars(app);
+        s.sides
+            .iter()
+            .filter(|(id, side)| known(id).is_some_and(|k| k.kind == Kind::Relay) && side.running())
+            .filter_map(|(_, side)| side.control.clone())
+            .collect::<Vec<_>>()
+    };
+    for c in restart {
+        c.stop();
+    }
+    reconcile(app);
+    Ok(())
+}
+
 /// Sync now: every running fetched core gets a pass now, and the API is asked again.
 pub fn sync_now(app: &AppHandle) {
     for side in sidecars(app).sides.values() {
@@ -466,6 +597,8 @@ pub struct SideView {
     pub id: String,
     pub name: String,
     pub version: String,
+    /// The Satisfactory relay's settings, for its page; None for any other core.
+    pub relay: Option<RelaySettings>,
     pub platforms: Vec<String>,
     pub state: CoreState,
     pub on: bool,
@@ -532,7 +665,7 @@ pub fn views(app: &AppHandle) -> Vec<SideView> {
         .filter(|c| c.id != WOW_CORE_ID)
         .filter_map(|c| {
             let k = known(&c.id)?;
-            let platforms: Vec<String> = k.platforms.iter().map(|p| p.to_string()).collect();
+            let platforms = k.platforms().unwrap_or_default();
             let side = s.sides.get(&c.id);
             let (fetching, failed) = match side.map(|s| &s.fetch) {
                 Some(Fetch::Running { done, total }) => (Some((*done, *total)), None),
@@ -543,7 +676,7 @@ pub fn views(app: &AppHandle) -> Vec<SideView> {
             let on = choice.unwrap_or(false);
             let state = Facts {
                 signed_in,
-                runs_here: runs_on(Some(&platforms), this_platform()),
+                runs_here: k.runs_here(),
                 platforms: &platforms,
                 on: choice,
                 fetching,
@@ -556,13 +689,14 @@ pub fn views(app: &AppHandle) -> Vec<SideView> {
                 id: c.id.clone(),
                 name: c.name.clone(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
+                relay: (k.kind == Kind::Relay).then_some(settings.satisfactory),
                 platforms,
                 state,
                 on,
                 last_error: side.and_then(|s| s.last_error.clone()),
                 rows: side
-                    .and_then(|s| s.core.as_ref())
-                    .map(|c| c.last_rows())
+                    .and_then(|s| s.rows.as_ref())
+                    .map(|rows| rows())
                     .unwrap_or_default(),
             })
         })
@@ -584,11 +718,19 @@ mod tests {
     #[test]
     fn only_provisioned_cores_this_build_knows_are_shown() {
         let answer = Cores {
-            cores: vec![core("wow"), core("palworld"), core("satisfactory")],
+            cores: vec![
+                core("wow"),
+                core("palworld"),
+                core("minecraft"),
+                core("satisfactory"),
+            ],
             at: 1,
         };
         let ids = |c: Cores| c.cores.into_iter().map(|c| c.id).collect::<Vec<_>>();
-        assert_eq!(ids(shown(Some(&answer), true)), ["wow", "palworld"]);
+        assert_eq!(
+            ids(shown(Some(&answer), true)),
+            ["wow", "palworld", "satisfactory"]
+        );
         // Signed out: WoW alone, whatever was kept.
         assert_eq!(ids(shown(Some(&answer), false)), ["wow"]);
         // Nothing kept: WoW alone.
@@ -705,10 +847,13 @@ mod tests {
     }
 
     #[test]
-    fn palworld_is_known_and_runs_on_macos_only() {
+    fn palworld_is_fetched_for_macos_and_satisfactory_is_builtin_everywhere() {
         let k = known("palworld").unwrap();
-        assert_eq!(k.platforms, ["macos"]);
-        assert!(known("satisfactory").is_none());
+        assert_eq!((k.kind, k.platforms), (Kind::Fetched, Some(&["macos"][..])));
+        let s = known("satisfactory").unwrap();
+        assert_eq!((s.kind, s.platforms), (Kind::Relay, None));
+        assert!(s.runs_here());
+        assert!(known("minecraft").is_none());
         assert!(known(WOW_CORE_ID).is_none());
     }
 }

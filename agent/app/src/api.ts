@@ -85,13 +85,23 @@ export type CoreState =
   | { is: "notHere"; platforms: string[] }
   | { is: "signedOut" };
 
+/** The Satisfactory relay's settings (ryna_satisfactory_core::relay::RelaySettings). */
+export interface RelaySettings {
+  port: number;
+  allowChanges: boolean;
+}
+
 /** A provisioned core: its card and its page (agent.rs `CoreView`). */
 export interface CoreView {
   id: string;
   name: string;
   version: string;
-  /** `builtin` (WoW, in the app) or `sidecar` (fetched, a separate program). */
+  /** `builtin` (in the app: WoW, the Satisfactory relay) or `sidecar` (fetched, a separate program). */
   kind: "builtin" | "sidecar";
+  /** Turned on and off per computer: every core but WoW. */
+  switchable: boolean;
+  /** The Satisfactory relay's settings; null for any other core. */
+  relay: RelaySettings | null;
   rows: StatusRow[];
   state: CoreState;
   /** The person's switch for a fetched core (WoW: always true). */
@@ -112,11 +122,21 @@ export type SidecarEvent =
   | { event: "exited"; message: string }
   | { event: "stopped"; message: string; fix: string | null };
 
-/** `core-event`: a sidecar core's event, with which core. */
+/** The Satisfactory relay's event (ryna_satisfactory_core::relay::SatisfactoryEvent). */
+export type SatisfactoryEvent =
+  | { event: "connected" }
+  | { event: "disconnected"; why: string }
+  | { event: "frmAnswering"; port: number }
+  | { event: "frmNotAnswering"; port: number }
+  | { event: "writeRefused"; path: string }
+  | { event: "failed"; message: string; fix: Fix; advice: string }
+  | { event: "stopped"; message: string; fix: string | null };
+
+/** `core-event`: a core's event beside WoW's, with which core. */
 export interface CoreEvent {
   core: string;
   name: string;
-  event: SidecarEvent;
+  event: SidecarEvent | SatisfactoryEvent;
 }
 
 /** `core-fetch`: a package fetch's progress or end (`core` null: the cores answer changed). */
@@ -490,6 +510,9 @@ export const api = {
   setModEnabled: (id: string, on: boolean) => invoke<ModToggleResult>("set_mod_enabled", { id, on }),
   /** Turns a fetched core on or off on this computer. */
   setCoreEnabled: (id: string, on: boolean) => invoke<void>("set_core_enabled", { id, on }),
+  /** The Satisfactory core's settings: FRM's port and "Let ryna.io change the factory". */
+  setRelaySettings: (port: number, allowChanges: boolean) =>
+    invoke<void>("set_relay_settings", { port, allowChanges }),
   /** Fetches a core's package again after a failure. */
   retryCoreFetch: (id: string) => invoke<void>("retry_core_fetch", { id }),
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),

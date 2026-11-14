@@ -1,17 +1,37 @@
 <script setup lang="ts">
-// A fetched core's page (Palworld): the parts the agent already has and nothing else. Its one
+// The page of a core beside WoW (Palworld, fetched; Satisfactory, the builtin relay, which has
+// no fetch states and adds its port and changes settings): the parts the agent already has. Its one
 // state panel (ready to turn on, Getting…, Retry, not on this computer yet, stopped, off) from
 // coreWords,
 // the status card's rows as the core lays them out, its activity lines, and its on/off switch.
 // The panel is plain `banner` markup with a class per state, so it restyles without code.
 import { computed, ref } from "vue";
 import { api, errorText, type CoreView } from "../api";
-import { coreLines, corePanel } from "../coreWords";
+import { coreLines, corePanel, coreWords, portError } from "../coreWords";
 import { activity, log, refresh } from "../store";
 
 const props = defineProps<{ core: CoreView }>();
 
 const panel = computed(() => corePanel(props.core));
+const words = computed(() => coreWords(props.core.id));
+const port = ref(String(props.core.relay?.port ?? 8080));
+const portProblem = computed(() => portError(port.value));
+
+/** The Satisfactory relay's two settings; a change restarts the link. */
+async function saveRelay(allowChanges: boolean): Promise<void> {
+  if (!props.core.relay || portProblem.value) return;
+  try {
+    await api.setRelaySettings(Number(port.value), allowChanges);
+    log(
+      `${props.core.name}: FRM on 127.0.0.1:${port.value}, changes ${allowChanges ? "allowed" : "not allowed"}.`,
+      "info",
+      props.core.id,
+    );
+  } catch (e) {
+    log(errorText(e), "error", props.core.id);
+  }
+  await refresh();
+}
 const lines = computed(() => coreLines(activity.value, props.core.id));
 const busy = ref(false);
 
@@ -96,10 +116,41 @@ async function toggle(e: Event): Promise<void> {
       <label class="setting">
         <input type="checkbox" :checked="core.on" @change="toggle" />
         <span>
-          Sync {{ core.name }} on this computer
-          <span class="muted">Off stops it here; your account keeps it.</span>
+          {{ words.switchLabel(core.name) }}
+          <span class="muted">{{ words.switchNote }}</span>
         </span>
       </label>
+      <template v-if="core.relay">
+        <div class="setting">
+          <span>
+            Ficsit Remote Monitoring's port
+            <span class="muted">Ryna calls the mod on 127.0.0.1 only, never anywhere else.</span>
+            <span v-if="portProblem" class="error-text">{{ portProblem }}</span>
+          </span>
+          <span class="row-actions">
+            <input v-model="port" type="text" inputmode="numeric" size="6" aria-label="Port" />
+            <button
+              type="button"
+              class="quiet"
+              :disabled="!!portProblem || Number(port) === core.relay.port"
+              @click="saveRelay(core.relay.allowChanges)"
+            >
+              Save
+            </button>
+          </span>
+        </div>
+        <label class="setting">
+          <input
+            type="checkbox"
+            :checked="core.relay.allowChanges"
+            @change="saveRelay(($event.target as HTMLInputElement).checked)"
+          />
+          <span>
+            Let ryna.io change the factory
+            <span class="muted">Off: ryna.io can only read the factory. On: it can also change it, when ryna.io's own write switch allows.</span>
+          </span>
+        </label>
+      </template>
     </section>
   </div>
 </template>

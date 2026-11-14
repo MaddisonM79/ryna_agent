@@ -618,8 +618,12 @@ pub struct CoreView {
     pub id: String,
     pub name: String,
     pub version: String,
-    /// `builtin` (WoW) or `sidecar` (fetched).
+    /// `builtin` (in the app: WoW, the Satisfactory relay) or `sidecar` (fetched).
     pub kind: &'static str,
+    /// Turned on and off per computer (every core but WoW, which is always on).
+    pub switchable: bool,
+    /// The Satisfactory relay's settings (FRM's port, whether changes are allowed); null otherwise.
+    pub relay: Option<ryna_satisfactory_core::relay::RelaySettings>,
     pub rows: Vec<StatusRow>,
     pub state: CoreState,
     /// The person's switch (WoW: always on; its loop is the header's).
@@ -637,6 +641,8 @@ fn core_view<C: Core>(core: &C, ctx: Option<&CoreContext>, watching: bool) -> Co
         name: m.name.clone(),
         version: m.version.clone(),
         kind: "builtin",
+        switchable: false,
+        relay: None,
         rows: ctx.map(|ctx| core.status_rows(ctx)).unwrap_or_default(),
         state: if watching {
             CoreState::Running
@@ -658,7 +664,13 @@ impl From<crate::cores::SideView> for CoreView {
             id: v.id,
             name: v.name,
             version: v.version,
-            kind: "sidecar",
+            kind: if v.relay.is_some() {
+                "builtin"
+            } else {
+                "sidecar"
+            },
+            switchable: true,
+            relay: v.relay,
             rows: v.rows,
             state: v.state,
             on: v.on,

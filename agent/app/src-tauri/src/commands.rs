@@ -145,6 +145,16 @@ pub async fn set_core_enabled(app: AppHandle, id: String, on: bool) -> Result<()
     blocking(move || crate::cores::set_on(&app, &id, on)).await
 }
 
+/// The Satisfactory core's settings: FRM's port and "Let ryna.io change the factory".
+#[tauri::command]
+pub async fn set_relay_settings(
+    app: AppHandle,
+    port: u16,
+    allow_changes: bool,
+) -> Result<(), String> {
+    blocking(move || crate::cores::set_relay_settings(&app, port, allow_changes)).await
+}
+
 /// Retry on a core whose package couldn't be fetched.
 #[tauri::command]
 pub async fn retry_core_fetch(app: AppHandle, id: String) -> Result<(), String> {

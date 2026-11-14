@@ -24,6 +24,9 @@ pub struct Settings {
     /// (Chronicle: on).
     #[serde(default)]
     pub mods: BTreeMap<String, bool>,
+    /// The Satisfactory core's two settings: FRM's port and "Let ryna.io change the factory".
+    #[serde(default)]
+    pub satisfactory: ryna_satisfactory_core::relay::RelaySettings,
     /// Each fetched core the person turned on (or off again) on this computer, by id; a core not
     /// here has never been turned on, and is off.
     #[serde(default)]
@@ -42,6 +45,7 @@ impl Default for Settings {
             keep_raw: false,
             mods: BTreeMap::new(),
             cores: BTreeMap::new(),
+            satisfactory: Default::default(),
         }
     }
 }
@@ -105,6 +109,10 @@ mod tests {
             keep_raw: true,
             mods: BTreeMap::from([("chronicle".to_string(), false)]),
             cores: BTreeMap::from([("palworld".to_string(), false)]),
+            satisfactory: ryna_satisfactory_core::relay::RelaySettings {
+                port: 9090,
+                allow_changes: true,
+            },
         };
         assert!(!s.core_on("palworld") && !s.core_on("satisfactory"));
         assert_eq!(s.core_choice("palworld"), Some(false));
@@ -122,6 +130,9 @@ mod tests {
         // And before fetched cores: none turned on yet, so every one off.
         assert!(!old.core_on("palworld"));
         assert_eq!(old.core_choice("palworld"), None);
+        // And before Satisfactory: FRM's usual port, changes not allowed.
+        assert_eq!(old.satisfactory.port, 8080);
+        assert!(!old.satisfactory.allow_changes);
         let v: serde_json::Value =
             serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
         assert_eq!(v["mods"]["chronicle"], serde_json::json!(false));

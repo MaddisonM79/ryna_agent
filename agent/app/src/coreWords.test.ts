@@ -10,6 +10,8 @@ function core(state: CoreState, over: Partial<CoreView> = {}): CoreView {
     name: "Palworld",
     version: "0.5.0",
     kind: "sidecar",
+    switchable: true,
+    relay: null,
     rows: [],
     state,
     on: true,
@@ -24,6 +26,7 @@ const wow: CoreView = {
   id: "wow",
   name: "World of Warcraft: Forever",
   kind: "builtin",
+  switchable: false,
   platforms: [],
 };
 

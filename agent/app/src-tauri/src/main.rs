@@ -157,6 +157,7 @@ fn main() {
             commands::set_mod_enabled,
             commands::set_core_enabled,
             commands::retry_core_fetch,
+            commands::set_relay_settings,
             commands::set_autostart,
             commands::open_portal,
             commands::open_link,

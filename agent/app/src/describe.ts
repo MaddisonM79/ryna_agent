@@ -412,7 +412,7 @@ export const DEVICE_KEY_PROBLEM = "Device key unreadable: sign out and back in w
 export type HeaderStatus = Pick<Status, "signedIn" | "watching" | "lastRun" | "lastError" | "deviceKeyError"> & {
   accounts: Pick<AccountView, "phase">[];
   /** The provisioned cores; with fetched ones among them, any running core counts and an error names its core. */
-  cores?: Pick<CoreView, "kind" | "name" | "state" | "lastError">[];
+  cores?: Pick<CoreView, "switchable" | "name" | "state" | "lastError">[];
 };
 
 /**
@@ -426,8 +426,8 @@ export function headerState(s: HeaderStatus): HeaderState {
   if (s.deviceKeyError) return { state: "problem", text: "Problem", detail: DEVICE_KEY_PROBLEM, chip: "error" };
   if (!s.signedIn) return { state: "signedOut", text: "Signed out", detail: null, chip: "waiting" };
   const cores = s.cores ?? [];
-  const sidecars = cores.filter((c) => c.kind === "sidecar");
-  const wow = cores.find((c) => c.kind === "builtin");
+  const sidecars = cores.filter((c) => c.switchable);
+  const wow = cores.find((c) => !c.switchable);
   const sidecarRunning = sidecars.some((c) => c.state.is === "running");
   if (!s.watching && !sidecarRunning) return { state: "paused", text: "Paused", detail: null, chip: "update" };
   if (s.accounts.some((a) => a.phase === "pushing")) {

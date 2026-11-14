@@ -3957,6 +3957,7 @@ version = "0.4.1"
 dependencies = [
  "anyhow",
  "ryna-agent",
+ "ryna-satisfactory-core",
  "ryna-wow-core",
  "serde",
  "serde_json",
