@@ -554,7 +554,13 @@ fn too_large_slow_and_unreachable() {
         (dead_port(), "unreachable", "nothing is answering"),
     ] {
         let api = api_server(vec![Upgrade::Accept]);
-        let frm = Frm::with_limits(port, false, Duration::from_millis(400), 1024);
+        // Nothing listening is judged at the real limits (a 3 s connect, as on the factory's PC;
+        // on Windows a refused loopback connect takes about 2 s); the others at short ones.
+        let frm = if code == "unreachable" {
+            Frm::new(port, false)
+        } else {
+            Frm::with_limits(port, false, Duration::from_millis(400), 1024)
+        };
         let mut run = start(&api, core(&api, port, false).with_frm(frm));
         let mut ws = api.next();
         let hello = recv(&mut ws, true);

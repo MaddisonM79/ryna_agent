@@ -10,8 +10,13 @@
 //!   other method;
 //! - only `X-FRM-Authorization` is forwarded, only on a POST, and its value never reaches a log,
 //!   an event or the state folder (the request's `Debug` hides it);
-//! - 20 s a call (`timeout`), 8 MB a response (`bad_request`, too large), a refused connection is
-//!   `unreachable`; FRM's own status is passed through.
+//! - 20 s a call (`timeout`), 8 MB a response (`bad_request`, too large); FRM's own status is
+//!   passed through;
+//! - the connect has its own, shorter limit (3 s, and always under the call's), and any failure
+//!   before the connection is made, refused or timed out, is `unreachable`: on Windows a connect
+//!   to a closed port on 127.0.0.1 isn't refused at once but retried for about 2 s, and must still
+//!   read as "nothing is listening", not as a slow FRM. Only a connection that was made and then
+//!   didn't answer in time is `timeout`.
 
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -23,6 +28,8 @@ use serde::Serialize;
 pub const AUTH_HEADER: &str = "X-FRM-Authorization";
 pub const DEFAULT_PORT: u16 = 8080;
 pub const CALL_LIMIT: Duration = Duration::from_secs(20);
+/// The connect's own limit (and never more than half the call's, so it always ends first).
+pub const CONNECT_LIMIT: Duration = Duration::from_secs(3);
 pub const MAX_BODY: usize = 8 * 1024 * 1024;
 
 /// Why a request wasn't answered by FRM (the wire's `err.code`).
@@ -107,6 +114,8 @@ pub struct Frm {
     pub port: u16,
     pub allow_changes: bool,
     pub limit: Duration,
+    /// The connect's limit: `CONNECT_LIMIT`, or half the call's when that is shorter.
+    pub connect_limit: Duration,
     pub max_body: usize,
     client: reqwest::blocking::Client,
 }
@@ -118,10 +127,14 @@ impl Frm {
 
     /// The same with other limits (tests use shorter ones).
     pub fn with_limits(port: u16, allow_changes: bool, limit: Duration, max_body: usize) -> Frm {
+        let connect_limit = CONNECT_LIMIT.min(limit / 2);
         let client = reqwest::blocking::Client::builder()
             .user_agent(ryna_agent::user_agent())
             .redirect(reqwest::redirect::Policy::none())
             .no_proxy()
+            // Ends a connect that hangs before the call's own limit can: then it is a connect
+            // failure (`is_connect`), never a call that ran out of time.
+            .connect_timeout(connect_limit)
             .timeout(limit)
             .build()
             // Only fails when TLS can't initialise, and this client speaks plain http alone.
@@ -130,6 +143,7 @@ impl Frm {
             port,
             allow_changes,
             limit,
+            connect_limit,
             max_body,
             client,
         }
@@ -233,15 +247,17 @@ impl Frm {
     }
 
     fn failure(&self, e: &reqwest::Error) -> Answer {
-        if e.is_timeout() {
-            Answer::err(
-                ErrCode::Timeout,
-                format!("FRM didn't answer within {} s", self.limit.as_secs()),
-            )
-        } else if e.is_connect() {
+        // The connect phase first: a refused connect and one that timed out (`is_connect` and
+        // `is_timeout` both) are the same thing here, nothing listening.
+        if e.is_connect() {
             Answer::err(
                 ErrCode::Unreachable,
                 format!("nothing is answering on {}", self.base()),
+            )
+        } else if e.is_timeout() {
+            Answer::err(
+                ErrCode::Timeout,
+                format!("FRM didn't answer within {} s", self.limit.as_secs()),
             )
         } else {
             Answer::err(ErrCode::Unreachable, "FRM couldn't be reached")
@@ -296,6 +312,86 @@ mod tests {
         for bad in ["a=1 b", "a=/etc", "@host", "a=1#f", "a=?", "x=\r\n"] {
             assert!(!query_ok(bad), "{bad:?}");
         }
+    }
+
+    fn get() -> FrmRequest {
+        FrmRequest {
+            id: "1".into(),
+            method: "GET".into(),
+            path: "/getPower".into(),
+            query: None,
+            headers: BTreeMap::new(),
+            body: None,
+        }
+    }
+
+    #[test]
+    fn the_connect_always_ends_before_the_call() {
+        assert_eq!(Frm::new(8080, false).connect_limit, CONNECT_LIMIT);
+        let quick = Frm::with_limits(8080, false, Duration::from_millis(400), 1024);
+        assert_eq!(quick.connect_limit, Duration::from_millis(200));
+    }
+
+    #[test]
+    fn nothing_listening_is_unreachable_and_a_stalled_frm_is_a_timeout() {
+        // A port nothing listens on, at the real limits: refused (or, on Windows, retried until
+        // the connect's own limit), but never the call's timeout.
+        let dead = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = dead.local_addr().unwrap().port();
+        drop(dead);
+        let started = std::time::Instant::now();
+        let Answer::Err { code, .. } = Frm::new(port, false).call(&get()) else {
+            panic!("answered")
+        };
+        assert_eq!(code, ErrCode::Unreachable);
+        assert!(started.elapsed() < CONNECT_LIMIT + Duration::from_secs(2));
+        assert!(!Frm::new(port, false).reachable());
+        // Short limits too: the connect's half ends first, so it's still unreachable.
+        let Answer::Err { code, .. } =
+            Frm::with_limits(port, false, Duration::from_millis(400), 1024).call(&get())
+        else {
+            panic!("answered")
+        };
+        assert_eq!(code, ErrCode::Unreachable);
+
+        // Accepts the connection, then never answers: that one is a timeout.
+        let stall = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = stall.local_addr().unwrap().port();
+        let held = std::thread::spawn(move || {
+            let (s, _) = stall.accept().unwrap();
+            std::thread::sleep(Duration::from_millis(1500));
+            drop(s);
+        });
+        let Answer::Err { code, .. } =
+            Frm::with_limits(port, false, Duration::from_millis(400), 1024).call(&get())
+        else {
+            panic!("answered")
+        };
+        assert_eq!(code, ErrCode::Timeout);
+        held.join().unwrap();
+    }
+
+    #[test]
+    fn a_connect_that_runs_out_of_time_is_unreachable_not_a_timeout() {
+        // What Windows does to a closed loopback port (retry the connect for about 2 s), played by
+        // an address that never answers a connect: the connect's own limit ends it, reqwest says
+        // so with `is_connect` (and `is_timeout`), and that is `unreachable`.
+        let client = reqwest::blocking::Client::builder()
+            .no_proxy()
+            .connect_timeout(Duration::from_millis(200))
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let e = client.get("http://10.255.255.1:9/").send().unwrap_err();
+        assert!(e.is_connect(), "{e:?}");
+        let frm = Frm::new(8080, false);
+        assert!(matches!(
+            frm.failure(&e),
+            Answer::Err {
+                code: ErrCode::Unreachable,
+                ..
+            }
+        ));
     }
 
     #[test]
