@@ -9,15 +9,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use ryna_agent::auth::{self, Auth, AuthError, DeviceLogin, KeyringStore, TokenStore};
+use ryna_agent::auth::{self, AuthError, DeviceLogin, KeyringStore, TokenStore};
 use ryna_agent::cancel::CancelToken;
 use ryna_agent::config::Config;
 pub use ryna_agent::core::Phase;
 use ryna_agent::core::{Activity, Core, CoreContext, CoreControl, KeychainTokens, StatusRow};
 use ryna_agent::fix::Fix;
-use ryna_agent::http::HttpTransport;
 use ryna_agent::identity::{self, DeviceKey};
-use ryna_agent::util::SystemClock;
 use ryna_wow_core::addon_install;
 use ryna_wow_core::discovery::{self, Install};
 use ryna_wow_core::mods::{self as core_mods, ModChange, ModStatus};
@@ -406,8 +404,8 @@ fn clear_login(app: &AppHandle, token: &CancelToken) {
     }
 }
 
-/// Begin the device grant (for the header's Sign in, and a core's "Allow <name> on this
-/// computer": the same one approval, for every provisioned core) and return the code to show; the
+/// Begin the device grant (the one request every sign-in makes: `auth::start_device_login`) and
+/// return the code to show; the
 /// polling (`poll_device_login`) carries on on its own thread with a cancel token kept here, so
 /// `cancel_login` stops it. When it ends, `login-finished` is emitted, and on success a pass runs.
 pub fn start_login(app: &AppHandle) -> Result<LoginCode, String> {
@@ -426,17 +424,7 @@ pub fn start_login(app: &AppHandle) -> Result<LoginCode, String> {
         token
     };
     let config = agent.config.clone();
-    // One resource and every provisioned core's scope, as the cores answer last said (the
-    // agent's resource and WoW's scope before any answer).
-    let (resource, scopes) = crate::cores::sign_in_request(app);
-    let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
-    let started = HttpTransport::new()
-        .map_err(AuthError::Unavailable)
-        .and_then(|http| {
-            Auth::new(&config, &http, &keychain(&config), &SystemClock)
-                .start_device_login_for(&resource, &scopes)
-        });
-    let login = match started {
+    let login = match auth::start_device_login(&config) {
         Ok(login) => login,
         Err(e) => {
             clear_login(app, &token);
@@ -459,7 +447,7 @@ pub fn start_login(app: &AppHandle) -> Result<LoginCode, String> {
         let finished = LoginFinished::from_result(&result);
         let _ = handle.emit(LOGIN_FINISHED, &finished);
         if finished.ok {
-            // The new sign-in may cover cores the old one didn't: ask again, then sync.
+            // Sync, and ask which cores this person has.
             sync_now(&handle);
         }
     });
@@ -1168,6 +1156,13 @@ mod tests {
         assert_eq!(expired.error.as_deref(), Some("The sign-in code expired."));
         assert_eq!(expired.fix, Some(Fix::SignIn));
         assert!(LoginFinished::from_result(&Ok(())).ok);
+        // The IdP refusing the request itself: the window says so plainly, never its words.
+        let refused = LoginFinished::from_result::<()>(&Err(AuthError::Refused));
+        assert_eq!(
+            refused.error.as_deref(),
+            Some("Ryna couldn't start the sign-in. Try again in a little while.")
+        );
+        assert_eq!(sentence(&AuthError::Refused), refused.error.unwrap());
     }
 
     /// A core that runs one pass of events, or can't start at all.

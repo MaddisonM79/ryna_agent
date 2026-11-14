@@ -24,7 +24,8 @@ pub struct Settings {
     /// (Chronicle: on).
     #[serde(default)]
     pub mods: BTreeMap<String, bool>,
-    /// Each fetched core the person turned off (or back on), by id; a core not here is on.
+    /// Each fetched core the person turned on (or off again) on this computer, by id; a core not
+    /// here has never been turned on, and is off.
     #[serde(default)]
     pub cores: BTreeMap<String, bool>,
 }
@@ -46,9 +47,15 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// Whether the fetched core `id` is on (the person's choice; on unless turned off).
+    /// The person's choice for the fetched core `id` on this computer: None when they've never
+    /// turned it on (it's off, and its page offers to turn it on).
+    pub fn core_choice(&self, id: &str) -> Option<bool> {
+        self.cores.get(id).copied()
+    }
+
+    /// Whether the fetched core `id` is on: only once turned on here, and until turned off.
     pub fn core_on(&self, id: &str) -> bool {
-        self.cores.get(id).copied().unwrap_or(true)
+        self.core_choice(id).unwrap_or(false)
     }
 
     /// What the watch loop does with the combat logs.
@@ -99,7 +106,9 @@ mod tests {
             mods: BTreeMap::from([("chronicle".to_string(), false)]),
             cores: BTreeMap::from([("palworld".to_string(), false)]),
         };
-        assert!(!s.core_on("palworld") && s.core_on("satisfactory"));
+        assert!(!s.core_on("palworld") && !s.core_on("satisfactory"));
+        assert_eq!(s.core_choice("palworld"), Some(false));
+        assert_eq!(s.core_choice("satisfactory"), None);
         s.save(dir.path()).unwrap();
         assert_eq!(Settings::load(dir.path()), s);
         std::fs::write(dir.path().join(FILE), "{ not json").unwrap();
@@ -110,8 +119,9 @@ mod tests {
         assert!(old.send_digests && !old.keep_raw);
         // Settings written before mods: none chosen, so each is its default.
         assert!(old.mods.is_empty());
-        // And before fetched cores: every one on.
-        assert!(old.core_on("palworld"));
+        // And before fetched cores: none turned on yet, so every one off.
+        assert!(!old.core_on("palworld"));
+        assert_eq!(old.core_choice("palworld"), None);
         let v: serde_json::Value =
             serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
         assert_eq!(v["mods"]["chronicle"], serde_json::json!(false));

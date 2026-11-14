@@ -1,11 +1,11 @@
-// A fetched core's words: the one panel its page shows above its rows (Allow, Getting…, Retry,
-// not on this computer yet, stopped, off), its events as activity lines, and how many cores are
+// A fetched core's words: the one panel its page shows above its rows (ready to turn on,
+// Getting…, Retry, not on this computer yet, stopped, off), its events as activity lines, and how many cores are
 // running. Pure, so the tests hold every state's words. Kept apart from the components so the
 // states can be restyled without touching what they say.
 import type { CoreState, CoreView, SidecarEvent } from "./api";
 
 /** What the panel's button does. */
-export type PanelAction = "allow" | "retry" | "start";
+export type PanelAction = "turnOn" | "retry" | "start";
 
 export interface CorePanel {
   /** The state, for styling: one class per state. */
@@ -38,22 +38,22 @@ export function megabytes(bytes: number): string {
 
 /**
  * The panel a core's page shows above its rows, or null when it's running and there is
- * nothing to say. The words are the window's; Maddison reviews a mockup of the three new states
- * (Allow, Getting…, not on this computer yet) before they ship.
+ * nothing to say. The words are the window's: Maddison reviews a mockup of the new states (ready
+ * to turn on, Getting…, not on this computer yet) before they ship.
  */
 export function corePanel(core: Pick<CoreView, "name" | "state">): CorePanel | null {
   const { name, state } = core;
   switch (state.is) {
     case "running":
       return null;
-    case "allow":
+    case "ready":
       return {
         state: state.is,
-        tone: "update",
-        title: `Allow ${name} on this computer`,
-        text: `Your ryna.io account has ${name}. Allowing it is one approval in your browser, for every game your account has. Nothing of ${name} is downloaded or runs until then.`,
+        tone: "",
+        title: `${name} is ready to turn on`,
+        text: `Your ryna.io account has ${name}. Turning it on downloads it and starts syncing your saves from this computer. Nothing is downloaded or read until then.`,
         progress: null,
-        action: { label: `Allow ${name} on this computer`, does: "allow" },
+        action: { label: `Turn on ${name}`, does: "turnOn" },
       };
     case "fetching":
       return {

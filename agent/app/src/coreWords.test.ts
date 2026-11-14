@@ -32,15 +32,29 @@ describe("a fetched core's page", () => {
     expect(corePanel(core({ is: "running" }))).toBeNull();
   });
 
-  it("offers Allow for a core the sign-in doesn't cover yet", () => {
-    expect(corePanel(core({ is: "allow" }))).toEqual({
-      state: "allow",
-      tone: "update",
-      title: "Allow Palworld on this computer",
-      text: "Your ryna.io account has Palworld. Allowing it is one approval in your browser, for every game your account has. Nothing of Palworld is downloaded or runs until then.",
+  it("offers to turn on a core never turned on on this computer", () => {
+    expect(corePanel(core({ is: "ready" }, { on: false }))).toEqual({
+      state: "ready",
+      tone: "",
+      title: "Palworld is ready to turn on",
+      text: "Your ryna.io account has Palworld. Turning it on downloads it and starts syncing your saves from this computer. Nothing is downloaded or read until then.",
       progress: null,
-      action: { label: "Allow Palworld on this computer", does: "allow" },
+      action: { label: "Turn on Palworld", does: "turnOn" },
     });
+  });
+
+  it("has no Allow step any more", () => {
+    for (const state of [
+      { is: "ready" },
+      { is: "off" },
+      { is: "fetching", done: 0, total: null },
+      { is: "fetchFailed", message: "x" },
+      { is: "notHere", platforms: ["macos"] },
+      { is: "stopped", message: "x", fix: null },
+    ] as CoreState[]) {
+      const p = corePanel(core(state));
+      expect(JSON.stringify(p)).not.toMatch(/allow/i);
+    }
   });
 
   it("says Getting… with the download's progress", () => {
@@ -94,7 +108,7 @@ describe("a fetched core's page", () => {
   it("is a sidebar row after WoW only when provisioned", () => {
     const ids = (cores: CoreView[]) => pages(cores).map((p) => p.id);
     expect(ids([wow])).toEqual(["status", "core:wow", "settings", "activity", "about"]);
-    expect(ids([wow, core({ is: "allow" })])).toEqual(["status", "core:wow", "core:palworld", "settings", "activity", "about"]);
+    expect(ids([wow, core({ is: "ready" })])).toEqual(["status", "core:wow", "core:palworld", "settings", "activity", "about"]);
   });
 });
 
@@ -134,12 +148,12 @@ describe("the header and Status count every running core", () => {
   it("counts WoW's loop and each running fetched core", () => {
     expect(runningCores({ watching: true, cores: [wow, core({ is: "running" })] })).toBe(2);
     expect(runningCores({ watching: false, cores: [wow, core({ is: "running" })] })).toBe(1);
-    expect(runningCores({ watching: true, cores: [wow, core({ is: "allow" })] })).toBe(1);
+    expect(runningCores({ watching: true, cores: [wow, core({ is: "ready" })] })).toBe(1);
   });
 
   it("isn't Paused while a fetched core runs", () => {
     expect(headerState({ ...base, watching: false, cores: [wow, core({ is: "running" })] }).state).toBe("connected");
-    expect(headerState({ ...base, watching: false, cores: [wow, core({ is: "allow" })] }).state).toBe("paused");
+    expect(headerState({ ...base, watching: false, cores: [wow, core({ is: "ready" })] }).state).toBe("paused");
   });
 
   it("names the core an error belongs to", () => {
@@ -152,6 +166,6 @@ describe("the header and Status count every running core", () => {
     // WoW alone: the words as before.
     expect(headerState({ ...base, lastError: "Couldn't reach the API", cores: [wow] }).detail).toBe("Couldn't reach the API");
     expect(sidecarProblem([core({ is: "running" }, { lastError: "403" })])).toBe("Palworld: 403");
-    expect(sidecarProblem([core({ is: "allow" })])).toBeNull();
+    expect(sidecarProblem([core({ is: "ready" })])).toBeNull();
   });
 });

@@ -77,8 +77,8 @@ export type CoreState =
   | { is: "running" }
   | { is: "stopped"; message: string | null; fix: string | null }
   | { is: "off" }
-  /** Provisioned, but this computer's sign-in doesn't cover it yet. */
-  | { is: "allow" }
+  /** Provisioned, and never turned on on this computer. */
+  | { is: "ready" }
   | { is: "fetching"; done: number; total: number | null }
   | { is: "fetchFailed"; message: string }
   /** It doesn't run on this operating system. */

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // A fetched core's page (Palworld): the parts the agent already has and nothing else. Its one
-// state panel (Allow, Getting…, Retry, not on this computer yet, stopped, off) from coreWords,
+// state panel (ready to turn on, Getting…, Retry, not on this computer yet, stopped, off) from
+// coreWords,
 // the status card's rows as the core lays them out, its activity lines, and its on/off switch.
 // The panel is plain `banner` markup with a class per state, so it restyles without code.
 import { computed, ref } from "vue";
 import { api, errorText, type CoreView } from "../api";
 import { coreLines, corePanel } from "../coreWords";
-import { activity, log, login, loginBusy, refresh, signIn } from "../store";
+import { activity, log, refresh } from "../store";
 
 const props = defineProps<{ core: CoreView }>();
 
@@ -23,9 +24,13 @@ async function act(): Promise<void> {
   if (!does) return;
   busy.value = true;
   try {
-    if (does === "allow") await signIn();
-    else if (does === "retry") await api.retryCoreFetch(props.core.id);
-    else await api.setCoreEnabled(props.core.id, true);
+    if (does === "retry") {
+      await api.retryCoreFetch(props.core.id);
+    } else {
+      // "Turn on <name>" and "Start again" are the Settings switch turned on: it fetches, then starts.
+      await api.setCoreEnabled(props.core.id, true);
+      log(`${props.core.name} is on on this computer.`, "info", props.core.id);
+    }
   } catch (e) {
     log(errorText(e), "error", props.core.id);
   } finally {
@@ -57,15 +62,12 @@ async function toggle(e: Event): Promise<void> {
         <p v-if="panel.action">
           <button
             type="button"
-            :class="panel.action.does === 'allow' ? 'primary' : 'quiet'"
-            :disabled="busy || (panel.action.does === 'allow' && (loginBusy || !!login))"
+            :class="panel.action.does === 'turnOn' ? 'primary' : 'quiet'"
+            :disabled="busy"
             @click="act()"
           >
             {{ panel.action.label }}
           </button>
-          <span v-if="panel.action.does === 'allow' && login" class="muted">
-            Waiting for you to allow it in your browser: the code is at the top of the window.
-          </span>
         </p>
       </div>
       <dl v-if="core.rows.length" class="glance">
@@ -89,7 +91,7 @@ async function toggle(e: Event): Promise<void> {
         </li>
       </ol>
     </section>
-    <section v-if="core.state.is !== 'allow' && core.state.is !== 'notHere'">
+    <section v-if="core.state.is !== 'notHere'">
       <h2 class="sub">Settings</h2>
       <label class="setting">
         <input type="checkbox" :checked="core.on" @change="toggle" />

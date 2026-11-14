@@ -1,11 +1,14 @@
 //! The cores beside WoW (docs/ryna-agent-cores-mods.md 13): which ones the person is provisioned
 //! for (the API's cores answer, asked at start, every hour and on Sync now, kept in the state
-//! folder), fetching each one's package once it's allowed, and running it as a sidecar on its own
-//! thread through the same `drive` as the WoW core. Every running core is driven at once.
+//! folder), fetching each one's package once the person turns it on on this computer, and running
+//! it as a sidecar on its own thread through the same `drive` as the WoW core. Every running core
+//! is driven at once. The roster is the gate: the token this agent holds is admitted for every
+//! provisioned core, so nothing about the sign-in changes when one is added.
 //!
 //! A core is in the window only when the answer names it and this build knows how to run it
-//! ([`KNOWN`]); its name and whether it is allowed come from the answer, where it runs from here,
-//! and everything else from the `core.json` inside its package.
+//! ([`KNOWN`]); its name comes from the answer, where it runs from here, and everything else from
+//! the `core.json` inside its package. A fetched core is off on a computer until the person turns
+//! it on there; it then stays on, across restarts and updates, until they turn it off.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -67,8 +70,8 @@ pub enum CoreState {
     },
     /// Turned off by the person.
     Off,
-    /// Provisioned, but the sign-in doesn't cover it yet: "Allow <name> on this computer".
-    Allow,
+    /// Provisioned, never turned on on this computer: "<name> is ready to turn on".
+    Ready,
     /// "Getting <name>…".
     Fetching { done: u64, total: Option<u64> },
     /// The fetch failed: the words, and Retry.
@@ -150,22 +153,6 @@ fn answer(app: &AppHandle) -> Cores {
     shown(s.answer.as_ref(), signed_in)
 }
 
-/// What a sign-in (the header's, or a core's Allow) asks for: the answer's `signIn`, else the
-/// config's resource with every provisioned core's scope (WoW's alone before any answer).
-pub fn sign_in_request(app: &AppHandle) -> (String, Vec<String>) {
-    let config = app.state::<Agent>().config.clone();
-    let kept = {
-        let mut s = sidecars(app);
-        if s.answer.is_none() {
-            s.answer = Some(provisioned::current(
-                ryna_agent::state_dir::state_dir().as_deref(),
-            ));
-        }
-        s.answer.clone().unwrap_or_else(Cores::wow_alone)
-    };
-    kept.sign_in(&config)
-}
-
 /// Whether the WoW core is one the person has (always, until an answer leaves it out).
 pub fn wow_provisioned(app: &AppHandle) -> bool {
     answer(app).get(WOW_CORE_ID).is_some()
@@ -227,7 +214,7 @@ fn check_now(app: &AppHandle) {
 }
 
 /// Bring every fetched core in line with the answer, the sign-in and the person's switches:
-/// fetch what's allowed and missing, start what's ready and on, stop the rest.
+/// fetch what's on and missing, start what's fetched and on, stop the rest.
 pub fn reconcile(app: &AppHandle) {
     let agent = app.state::<Agent>();
     let signed_in = agent::signed_in(&agent.config);
@@ -261,16 +248,14 @@ pub fn reconcile(app: &AppHandle) {
             let Some(k) = known(&c.id) else { continue };
             let side = s.sides.entry(c.id.clone()).or_default();
             let platforms: Vec<String> = k.platforms.iter().map(|p| p.to_string()).collect();
-            let runnable = signed_in
-                && c.allowed
-                && runs_on(Some(&platforms), this_platform())
-                && settings.core_on(&c.id);
+            let runnable =
+                signed_in && runs_on(Some(&platforms), this_platform()) && settings.core_on(&c.id);
             if !runnable {
                 if let Some(ctl) = &side.control {
                     ctl.stop();
                 }
             }
-            // A package is fetched only for a core that is provisioned, allowed, runs here and is on.
+            // A package is fetched only for a core that is provisioned, runs here and is on.
             if !runnable {
                 continue;
             }
@@ -491,10 +476,10 @@ pub struct SideView {
 /// What decides a fetched core's page.
 pub struct Facts<'a> {
     pub signed_in: bool,
-    pub allowed: bool,
     pub runs_here: bool,
     pub platforms: &'a [String],
-    pub on: bool,
+    /// The person's switch on this computer: None when never turned on.
+    pub on: Option<bool>,
     pub fetching: Option<(u64, Option<u64>)>,
     pub fetch_failed: Option<&'a str>,
     pub running: bool,
@@ -512,11 +497,10 @@ impl Facts<'_> {
         if !self.signed_in {
             return CoreState::SignedOut;
         }
-        if !self.allowed {
-            return CoreState::Allow;
-        }
-        if !self.on {
-            return CoreState::Off;
+        match self.on {
+            None => return CoreState::Ready,
+            Some(false) => return CoreState::Off,
+            Some(true) => {}
         }
         if let Some(message) = self.fetch_failed {
             return CoreState::FetchFailed {
@@ -555,13 +539,13 @@ pub fn views(app: &AppHandle) -> Vec<SideView> {
                 Some(Fetch::Failed(m)) => (None, Some(m.as_str())),
                 _ => (None, None),
             };
-            let on = settings.core_on(&c.id);
+            let choice = settings.core_choice(&c.id);
+            let on = choice.unwrap_or(false);
             let state = Facts {
                 signed_in,
-                allowed: c.allowed,
                 runs_here: runs_on(Some(&platforms), this_platform()),
                 platforms: &platforms,
-                on,
+                on: choice,
                 fetching,
                 fetch_failed: failed,
                 running: side.is_some_and(Side::running),
@@ -590,24 +574,17 @@ mod tests {
     use super::*;
     use ryna_agent::provisioned::ProvisionedCore;
 
-    fn core(id: &str, allowed: bool) -> ProvisionedCore {
+    fn core(id: &str) -> ProvisionedCore {
         ProvisionedCore {
             id: id.into(),
             name: id.into(),
-            scope: format!("{id}:ingest"),
-            allowed,
         }
     }
 
     #[test]
     fn only_provisioned_cores_this_build_knows_are_shown() {
         let answer = Cores {
-            cores: vec![
-                core("wow", true),
-                core("palworld", false),
-                core("satisfactory", true),
-            ],
-            sign_in: None,
+            cores: vec![core("wow"), core("palworld"), core("satisfactory")],
             at: 1,
         };
         let ids = |c: Cores| c.cores.into_iter().map(|c| c.id).collect::<Vec<_>>();
@@ -618,7 +595,7 @@ mod tests {
         assert_eq!(ids(shown(None, true)), ["wow"]);
         // An answer without Palworld: no Palworld anywhere.
         let without = Cores {
-            cores: vec![core("wow", true)],
+            cores: vec![core("wow")],
             ..answer
         };
         assert_eq!(ids(shown(Some(&without), true)), ["wow"]);
@@ -630,10 +607,9 @@ mod tests {
         let stopped = ("this core needs a newer Ryna".to_string(), None);
         let ok = Facts {
             signed_in: true,
-            allowed: true,
             runs_here: true,
             platforms: &mac,
-            on: true,
+            on: Some(true),
             fetching: None,
             fetch_failed: None,
             running: true,
@@ -644,7 +620,7 @@ mod tests {
             Facts {
                 runs_here: false,
                 signed_in: false,
-                allowed: false,
+                on: None,
                 ..ok
             }
             .state(),
@@ -660,16 +636,25 @@ mod tests {
             .state(),
             CoreState::SignedOut
         );
+        // Never turned on here: ready to turn on, and nothing fetched or running counts.
         assert_eq!(
             Facts {
-                allowed: false,
-                on: false,
+                on: None,
+                running: false,
                 ..ok
             }
             .state(),
-            CoreState::Allow
+            CoreState::Ready
         );
-        assert_eq!(Facts { on: false, ..ok }.state(), CoreState::Off);
+        // Turned off: Off.
+        assert_eq!(
+            Facts {
+                on: Some(false),
+                ..ok
+            }
+            .state(),
+            CoreState::Off
+        );
         assert_eq!(
             Facts {
                 fetch_failed: Some("offline"),
@@ -704,6 +689,10 @@ mod tests {
                 message: Some("this core needs a newer Ryna".into()),
                 fix: None
             }
+        );
+        assert_eq!(
+            serde_json::to_value(CoreState::Ready).unwrap(),
+            serde_json::json!({ "is": "ready" })
         );
         assert_eq!(
             serde_json::to_value(CoreState::Fetching {
