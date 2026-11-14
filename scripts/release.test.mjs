@@ -66,8 +66,10 @@ test("no addon in this repository carries its own copy of the version", () => {
   assert.deepEqual(luaVersions(join(import.meta.dirname, "..")), []);
 });
 
-test("this repository's versions include Chronicle's, the Settings mod's and the Palworld core's", () => {
+test("this repository's versions include Chronicle's, the Settings mod's and the Palworld and Satisfactory cores'", () => {
   const found = readVersions(join(import.meta.dirname, ".."));
+  assert.ok("cores/satisfactory/core.json" in found);
+  assert.ok("Cargo.lock ryna-satisfactory-core" in found);
   assert.ok("cores/palworld/core.json" in found);
   assert.ok("cores/palworld/package.json" in found);
   assert.ok("mods/wow/chronicle/mod.json" in found);

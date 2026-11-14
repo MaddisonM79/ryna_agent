@@ -187,6 +187,16 @@ pub trait TokenProvider: Send + Sync {
         )
         .access_token()
     }
+    /// Forget the kept access token (the API refused it), so the next `access_token` refreshes.
+    fn forget_access_token(&self) {
+        let expired = crate::auth::AccessToken {
+            token: "expired".into(),
+            exp: 0,
+        };
+        if let Err(e) = self.store().set_access_token(&expired) {
+            eprintln!("couldn't forget the refused access token: {e}");
+        }
+    }
 }
 
 /// The real one: the OS keychain, under the issuer's names (`KeyringStore::for_issuer`).

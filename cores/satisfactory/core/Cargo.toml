@@ -1,0 +1,21 @@
+[package]
+name = "ryna-satisfactory-core"
+description = "The Satisfactory core for Ryna: a relay between ryna.io and the Ficsit Remote Monitoring mod on this computer's 127.0.0.1, over one outbound WebSocket."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ryna-agent = { path = "../../../agent/host" }
+getrandom.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tungstenite.workspace = true
+
+[dev-dependencies]
+ryna-agent = { path = "../../../agent/host", features = ["testing"] }
+tempfile.workspace = true
