@@ -1137,9 +1137,8 @@ with that core's scope. The IdP work (the new client, allowing several resources
 refresh per core under one consent, and retiring the two old clients once nobody uses them) is
 Maddison's; the agent can carry both old and new clients for a release or two.
 
-**Superseded 2026-11-13 by section 13.2**: no new client and no token per core; the agent's existing
-device client is linked to one agent resource whose scopes name the cores, and a sign-in asks only for
-the cores the person is provisioned for.
+**Superseded by section 13.2** (2026-11-14): no new client, no token per core and no IdP change; the
+API admits the agent's one token for every core its person is provisioned for.
 
 ## 9. Releases and updates
 
@@ -1426,8 +1425,7 @@ A person is **provisioned** for a core when the portal's roster grants them that
 `everyone`, so the WoW core is everyone's; Palworld and Satisfactory are granted by hand.
 
 - The agent asks the API: `GET /v1/portal/agent/cores`, with its token, answers the cores this
-  person is provisioned for (`{ cores: [{ id, name, scope, allowed }], signIn: { resource, scopes } }`,
-  13.2). It says nothing about anyone else and nothing about cores they aren't granted: an
+  person is provisioned for (`{ cores: [{ id, name }] }`). It says nothing about anyone else and nothing about cores they aren't granted: an
   unprovisioned core is simply absent.
 - The agent asks at start, after sign-in, every hour while open and on Sync now, and keeps the last
   answer in its state folder. **A core is only ever removed on an answer that leaves it out**: no
@@ -1438,36 +1436,35 @@ A person is **provisioned** for a core when the portal's roster grants them that
 - A provisioned core the platform can't run (Palworld on Windows and Linux today, 13.4) shows its
   entry with one line saying so, rather than vanishing: the person was told they have it.
 
-### 13.2 One sign-in, one token, a scope per core
+### 13.2 One sign-in; the roster is the gate
 
-*Rewritten the same day, after testing the IdP (identity `test/device-multi-resource.test.ts`). The
-first draft had a resource per core and a token per core from one refresh token. The provider can't
-do that: a request for several resources keeps only the scopes every one of them allows, so each
-core's own scope is dropped; and a refresh that narrows the scope narrows the whole chain for good.*
+*Third and settled form (Maddison, 2026-11-14: "the auth is the gate"). The first draft had a token
+per core, which the IdP can't issue from one sign-in (identity `test/device-multi-resource.test.ts`:
+a request for several resources keeps only the scopes all of them allow, and a refresh that narrows
+the scope narrows the chain for good). The second had one agent resource with a scope per core and
+an Allow step, a second approval in the browser whenever a core was added. She asked why the agent
+couldn't just see she was provisioned and get on with it. It can.*
 
-No new client. The agent's device client (the one in every released build) is linked at the IdP to
-one more resource, **`https://api.ryna.io/agent`** ("Ryna on your computer"), whose scopes name the
-cores: `wow:ingest`, `palworld:ingest`. What changes is what a sign-in asks for:
-
-- A sign-in is for that one resource, with the scopes of **the cores the person is provisioned for
-  and nothing else**. The first sign-in can't know, so it asks for `wow:ingest` alone. The consent
-  screen lists only the scopes asked for, so it never names a game the person doesn't have.
-- An installed app signed in before this holds a token for `https://api.ryna.io/wow/ingest`. It
-  keeps working with no new approval: the API admits both, and the agent refreshes with whichever
-  resource its sign-in was for.
-- The cores answer (13.1) says, for each provisioned core, whether the token that asked can
-  already act for it (`allowed`), and what a new sign-in should ask for to cover them all
-  (`signIn: { resource, scopes }`). A provisioned core that isn't allowed yet shows one button,
-  **Allow Palworld on this computer**, which runs one device approval for every provisioned core
-  together. The new refresh token replaces the old one.
-- **One access token for every core.** The refresh grant never sends `scope`. The API holds the
-  token to the cores its scopes name: a token with `wow:ingest` alone is refused on Palworld's
-  routes whatever its person is granted. A sidecar is handed that same token for the length of a
-  pass (13.4); it could call another allowed core's routes as the same person, which is the cost of
-  one token, and why a core package is trusted exactly as far as the app is (13.3).
-- The API's gate otherwise doesn't change: an `agent` principal reaches only agent routes, and the
-  person still needs the app's grant on every call. Taking a grant away stops the core at its next
-  push (403) and removes it at the next cores answer.
+- **Nothing changes at sign-in.** The agent signs in exactly as every released build does: one
+  device approval, one refresh token in the keychain, one access token. No new client, no change at
+  the IdP when a core is added, and no second approval ever.
+- **The API admits that one token for every core its person is provisioned for.** An `agent`
+  principal reaches only the cores' agent routes (pushes, heartbeats, the cores answer), and on each
+  call the person must hold that core's app grant. The grant is the only thing that separates one
+  core from another: provisioned for Palworld, the token an install already holds pushes Palworld
+  saves; not provisioned, the same call is a 403.
+- **What the person agrees to is in the app, not at the IdP.** A provisioned core that has never
+  been on on this computer shows "Palworld is ready to turn on" with one button. Nothing of it is
+  downloaded, and nothing of the game is read, until they press it. It stays on across restarts and
+  updates until they turn it off in the core's Settings.
+- **The cost, said plainly.** The consent screen a person saw when they signed in named WoW. A core
+  provisioned for them later is covered by that same sign-in, with the in-app button as their yes.
+  And the token on a person's computer can act for every core they are provisioned for, a fetched
+  core's sidecar included; that is why a core package is trusted exactly as far as the app (13.3).
+  Maddison provisions people herself, which is what makes this the right trade.
+- Taking a grant away stops the core at its next push (403) and removes it at the next cores answer.
+- `https://api.ryna.io/agent` exists at the API and the IdP as the name a future sign-in can move
+  to (the token's audience still says `wow/ingest`, which is only a name now). Nothing uses it yet.
 - The Palworld agent's old device client and its `…/palworld/ingest` resource stay valid until the
   launchd job is retired on every Mac that runs it (one today), then are removed.
 
@@ -1564,7 +1561,7 @@ that agent version is skipped by ingest.
 - A sidecar core's page is the parts the agent already has: the status card from its `status`
   rows, its activity lines, and Settings with its on/off switch. No Game, Accounts, Combat or Mods
   tab until the core has something to put there.
-- Three states are new: **Allow** (13.2), **Getting Palworld…** with the fetch's progress (13.3),
+- Three states are new: **ready to turn on** (13.2), **Getting Palworld…** with the fetch's progress (13.3),
   and **not on this computer yet** (13.4's platforms).
 - The header's chip and the Status page count every running core; an error names its core.
 
@@ -1575,18 +1572,13 @@ that agent version is skipped by ingest.
    sidecar runtime, the package fetch and its signature check.
 3. `cores/palworld`: the move, `serve`, the fixtures, its CI job, the release's package step.
 4. The window (13.6).
-5. The IdP: the agent resource (seeded at the next deploy), then the client linked to it in the
-   admin portal and a scope sync (production, on Maddison's word; the API goes first, since the
-   IdP reads the resource's scopes from the API's document).
+5. Nothing at the IdP (13.2).
 6. A release, then the move on her Mac (13.5).
 
 ### 13.8 Hers to call
 
-- **The Allow step** (13.2): a second approval when a core is added, so the consent screen never
-  names a game the person doesn't have. The alternative is asking for every core at every sign-in,
-  which shows Palworld and Satisfactory to every WoW player.
-- **One token for every core** (13.2) instead of one each: the IdP can't issue one each from a
-  single sign-in. The alternative that keeps them apart is a sign-in per core.
+- Settled 2026-11-14: **the roster is the gate** (13.2). No Allow step, no per-core scope; a core is
+  turned on in the app.
 - **The window's three new states** (13.6) get a mockup before they ship.
 - **Windows and Linux Palworld** (Steam saves): whether and when.
 
@@ -1605,7 +1597,7 @@ outbound WebSocket to the API. The API sends each FRM request down it and the co
 `127.0.0.1:8080`. Nothing listens on the PC for the internet, and the tunnel, its DNS name, the
 Access application and its token all go away.
 
-- **Scope**: `frm:relay` on the agent's resource (13.2) ("Let ryna.io read your
+- **Scope**: none of its own; the agent's one token, admitted by the grant below (13.2) ("Let ryna.io read your
   Satisfactory factory through this computer while Ryna is open"). One route:
   `GET /v1/frm/agent/relay` (the upgrade).
 - **Who may be the origin**: FRM is one factory today. A new permission, `frm:host`, says whose
