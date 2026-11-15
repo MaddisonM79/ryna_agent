@@ -216,6 +216,18 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   ids around 86000 and up (Doud `Core.lua:724`).
 - **Watch**: the NPC's GUID can be secret, so a quest-giver check by NPC id must fail safe
   (Questie, above). Native quest ids stay readable (Questie `Modules/QuestieCompat.lua:200-202`).
+- **The quest log's rows** (Blz, read 2026-11-15 at the `forever` head "1.60.1 (70938)"): Forever's
+  quest log is the mainline `QuestMapFrame` (`Blizzard_UIPanels_Game.toc:173-178` loads
+  `[Family]\QuestMapFrame.lua [AllowLoadGameType mainline]`, camelot being in that family, with
+  Camelot overrides). It walks `C_QuestLog.GetInfo(i)` for `i = 1, C_QuestLog.GetNumQuestLogEntries()`
+  (`Mainline/QuestMapFrame.lua:1669-1705`): the log is one flat list where a header row has
+  `isHeader = true` and its `title` is the heading (a zone or a category), and each quest after it
+  belongs to the last header before it (`info.header = lastHeader`). `QuestInfo` has `title`,
+  `questLogIndex`, `questID`, `level`, `isHeader`, `isCollapsed`, `headerSortKey` and more;
+  `GetInfo` may return nil (Docs `QuestLogDocumentation.lua:191-204, 1547-1578`). Collapsed headers
+  still list their quests there (Blizzard hides them by `info.header.isCollapsed`, line 1655).
+  Chronicle records that heading on each active quest (`Quests.lua`); **not yet checked in game**
+  (Still owed 14).
 
 ### `/who` and `C_FriendList`
 
@@ -447,6 +459,8 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | Names are First plus Last-as-realm | Addons | ElvUI `Core.lua:70`; Pawn `Pawn.lua:588` |
 | Unknown event name errors on register | Addons | Doud `Core.lua:845` |
 | `/dump` prints nothing for zero values | Game | Team |
+| Combat log `ZONE_CHANGE,<map id>,"<zone>",<difficulty>`: the first field is the map id (36 inside The Deadmines, as `ENCOUNTER_START` names it; 0 and 1 the continents; 2991 Zephras Isle; 369 Deeprun Tram); the difficulty is written 0 on zoning into a dungeon, 1 only after a `/reload` inside, and the old one is kept on the way out (`ZONE_CHANGE,0,"The Deadmines",1`), so the agent decides "in an instance" by map id (the client's `Map` table, `cores/wow/core/src/combat/maps.rs`) | Disk (2026-11-15) | every `ZONE_CHANGE` in the 40 combat logs in `_forever_/Logs`, Nov 6 to 14 |
+| The client holds combat-log lines and writes them in bursts: a `/reload` writes its `COMBAT_LOG_VERSION` header at once, in front of held lines up to 300 s older (once in a boss fight), so neither the header's time nor a quiet file means a fight is over | Disk (2026-11-15) | the same 40 logs; `cores/wow/core/src/combat/segment.rs` (`FLUSH_GRACE_MS`) |
 | Combat log `ZONE_CHANGE` names the zone as `GetRealZoneText` does (the dungeon inside one), and also a building walked into ("Lion's Pride Inn") and "UNKNOWN AREA" on a loading screen, neither with a `MAP_CHANGE` | Disk (2026-11-10) | 26 logs in `_forever_/Logs`; docs/ryna-agent-cores-mods.md 7.6 |
 | `C_MountJournal` lists 136, collected flag is `GetMountInfoByID`'s 11th value; `C_PetJournal.GetNumPets()` is listed, owned (owned only by default); the encounter journal is loadable and empty (`EJ_GetNumTiers()` 0); `C_AddOns.LoadAddOn` loads a load-on-demand addon | Game (2026-11-09); Blz | Team; Blz TOCs on `forever` |
 
@@ -487,6 +501,13 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
     `/dump C_XMLUtil.GetTemplateInfo("WowStyle1DropdownTemplate") ~= nil, C_XMLUtil.GetTemplateInfo("SearchBoxTemplate") ~= nil`
     (the character picker falls back to a list of its own, the search box to a plain one);
     `/dump RAID_CLASS_COLORS.MAGE, ITEM_QUALITY_COLORS[2], FACTION_BAR_COLORS and FACTION_BAR_COLORS[5], FACTION_STANDING_LABEL5, LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE.MAGE, HEADSLOT, RANGEDSLOT`
+14. The quest log's header rows as Chronicle reads them (Blizzard's source, not yet seen in game), with a few
+    quests in the log: `/run for i=1,C_QuestLog.GetNumQuestLogEntries() do local q=C_QuestLog.GetInfo(i) if q then print(i, q.isHeader, q.title, q.questID) end end`
+    (each header row should print `true` and the heading the quest log shows, its quests after it with `false`);
+    then `/dump issecretvalue(C_QuestLog.GetInfo(1).title)` (expect `false`)
+15. Gold at logout (what `GetMoney()` answers during `PLAYER_LOGOUT` is unknown; saved records had 0): log
+    character A out to the character list, log in character B, and open Ryna's window, Characters: A's gold
+    should be what A carried, not 0
 
 ## Links
 
