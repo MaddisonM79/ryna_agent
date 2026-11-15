@@ -32,7 +32,10 @@
 --                                     .Refresh(key), .Choose(guid), .Characters(), .Match(text,
 --                                     search), .QualityColor(q), .ClassColor(class), .ClassName(class),
 --                                     .Money(copper), .ItemIcon(id), .TooltipSection() (cores after
---                                     0.3.9; a mod checks `Ryna.Window` before using it)
+--                                     0.3.9; a mod checks `Ryna.Window` before using it); a "strip"
+--                                     column and row.strips, .STRIP_MAX (48) and .StripShare(v) (the
+--                                     0..1 a block draws), and a title that is function(ctx) (cores
+--                                     after 0.4.2; a mod checks `Ryna.Window.STRIP_MAX`)
 --   Ryna.Tooltip.HasLine(tooltip, text), .AddLine(tooltip, text, r, g, b, wrap)   the shared guard:
 --                                     a line is never added twice, nor over the same text already
 --                                     drawn (cores after 0.3.9)
@@ -194,6 +197,7 @@ R.Window = {
   TooltipSection = function(tooltip) return Wn.TooltipSection(tooltip) end,
   Match = Wn.Match, QualityColor = Wn.QualityColor, ClassColor = Wn.ClassColor, ClassName = Wn.ClassName,
   Money = Wn.Money, ItemIcon = Wn.ItemIcon,
+  STRIP_MAX = Wn.STRIP_MAX, StripShare = Wn.StripShare,
 }
 
 R.Tooltip = {

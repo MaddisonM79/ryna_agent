@@ -16,8 +16,13 @@
 -- Kills and Loot have a zone picker (the core's section filter, 7.6): All zones, This zone, each
 -- zone the character has counts in, then Earlier travels (what was counted before Ryna kept zones).
 -- With a zone picked the numbers and the tiles are that zone's.
---   History     the journal's `level` events for a character, oldest first, with the time played
---               at each level (levels only for now)
+--   History     two views, by the section's picker. Levels: the journal's `level` events for a
+--               character, oldest first, with the time played at each level. Play: when the
+--               character played, from the journal's sessions (Play.lua): tiles (this week, the last 30
+--               days, the busiest weekday and hour, the longest sitting), a row per day, newest first,
+--               with a bar of the time played and the sessions that day, then "When you play, by hour":
+--               a row per weekday, Monday first, of 24 blocks whose brightness is that hour's share of
+--               the busiest weekday-hour (the window's strip), and a row labelling the hours under them
 --
 -- Kills, Loot and History are one character's: the one the picker names, the one you're on when it
 -- says All characters. Session is the one you're on. Rows are built light (ids and sort keys) and
@@ -32,6 +37,7 @@
 local _, ns = ...
 if ns.off then return end
 local L = ns.L
+local N = ns.N
 
 local Wn = {}
 ns.Window = Wn
@@ -651,6 +657,152 @@ local function historyTiles(ctx)
   }
 end
 
+-- History › Play ----------------------------------------------------------------------------------------
+
+local PLAY = "play"
+Wn.PLAY = PLAY
+
+local DAY_NAMES = {
+  { "WEEKDAY_MONDAY", N("Monday") }, { "WEEKDAY_TUESDAY", N("Tuesday") },
+  { "WEEKDAY_WEDNESDAY", N("Wednesday") }, { "WEEKDAY_THURSDAY", N("Thursday") },
+  { "WEEKDAY_FRIDAY", N("Friday") }, { "WEEKDAY_SATURDAY", N("Saturday") }, { "WEEKDAY_SUNDAY", N("Sunday") },
+}
+
+-- A weekday's name (Monday 1 .. Sunday 7): the client's own, else ours.
+function Wn.WeekdayName(wd)
+  local e = DAY_NAMES[wd]
+  if not e then return "" end
+  local name = ns.NonEmpty(_G[e[1]])
+  if name and not ns.IsSecret(name) then return name end
+  return L[e[2]]
+end
+
+-- An hour of the day (0..23) as "12 AM", "6 AM", "12 PM", "6 PM".
+function Wn.HourName(h)
+  h = tonumber(h) or 0
+  if h == 0 then return L["12 AM"] end
+  if h == 12 then return L["12 PM"] end
+  if h < 12 then return string.format(L["%d AM"], h) end
+  return string.format(L["%d PM"], h - 12)
+end
+
+-- A time played as History › Play writes it: "3h 05m", "42m", "under a minute".
+function Wn.PlayedText(seconds)
+  local m = math.floor((tonumber(seconds) or 0) / 60)
+  if m < 1 then return L["under a minute"] end
+  if m < 60 then return string.format(L["%dm"], m) end
+  return string.format(L["%dh %02dm"], math.floor(m / 60), m % 60)
+end
+
+-- A day's name: "Today", "Yesterday", else "Thursday, 2026-11-13" (the computer's calendar).
+function Wn.DayName(day, index)
+  if index == 1 then return L["Today"] end
+  if index == 2 then return L["Yesterday"] end
+  local p = day.parts
+  if type(p) ~= "table" then return "" end
+  return string.format(L["%s, %s"], Wn.WeekdayName(ns.Play.Weekday(p)),
+    string.format("%04d-%02d-%02d", p.year or 0, p.month or 0, p.day or 0))
+end
+
+-- The tally for a character (the rows and the tiles share it): rebuilt with the rows.
+local playTally = {}
+
+local function playTallyFor(rec)
+  local db = ns.db
+  local journal = db and type(db.journal) == "table" and db.journal or {}
+  local now = ns.Now()
+  local current = ns.API.Journal and ns.API.Journal.Session and ns.API.Journal.Session() or nil
+  local sittings = ns.Play.Sittings(journal, rec.guid, current, now)
+  return ns.Play.Tally(sittings, { now = now, oldest = ns.Play.Oldest(journal) })
+end
+
+local PLAY_COLOR = { r = 0.42, g = 0.36, b = 0.62 }
+local STRIP_COLOR = { 0.71, 0.58, 0.9 }
+
+local function playRows(ctx)
+  local rows = {}
+  local rec = Wn.Record(ctx.character)
+  playTally.rec, playTally.t = rec, nil
+  if not rec then return rows end
+  local t = playTallyFor(rec)
+  playTally.t = t
+  for i, day in ipairs(t.days) do
+    local played = day.seconds > 0
+    rows[#rows + 1] = {
+      day = day,
+      cells = { Wn.DayName(day, i), played and Wn.PlayedText(day.seconds) or L["not played"],
+        day.sessions > 0 and tostring(day.sessions) or "" },
+      bars = { [2] = { value = day.seconds, max = t.maxDay > 0 and t.maxDay or 1,
+        r = PLAY_COLOR.r, g = PLAY_COLOR.g, b = PLAY_COLOR.b } },
+      sort = { day.start, day.seconds, day.sessions },
+    }
+  end
+  rows[#rows + 1] = { header = true, cells = { L["When you play, by hour"] } }
+  for wd = 1, 7 do
+    rows[#rows + 1] = { weekday = wd, cells = { Wn.WeekdayName(wd), "", "" },
+      strips = { [2] = { values = ns.Play.Shares(t, wd), color = STRIP_COLOR } } }
+  end
+  rows[#rows + 1] = { axis = true, cells = { "", "", "" },
+    strips = { [2] = { count = 24, labels = { [1] = Wn.HourName(0), [7] = Wn.HourName(6),
+      [13] = Wn.HourName(12), [19] = Wn.HourName(18) } } } }
+  return rows
+end
+
+local function playTiles(ctx)
+  local rec = Wn.Record(ctx.character)
+  local t = playTally.t
+  if not rec or playTally.rec ~= rec or not t then return nil end
+  local function sessions(n) return ns.Plural(n, L["%d session"], L["%d sessions"]) end
+  local tiles = {
+    { label = L["This week"], value = t.week.seconds > 0 and Wn.PlayedText(t.week.seconds) or L["not played"],
+      sub = sessions(t.week.sessions) },
+    { label = L["Last 30 days"], value = t.month.seconds > 0 and Wn.PlayedText(t.month.seconds) or L["not played"],
+      sub = ns.Plural(t.month.days, L["on %d day"], L["on %d days"]) },
+  }
+  if t.busiestDay then
+    tiles[3] = { label = L["Busiest"], value = Wn.WeekdayName(t.busiestDay),
+      sub = string.format(L["around %s"], Wn.HourName(t.busiestHour)) }
+  else
+    tiles[3] = { label = L["Busiest"], value = L["not yet"] }
+  end
+  if t.longest and t.longest.seconds > 0 then
+    local p = ns.Play.LocalParts(t.longest.start)
+    local day = p and string.format("%04d-%02d-%02d", p.year or 0, p.month or 0, p.day or 0) or ""
+    tiles[4] = { label = L["Longest sitting"], value = Wn.PlayedText(t.longest.seconds),
+      sub = p and string.format(L["%s, %s"], Wn.WeekdayName(ns.Play.Weekday(p)), day) or nil }
+  else
+    tiles[4] = { label = L["Longest sitting"], value = L["not yet"] }
+  end
+  return tiles
+end
+
+local function playTooltip(row, tip)
+  if row.day then
+    tip:AddLine(row.cells[1])
+    tip:AddDoubleLine(L["Played"], row.day.seconds > 0 and Wn.PlayedText(row.day.seconds) or L["not played"],
+      0.8, 0.8, 0.8, 1, 1, 1)
+    tip:AddDoubleLine(L["Sessions"], tostring(row.day.sessions), 0.8, 0.8, 0.8, 1, 1, 1)
+  elseif row.weekday and playTally.t then
+    local hours = playTally.t.hours[row.weekday]
+    tip:AddLine(Wn.WeekdayName(row.weekday))
+    local any = false
+    for h = 1, 24 do
+      if hours[h] >= 60 then
+        any = true
+        tip:AddDoubleLine(Wn.HourName(h - 1), Wn.PlayedText(hours[h]), 0.8, 0.8, 0.8, 1, 1, 1)
+      end
+    end
+    if not any then tip:AddLine(L["not played"], 0.6, 0.6, 0.6) end
+  end
+end
+
+local LEVEL_COLUMNS = { { title = L["Level"], width = 70 }, { title = L["Reached"], width = 160 },
+  { title = L["Time at the level"], width = 150, justify = "RIGHT" },
+  { title = L["Played when reached"], width = 160, justify = "RIGHT" } }
+local PLAY_COLUMNS = { { title = L["Day"], width = 170 },
+  { title = L["Played"], width = 330, kind = "strip" },
+  { title = L["Sessions"], width = 80, justify = "RIGHT" } }
+
 if Wn.available then
   add({
     key = "session", group = "me", order = 10, label = L["Session"], characters = "current",
@@ -697,19 +849,40 @@ if Wn.available then
     end,
     rows = zonesRows, tiles = zonesTiles, tooltip = zonesTooltip, click = zonesClick, footer = zonesFooter,
   })
+  -- History's views (its picker): Levels, and Play when the core can draw the strip.
+  local playView = RW.STRIP_MAX ~= nil
   add({
     key = "history", group = "me", order = 60, label = L["History"], characters = "one", search = false,
-    columns = { { title = L["Level"], width = 70 }, { title = L["Reached"], width = 160 },
-      { title = L["Time at the level"], width = 150, justify = "RIGHT" },
-      { title = L["Played when reached"], width = 160, justify = "RIGHT" } },
+    -- (a core before the strip would print a function as the title, so only with Play)
+    title = playView and function(ctx)
+      if ctx.filter == PLAY then return string.format(L["%s › %s"], L["History"], L["Play"]) end
+      return L["History"]
+    end or nil,
+    filter = playView and function()
+      return { { value = nil, label = L["Levels"] }, { value = PLAY, label = L["Play"] } }
+    end or nil,
+    columns = function(ctx) return ctx.filter == PLAY and PLAY_COLUMNS or LEVEL_COLUMNS end,
     version = function()
       local db = ns.db
       -- and the minute: the current level's time played counts on.
       return tostring(db and type(db.journal) == "table" and #db.journal or 0) .. ":" .. ns.Session.levelVersion
         .. ":" .. math.floor(GetTime() / 60)
     end,
-    rows = historyRows, tiles = historyTiles,
-    footer = function() return L["From the journal's level-ups (it keeps 30 days) and /played."] end,
+    rows = function(ctx)
+      if ctx.filter == PLAY then return playRows(ctx) end
+      return historyRows(ctx)
+    end,
+    tiles = function(ctx)
+      if ctx.filter == PLAY then return playTiles(ctx) end
+      return historyTiles(ctx)
+    end,
+    tooltip = function(row, tip, ctx) if ctx.filter == PLAY then playTooltip(row, tip) end end,
+    footer = function(ctx)
+      if ctx.filter == PLAY then
+        return L["From the journal in your saved file, which keeps 30 days; times are on this computer's clock."]
+      end
+      return L["From the journal's level-ups (it keeps 30 days) and /played."]
+    end,
   })
   -- Redrawn when Session.lua says something changed, only while the window is open.
   ns.Session.Watch(function() return RW.IsShown() end, function() RW.Refresh() end)
@@ -743,12 +916,16 @@ function Wn.Toggle()
 end
 
 -- /chronicle, and /ryna chronicle: opens the window where it was last, or closes it ("/chronicle
--- kills" opens a section; "levels" is History's old name).
-local ALIASES = { levels = "history" }
+-- kills" opens a section; "levels" and "play" open History on that view).
+local ALIASES = { levels = "history", play = "history" }
 local function command(arg)
   arg = tostring(arg or ""):lower():match("^%s*(%S*)")
   local key = ALIASES[arg] or arg
   if key ~= "" and Wn.keys[key] then
+    -- "levels" and "play" are History's two views.
+    if Wn.available and RW.STRIP_MAX ~= nil and (arg == "levels" or arg == "play") then
+      RW.SetFilter("history", arg == "play" and PLAY or nil)
+    end
     Wn.Open(key)
   else
     Wn.Toggle()
@@ -762,4 +939,4 @@ if type(SlashCmdList) == "table" then
 end
 ns.API.Slash.Add({ word = "chronicle", order = 30, run = command,
   help = L["/ryna chronicle (or /chronicle): Ryna's window; /chronicle session, characters, items, "
-    .. "kills, loot, zones or history opens that section"] })
+    .. "kills, loot, zones or history opens that section, and levels or play History's view"] })
