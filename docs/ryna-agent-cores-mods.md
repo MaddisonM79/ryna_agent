@@ -1030,7 +1030,12 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   first try in game (2026-11-15): cycling by clicks was "no way to just select what I want to see",
   and the meter "didn't load the current fight": it now reads every two seconds when idle and every
   time while anyone in the group is fighting (a healer who hasn't cast isn't in combat herself), and
-  when the game's current tally is empty it shows the newest fight the game holds, as "last fight". The first line names the view, the tally and,
+  when the game's current tally is empty it shows the newest fight the game holds, as "last fight".
+- **Several windows** ("can I have two windows open? want to see dps/hps", the same evening): the
+  pick-list's last rows open another window, up to four, and close one that isn't the first. A new
+  window shows the partner of the first's view (DPS beside HPS, damage beside healing) when no open
+  window has it, else the first view none shows. Each has its own view, tally and place
+  (`RynaDB.meter.bars`, `bars2`, ...); the one setting hides them all. The first line names the view, the tally and,
   when the game says it plainly, the fight's length.
 - **Rows**: the game's order, rank and name, the amount through the game's own formatter
   (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and

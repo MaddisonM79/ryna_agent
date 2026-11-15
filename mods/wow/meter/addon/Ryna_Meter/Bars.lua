@@ -19,8 +19,10 @@
 -- Click the first line for the pick-list, right-click it for this fight or overall, drag to move.
 -- "This fight" is the game's current tally; when that is empty (it is cleared between fights on some
 -- clients) the newest fight the game still holds is shown instead, so the meter never sits empty
--- after a pull. The view, the tally and the place are kept in RynaDB.meter.bars; a past fight picked
--- from the list is kept only until /reload, since the game's fight numbers start over. Nothing is written elsewhere,
+-- after a pull. The pick-list also opens another window (up to four: damage beside healing, DPS beside
+-- HPS) and closes one. Each window's view, tally and place are kept in RynaDB.meter (bars, bars2, ...);
+-- a past fight picked from the list is kept only until /reload, since the game's fight numbers start
+-- over. Nothing is written elsewhere,
 -- nothing is said in chat, and the game's own meter is left as the player set it.
 
 local _, ns = ...
@@ -57,26 +59,44 @@ function M.On()
   return ns.API.Settings.Get(M.KEY) and true or false
 end
 
--- What is kept: { view, session, point, rel, x, y }.
-local function kept()
-  local saved = BF.Saved()
-  if not saved then return {} end
-  if type(saved.bars) ~= "table" then saved.bars = {} end
-  return saved.bars
+-- Several windows can be open at once (damage beside healing, say), each with its own view, tally
+-- and place. Every function below takes the window's number last and means the first without one.
+M.MAX_WINDOWS = 4
+M.frames = {}
+-- A past fight picked for a window, this session: pickedBy[w] = { id, name }.
+local pickedBy = {}
+
+-- The key a window's state is kept under in RynaDB.meter: "bars", "bars2", ...
+local function keyOf(w)
+  return (w or 1) == 1 and "bars" or ("bars" .. w)
 end
 
-function M.View()
-  local key = kept().view
+-- What is kept for a window: { view, session, open, point, rel, x, y }.
+local function kept(w)
+  local saved = BF.Saved()
+  if not saved then return {} end
+  local key = keyOf(w)
+  if type(saved[key]) ~= "table" then saved[key] = {} end
+  return saved[key]
+end
+
+-- The first window is open whenever the meter is on; the others when they were opened.
+function M.IsOpen(w)
+  return (w or 1) == 1 or kept(w).open == true
+end
+
+function M.View(w)
+  local key = kept(w).view
   for i, v in ipairs(M.VIEWS) do
     if v.key == key then return v, i end
   end
   return M.VIEWS[1], 1
 end
 
--- Which tally: "current", "overall", or "id" with M.picked = { id, name } (a past fight, this session).
-function M.SessionKey()
-  if M.picked then return "id" end
-  return kept().session == "overall" and "overall" or "current"
+-- Which tally: "current", "overall", or "id" (a past fight picked this session).
+function M.SessionKey(w)
+  if pickedBy[w or 1] then return "id" end
+  return kept(w).session == "overall" and "overall" or "current"
 end
 
 local function groupUnits()
@@ -122,7 +142,7 @@ end
 
 -- The game's tally for a view and session. Returns nil and "absent" (no such API), "unavailable" (the
 -- game says the meter can't be used) or "empty" (nothing yet).
-function M.Read(view, sessionKey)
+function M.Read(view, sessionKey, w)
   local get = ns.Fn("C_DamageMeter", "GetCombatSessionFromType")
   if not get then return nil, "absent" end
   local available = ns.Try(ns.Fn("C_DamageMeter", "IsDamageMeterAvailable"))
@@ -137,8 +157,9 @@ function M.Read(view, sessionKey)
     return { sources = sources, count = n, max = session.maxAmount, duration = session.durationSeconds }
   end
   local byId = ns.Fn("C_DamageMeter", "GetCombatSessionFromID")
-  if sessionKey == "id" and M.picked and byId then
-    local data = shaped(ns.Try(byId, M.picked.id, kind))
+  local picked = pickedBy[w or 1]
+  if sessionKey == "id" and picked and byId then
+    local data = shaped(ns.Try(byId, picked.id, kind))
     if data then return data end
     return nil, "empty"
   end
@@ -194,15 +215,17 @@ function M.Rows(data)
   return rows
 end
 
-local function build()
-  if not M.frame then
-    M.frame = BF.Create({
-      name = "RynaMeter", key = "bars", rows = M.ROWS, x = 280, y = -220,
+local function build(w)
+  w = w or 1
+  if not M.frames[w] then
+    M.frames[w] = BF.Create({
+      name = w == 1 and "RynaMeter" or ("RynaMeter" .. w), key = keyOf(w), rows = M.ROWS,
+      x = 280, y = -220 - (w - 1) * 40,
       onClick = function(button)
         if button == "RightButton" then
-          M.Session()
-        elseif not M.Menu(M.frame.head) then
-          M.Next()
+          M.Session(w)
+        elseif not M.Menu(M.frames[w].head, w) then
+          M.Next(w)
         end
       end,
       onEnter = function(owner)
@@ -213,19 +236,21 @@ local function build()
         tip:Show()
       end,
     })
+    if w == 1 then M.frame = M.frames[1] end
   end
-  return M.frame
+  return M.frames[w]
 end
 
-function M.Draw()
-  local f = build()
-  local view = M.View()
-  local sessionKey = M.SessionKey()
+-- Draws one window.
+function M.DrawOne(w)
+  local f = build(w)
+  local view = M.View(w)
+  local sessionKey = M.SessionKey(w)
   f.title:SetText(L[view.label])
-  local data, why = M.Read(view, sessionKey)
+  local data, why = M.Read(view, sessionKey, w)
   local where
   if sessionKey == "id" then
-    where = M.picked.name or L["an earlier fight"]
+    where = pickedBy[w or 1].name or L["an earlier fight"]
   elseif sessionKey == "overall" then
     where = L["overall"]
   elseif (data and data.last) or not M.Fighting() then
@@ -264,11 +289,22 @@ function M.Draw()
   BF.Foot(f, foot)
   BF.Fit(f, #rows, foot)
   f:Show()
+end
+
+-- Draws every open window, and puts away any that was closed.
+function M.Draw()
+  for w = 1, M.MAX_WINDOWS do
+    if M.IsOpen(w) then
+      M.DrawOne(w)
+    elseif M.frames[w] then
+      M.frames[w]:Hide()
+    end
+  end
   M.dirty = false
 end
 
 function M.Hide()
-  if M.frame then M.frame:Hide() end
+  for _, f in pairs(M.frames) do f:Hide() end
 end
 
 -- The driver's read: every time while anyone in the group is fighting or the game said a tally
@@ -284,29 +320,63 @@ function M.Tick()
   M.Draw()
 end
 
-function M.Pick(key)
-  kept().view = key
+function M.Pick(key, w)
+  kept(w).view = key
   M.Draw()
 end
 
 -- A tally: "current" or "overall" (kept), or a past fight by its number (until /reload).
-function M.Choose(kind, id, name)
+function M.Choose(kind, id, name, w)
   if kind == "id" and type(id) == "number" then
-    M.picked = { id = id, name = name }
+    pickedBy[w or 1] = { id = id, name = name }
   else
-    M.picked = nil
-    kept().session = kind == "overall" and "overall" or "current"
+    pickedBy[w or 1] = nil
+    kept(w).session = kind == "overall" and "overall" or "current"
   end
   M.Draw()
 end
 
-function M.Next()
-  local _, i = M.View()
-  M.Pick(M.VIEWS[i % #M.VIEWS + 1].key)
+function M.Next(w)
+  local _, i = M.View(w)
+  M.Pick(M.VIEWS[i % #M.VIEWS + 1].key, w)
 end
 
-function M.Session()
-  M.Choose(M.SessionKey() == "current" and "overall" or "current")
+function M.Session(w)
+  M.Choose(M.SessionKey(w) == "current" and "overall" or "current", nil, nil, w)
+end
+
+-- A view's partner, for what a new window shows beside an open one: damage with healing, DPS with HPS.
+local PARTNER = { damage = "healing", healing = "damage", dps = "hps", hps = "dps" }
+
+-- Opens another window: the partner of the first window's view when no open window shows it, else the
+-- first view none shows. Returns its number, or nil when every window is open.
+function M.Open()
+  local shown, free = {}, nil
+  for w = 1, M.MAX_WINDOWS do
+    if M.IsOpen(w) then shown[M.View(w).key] = true elseif not free then free = w end
+  end
+  if not free then return nil end
+  local view = PARTNER[M.View(1).key]
+  if not view or shown[view] then
+    view = nil
+    for _, v in ipairs(M.VIEWS) do
+      if not view and not shown[v.key] then view = v.key end
+    end
+  end
+  local k = kept(free)
+  k.open, k.view, k.session = true, view or M.VIEWS[1].key, kept(1).session
+  pickedBy[free] = nil
+  M.Draw()
+  return free
+end
+
+-- Closes a window other than the first (the setting turns the meter off).
+function M.Close(w)
+  if (w or 1) == 1 then return false end
+  kept(w).open = nil
+  pickedBy[w] = nil
+  M.Draw()
+  return true
 end
 
 -- How many past fights the pick-list offers, newest first.
@@ -314,41 +384,57 @@ M.MENU_FIGHTS = 10
 
 -- What the pick-list holds, as rows: { title }, { divider }, or { text, chosen, pick }. Apart from the
 -- client's menu so it can be read without one.
-function M.MenuRows()
+function M.MenuRows(w)
+  w = w or 1
   local rows = { { title = L["Show"] } }
-  local view = M.View()
+  local view = M.View(w)
   for _, v in ipairs(M.VIEWS) do
-    rows[#rows + 1] = { text = L[v.label], chosen = v.key == view.key, pick = function() M.Pick(v.key) end }
+    rows[#rows + 1] = { text = L[v.label], chosen = v.key == view.key, pick = function() M.Pick(v.key, w) end }
   end
   rows[#rows + 1] = { divider = true }
   rows[#rows + 1] = { title = L["From"] }
-  local key = M.SessionKey()
+  local key = M.SessionKey(w)
   rows[#rows + 1] = { text = L["This fight (or the last one)"], chosen = key == "current",
-    pick = function() M.Choose("current") end }
-  rows[#rows + 1] = { text = L["Overall"], chosen = key == "overall", pick = function() M.Choose("overall") end }
+    pick = function() M.Choose("current", nil, nil, w) end }
+  rows[#rows + 1] = { text = L["Overall"], chosen = key == "overall",
+    pick = function() M.Choose("overall", nil, nil, w) end }
   local fights = M.Fights()
   for i = #fights, math.max(1, #fights - M.MENU_FIGHTS + 1), -1 do
     local f = fights[i]
     local name = f.name or string.format(L["Fight %d"], f.id)
     local length = clock(f.duration)
     local text = length and string.format("%s · %s", name, length) or name
-    rows[#rows + 1] = { text = text, chosen = key == "id" and M.picked.id == f.id,
-      pick = function() M.Choose("id", f.id, name) end }
+    rows[#rows + 1] = { text = text, chosen = key == "id" and pickedBy[w].id == f.id,
+      pick = function() M.Choose("id", f.id, name, w) end }
+  end
+  -- Windows: another one while there is room, and closing this one when it isn't the first.
+  local open = 0
+  for i = 1, M.MAX_WINDOWS do
+    if M.IsOpen(i) then open = open + 1 end
+  end
+  if open < M.MAX_WINDOWS or w > 1 then rows[#rows + 1] = { divider = true } end
+  if open < M.MAX_WINDOWS then
+    rows[#rows + 1] = { text = L["Open another window"], button = true, pick = function() M.Open() end }
+  end
+  if w > 1 then
+    rows[#rows + 1] = { text = L["Close this window"], button = true, pick = function() M.Close(w) end }
   end
   return rows
 end
 
 -- Opens the pick-list at `owner` with the client's own menu. Returns false on a client without it
 -- (the click then goes to the next view).
-function M.Menu(owner)
+function M.Menu(owner, w)
   local open = ns.Fn("MenuUtil", "CreateContextMenu")
   if not open then return false end
   local ok = pcall(open, owner, function(_, root)
-    for _, row in ipairs(M.MenuRows()) do
+    for _, row in ipairs(M.MenuRows(w)) do
       if row.title then
         root:CreateTitle(row.title)
       elseif row.divider then
         root:CreateDivider()
+      elseif row.button then
+        root:CreateButton(row.text, function() ns.Run("meter window", row.pick) end)
       else
         root:CreateRadio(row.text, function() return row.chosen end, function()
           ns.Run("meter pick", row.pick)
@@ -360,7 +446,7 @@ function M.Menu(owner)
 end
 
 function M.ResetPlace()
-  BF.Forget(M.frame, "bars")
+  for w = 1, M.MAX_WINDOWS do BF.Forget(M.frames[w], keyOf(w)) end
 end
 
 function M.Register()

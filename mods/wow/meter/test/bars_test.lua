@@ -11,7 +11,9 @@
 -- changed; nothing yet, and no meter in the client; the setting and /ryna meter; its place
 -- kept apart from its view; a read every two seconds when idle and every time while a friend fights; the
 -- newest held fight when the current tally is empty; the pick-list's rows, a view and a past fight
--- picked from it, and the client's menu opened on a click; nothing in chat unasked, no errors.
+-- picked from it, and the client's menu opened on a click; a second window with the partner view, its own
+-- rows, view and place, up to four, closed from its list, all hidden by the setting; nothing in chat
+-- unasked, no errors.
 -- luacheck: ignore 1
 
 local CORE = "cores/wow/addon/Ryna/"
@@ -243,7 +245,7 @@ local rows = M.MenuRows()
 local texts = {}
 for _, r in ipairs(rows) do texts[#texts + 1] = r.title and ("[" .. r.title .. "]") or r.text or "-" end
 eq(table.concat(texts, "|"), "[Show]|Damage|DPS|Healing|HPS|Damage taken|Absorbs|Interrupts|Dispels|-|[From]|"
-  .. "This fight (or the last one)|Overall|Captain Gull · 1:35|Quay Rat · 0:41",
+  .. "This fight (or the last one)|Overall|Captain Gull · 1:35|Quay Rat · 0:41|-|Open another window",
   "what the pick-list holds, newest fight first")
 check(rows[2].chosen and not rows[3].chosen, "the view shown is the chosen one")
 check(rows[12].chosen, "this fight is the chosen tally")
@@ -261,11 +263,13 @@ local opened
 _G.MenuUtil = { CreateContextMenu = function(owner, build)
   opened = { owner = owner, n = 0 }
   local root = { CreateTitle = function() end, CreateDivider = function() end,
+    CreateButton = function(_, text) opened.buttons = (opened.buttons or 0) + 1; opened.button = text end,
     CreateRadio = function(_, text, chosen, pick) opened.n = opened.n + 1; opened.last = { text, chosen, pick } end }
   build(owner, root)
 end }
 F.Click(f.head, "LeftButton")
 check(opened and opened.owner == f.head and opened.n == 12, "a click opens the client's menu with every choice")
+check(opened.buttons == 1 and opened.button == "Open another window", "and the way to another window")
 eq(f.title._text, "DPS", "and no longer goes to the next view")
 opened.last[3]()
 eq(f.holder._text, "Quay Rat · 0:41", "a choice in the client's menu is made")
@@ -274,6 +278,51 @@ M.Choose("current")
 M.Pick("damage")
 world.fights = nil
 world.sessions["1:0"] = { max = 300, duration = 20, source("Brom", "WARRIOR", 300, 15) }
+
+-- A second window: DPS beside HPS -----------------------------------------------------------------------
+
+world.sessions["1:1"] = { max = 300, duration = 20, source("Brom", "WARRIOR", 300, 15) }
+world.sessions["1:3"] = { max = 120, duration = 20, source("Dela", "PRIEST", 120, 6, true) }
+M.Pick("dps")
+eq(M.Open(), 2, "another window opens as the second")
+local f2 = M.frames[2]
+check(f2 ~= nil and f2:IsShown() and f2 ~= f, "it is a frame of its own")
+eq(f2.title._text, "HPS", "beside DPS it shows HPS")
+eq(f.title._text, "DPS", "the first keeps its view")
+eq(f2.rows[1].left._text, "1. Dela", "with its own rows")
+eq(f2.rows[1].right._text, "short 6", "and its own amounts")
+check(_G.RynaDB.meter.bars2.open == true and _G.RynaDB.meter.bars2.view == "hps",
+  "its view and that it is open are kept")
+M.Pick("healing", 2)
+eq(f2.title._text, "Healing", "a view picked in the second window changes the second")
+eq(f.title._text, "DPS", "and leaves the first")
+local list2 = M.MenuRows(2)
+eq(list2[#list2].text, "Close this window", "the second window's list can close it")
+eq(M.MenuRows(1)[#M.MenuRows(1)].text, "Open another window", "the first can't be closed, only joined")
+f2:ClearAllPoints()
+f2:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 300, -90)
+f2.head._scripts.OnDragStop(f2.head)
+eq(_G.RynaDB.meter.bars2.x, 300, "the second window's place is its own")
+eq(M.Open(), 3, "a third")
+eq(M.Open(), 4, "a fourth")
+eq(M.Open(), nil, "and no more than four")
+check(M.MenuRows(1)[#M.MenuRows(1)].text ~= "Open another window", "with four open the list stops offering one")
+M.Close(4)
+M.Close(3)
+list2[#list2].pick()
+check(not f2:IsShown() and _G.RynaDB.meter.bars2.open == nil, "closing puts the window away and forgets it was open")
+eq(M.Close(1), false, "the first window isn't closed this way")
+M.Open()
+_G.Ryna.Settings.Set("meterBars", false)
+M.Tick()
+check(not f:IsShown() and not M.frames[2]:IsShown(), "the setting off hides every window")
+_G.Ryna.Settings.Set("meterBars", true)
+M.dirty = true
+M.Tick()
+check(f:IsShown() and M.frames[2]:IsShown(), "and on brings back the ones that were open")
+M.Close(2)
+M.Pick("damage")
+world.sessions["1:1"] = world.sessions["1:0"]
 
 -- The setting, and /ryna meter ---------------------------------------------------------------
 

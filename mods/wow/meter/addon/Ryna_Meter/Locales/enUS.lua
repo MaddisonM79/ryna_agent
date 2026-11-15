@@ -62,6 +62,9 @@ L["From"] = true
 L["This fight (or the last one)"] = true
 L["Overall"] = true
 L["Fight %d"] = true
+-- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
+L["Open another window"] = true
+L["Close this window"] = true
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = true
 L["Nothing yet."] = true

@@ -70,6 +70,9 @@ L["From"] = nil
 L["This fight (or the last one)"] = nil
 L["Overall"] = nil
 L["Fight %d"] = nil
+-- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
+L["Open another window"] = nil
+L["Close this window"] = nil
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = nil
 L["Nothing yet."] = nil

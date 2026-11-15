@@ -137,7 +137,8 @@ is the whole of it).
   time (Damage, DPS, Healing, HPS, Damage taken, Absorbs, Interrupts, Dispels; a click on the first
   line opens a pick-list of the views and of this fight, overall and the last ten fights the game
   holds, a right-click goes between this fight and overall; an empty current tally shows the newest
-  held fight as "last fight"), eight rows in the game's
+  held fight as "last fight"; the list also opens another window, up to four, each with its own view,
+  tally and place, and closes one), eight rows in the game's
   order with the player's marked and kept in the last row when further down. In a fight every amount
   is a secret value: it goes from the game to its bar and label untouched, through the game's
   formatter, and nothing is compared or kept. **The threat bar** (`Threat.lua`, `ThreatBar.lua`):
