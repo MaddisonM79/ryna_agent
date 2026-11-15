@@ -230,12 +230,54 @@ L["Counted in game for %s, the character you're on."] = true
 L["From your saved file: %s as of %s, its last logout."] = true
 L["an unknown time"] = true
 L["From the journal's level-ups (it keeps 30 days) and /played."] = true
+-- History's two views (its picker): Levels (the levels table) and Play (when the character played), and
+-- the header's title with a view picked, "History › Play".
+L["Levels"] = true
+L["Play"] = true
+L["%s › %s"] = true
+-- History › Play: its columns (the day, the time played that day over a bar, how many sessions), the
+-- days ("Today", "Yesterday", else "Thursday, 2026-11-13"), a day with no play inside the 30 days, and a
+-- time played: "3h 05m" (hours, then minutes as two digits).
+L["Day"] = true
+L["Sessions"] = true
+L["Today"] = true
+L["Yesterday"] = true
+L["not played"] = true
+L["%dh %02dm"] = true
+-- The weekdays, where the client has no name of its own for one (Monday first: the hours grid's rows).
+L["Monday"] = true
+L["Tuesday"] = true
+L["Wednesday"] = true
+L["Thursday"] = true
+L["Friday"] = true
+L["Saturday"] = true
+L["Sunday"] = true
+-- The hours grid: its heading, and the hours of the day on a 12-hour clock ("12 AM" is midnight, "12 PM"
+-- noon, "6 AM", "6 PM"), under the grid and in "around 6 AM".
+L["When you play, by hour"] = true
+L["12 AM"] = true
+L["12 PM"] = true
+L["%d AM"] = true
+L["%d PM"] = true
+-- History › Play's tiles: the time played this week (since Monday) and how many sessions; the last 30
+-- days and on how many days; the busiest weekday "around 6 AM"; the longest sitting and its day.
+L["This week"] = true
+L["%d session"] = true
+L["%d sessions"] = true
+L["Last 30 days"] = true
+L["on %d day"] = true
+L["on %d days"] = true
+L["Busiest"] = true
+L["around %s"] = true
+L["Longest sitting"] = true
+L["From the journal in your saved file, which keeps 30 days; times are on this computer's clock."] = true
 -- /chronicle with a core too old for the window (printed only when typed).
 L["the Ryna addon here is too old for its window. Update it from the Ryna companion app."] = true
 -- /ryna help's line for the window's command. Keep /ryna chronicle, /chronicle and the section words
--- (session, characters, items, kills, loot, zones, history) in English: they are what the player types.
+-- (session, characters, items, kills, loot, zones, history, levels, play) in English: they are what the
+-- player types. Levels and Play are History's two views.
 L["/ryna chronicle (or /chronicle): Ryna's window; /chronicle session, characters, items, "
-  .. "kills, loot, zones or history opens that section"] = true
+  .. "kills, loot, zones or history opens that section, and levels or play History's view"] = true
 -- Chronicle by zone. The zone picker on Kills and Loot: every zone, the zone you're in ("This zone
 -- (Westfall)"; plain "This zone" when the game hasn't said), each zone, and "Earlier travels": what
 -- was counted before Ryna kept zones (a lifetime of places you went before).

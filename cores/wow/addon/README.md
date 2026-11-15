@@ -350,11 +350,22 @@ Chronicle's sections, under Me:
   colour, how often, how many in all, where it came from (the creature's name, "object" for a chest,
   vein, herb or pool, "container", "fishing"; the top two) and when. Hovering a row shows the item's
   own tooltip and all its sources.
-- **History** (levels for now): the journal's `level` events for the character, oldest first: the
-  level, when it was reached, the time played at it (the difference of the played totals at two
-  level-ups; for the current level, `/played`'s time at this level, counted on) and the played total
-  when it was reached. The journal keeps 30 days, so a level reached before then shows as the current
-  level only, "before the journal".
+- **History**, in two views picked beside the character picker (`/chronicle levels`, `/chronicle play`):
+  - **Levels**: the journal's `level` events for the character, oldest first: the level, when it was
+    reached, the time played at it (the difference of the played totals at two level-ups; for the
+    current level, `/played`'s time at this level, counted on) and the played total when it was
+    reached. The journal keeps 30 days, so a level reached before then shows as the current level
+    only, "before the journal".
+  - **Play**: when the character played, from the journal's sessions (nothing new is recorded). Tiles
+    for this week (since Monday, and how many sessions), the last 30 days (and on how many days), the
+    busiest weekday and the hour it's busiest around, and the longest sitting and its day. Then a row
+    per day, today first, back to the journal's oldest day: a bar of the time played ("3h 05m", or "not
+    played") and how many sessions. Then "When you play, by hour": a row per weekday, Monday first, of
+    24 blocks (a strip) whose brightness is that hour's time over the busiest weekday-hour's, and a row
+    naming 12 AM, 6 AM, 12 PM and 6 PM under them. A session runs from its login to its logout, or to
+    its last event when the game closed without one; sessions a /reload apart are one sitting. A
+    sitting is split at each midnight and hour on this computer's clock, daylight-saving changes
+    included (`Play.lua` says how).
 
 Beside a core from before the window (the released 0.3.9 and earlier), Chronicle registers nothing
 there: `/chronicle` and the strip's click say, each time they're used, that the core is too old, and the Recording
@@ -410,7 +421,7 @@ Past 48 values the rest are left out (the first 48 are drawn); `Ryna.Window.STRI
 `Ryna.Window.StripShare(v)` is the share a block draws. The blocks are the game's plain colour
 texture over a faint track, made the first time one of the window's 20 row frames needs them and
 reused after, so 2,000 rows with strips cost what 20 do. A section's `title` may also be
-`function(ctx)`, for a title that follows its picker. Both are in cores after
+`function(ctx)`, for a title that follows its picker ("History › Play"). Both are in cores after
 0.4.2: a mod checks `Ryna.Window.STRIP_MAX` first.
 
 `Ryna.Window` also has `Open(key)`, `Toggle(key)`, `Hide()`, `IsShown()`, `Selected()`,
