@@ -1023,9 +1023,14 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
 (`C_DamageMeter.GetCombatSessionFromType`) in a second small frame beside the threat bar's
 (`Frame.lua` is the frame both share):
 
-- **Views**, one at a time, a click on the first line going to the next: Damage, DPS, Healing, HPS,
-  Damage taken, Absorbs, Interrupts, Dispels. A right-click switches between this fight and overall
-  (everything since the game's meter was last reset). The first line names the view, the tally and,
+- **Views**, one at a time: Damage, DPS, Healing, HPS, Damage taken, Absorbs, Interrupts, Dispels. A
+  click on the first line opens a pick-list (the client's own menu) of the views and of the tallies:
+  this fight, overall (everything since the game's meter was last reset) and the last ten fights the
+  game still holds, by name and length. A right-click switches between this fight and overall. Her
+  first try in game (2026-11-15): cycling by clicks was "no way to just select what I want to see",
+  and the meter "didn't load the current fight": it now reads every two seconds when idle and every
+  time while anyone in the group is fighting (a healer who hasn't cast isn't in combat herself), and
+  when the game's current tally is empty it shows the newest fight the game holds, as "last fight". The first line names the view, the tally and,
   when the game says it plainly, the fight's length.
 - **Rows**: the game's order, rank and name, the amount through the game's own formatter
   (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and

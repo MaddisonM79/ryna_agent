@@ -135,7 +135,9 @@ is the whole of it).
   itself, in two small frames of their own (`Frame.lua`), each dragged into place. It needs nothing
   from the app. **The meter** (`Bars.lua`): the game's own tallies (`C_DamageMeter`), one view at a
   time (Damage, DPS, Healing, HPS, Damage taken, Absorbs, Interrupts, Dispels; a click on the first
-  line goes to the next, a right-click between this fight and overall), eight rows in the game's
+  line opens a pick-list of the views and of this fight, overall and the last ten fights the game
+  holds, a right-click goes between this fight and overall; an empty current tally shows the newest
+  held fight as "last fight"), eight rows in the game's
   order with the player's marked and kept in the last row when further down. In a fight every amount
   is a secret value: it goes from the game to its bar and label untouched, through the game's
   formatter, and nothing is compared or kept. **The threat bar** (`Threat.lua`, `ThreatBar.lua`):

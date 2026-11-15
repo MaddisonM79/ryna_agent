@@ -9,7 +9,9 @@
 -- between this fight and overall, both kept; in a fight every amount reaches its widget still secret,
 -- through the game's formatter, with nothing compared; no read out of a fight unless something
 -- changed; nothing yet, and no meter in the client; the setting and /ryna meter; its place
--- kept apart from its view; nothing in chat unasked, no errors.
+-- kept apart from its view; a read every two seconds when idle and every time while a friend fights; the
+-- newest held fight when the current tally is empty; the pick-list's rows, a view and a past fight
+-- picked from it, and the client's menu opened on a click; nothing in chat unasked, no errors.
 -- luacheck: ignore 1
 
 local CORE = "cores/wow/addon/Ryna/"
@@ -47,7 +49,10 @@ F.Install({ now = 1800003600 })
 _G.issecretvalue = function(v) return getmetatable(v) == SECRET end
 _G.UnitGUID = function(unit) if unit == "player" then return "Player-1-0000000D" end end
 _G.UnitName = function(unit) if unit == "player" then return "Dela" end end
-_G.UnitAffectingCombat = function() return world.combat end
+_G.UnitAffectingCombat = function(unit)
+  if unit == "player" then return world.combat end
+  return unit == "party1" and world.friendFights or false
+end
 _G.Enum.DamageMeterType = { DamageDone = 0, Dps = 1, HealingDone = 2, Hps = 3, Absorbs = 4, Interrupts = 5,
   Dispels = 6, DamageTaken = 7 }
 _G.Enum.DamageMeterSessionType = { Overall = 0, Current = 1 }
@@ -57,6 +62,15 @@ _G.AbbreviateNumbers = function(v)
 end
 _G.C_DamageMeter = {
   IsDamageMeterAvailable = function() return world.available, "" end,
+  GetAvailableCombatSessions = function() return world.fights or {} end,
+  GetCombatSessionFromID = function(id, kind)
+    world.asked[#world.asked + 1] = { "id", id, kind }
+    local s = world.sessions["id" .. id .. ":" .. kind]
+    if not s then return { combatSources = {}, maxAmount = 0, totalAmount = 0 } end
+    local out = { combatSources = {}, maxAmount = s.max, totalAmount = s.max, durationSeconds = s.duration }
+    for i, src in ipairs(s) do out.combatSources[i] = src end
+    return out
+  end,
   GetCombatSessionFromType = function(session, kind)
     world.asked[#world.asked + 1] = { session, kind }
     local s = world.sessions[session .. ":" .. kind]
@@ -99,7 +113,7 @@ M.driver._scripts.OnUpdate(M.driver, 0.6)
 local f = M.frame
 check(f ~= nil and f:IsShown(), "the meter shows")
 eq(f.title._text, "Damage", "the first view")
-eq(f.holder._text, "this fight · 1:05", "which tally and its length")
+eq(f.holder._text, "last fight · 1:05", "which tally and its length, out of a fight")
 local last = world.asked[#world.asked]
 check(last[1] == 1 and last[2] == 0, "the game was asked for the current fight's damage")
 eq(f.rows[1].left._text, "1. Ilse", "rank and name")
@@ -192,6 +206,74 @@ eq(_G.RynaDB.meter.bars.x, 12, "its place is kept when dragged by the first line
 M.ResetPlace()
 eq(_G.RynaDB.meter.bars.x, nil, "Defaults forgets the place")
 eq(_G.RynaDB.meter.bars.view, "healing", "and keeps the view")
+
+-- Idle: read again every two seconds; a friend fighting counts as a fight ------------------------------
+
+M.Pick("damage")
+world.sessions["1:0"] = { max = 300, duration = 20, source("Brom", "WARRIOR", 300, 15) }
+M.dirty = true
+M.Tick()
+asks = #world.asked
+for _ = 1, 3 do M.Tick() end
+eq(#world.asked, asks, "idle: three reads skipped")
+M.Tick()
+check(#world.asked > asks, "idle: the fourth reads, so it never sits on an old fight")
+world.friendFights = true
+asks = #world.asked
+M.Tick()
+check(#world.asked > asks, "a group member fighting: read every time")
+eq(f.holder._text, "this fight · 0:20", "and it is this fight")
+world.friendFights = false
+
+-- The current tally empty: the newest fight the game still holds ------------------------------------
+
+world.sessions["1:0"] = nil
+world.fights = { { sessionID = 3, name = "Quay Rat", durationSeconds = 41 },
+  { sessionID = 4, name = "Captain Gull", durationSeconds = 95 } }
+world.sessions["id4:0"] = { max = 700, duration = 95, source("Ilse", "MAGE", 700, 7.4) }
+world.sessions["id3:1"] = { max = 50, duration = 41, source("Dela", "PRIEST", 50, 1.2, true) }
+M.dirty = true
+M.Tick()
+eq(f.rows[1].left._text, "1. Ilse", "current is empty: the newest fight is shown")
+eq(f.holder._text, "last fight · 1:35", "and named the last fight")
+
+-- The pick-list ---------------------------------------------------------------------------------------
+
+local rows = M.MenuRows()
+local texts = {}
+for _, r in ipairs(rows) do texts[#texts + 1] = r.title and ("[" .. r.title .. "]") or r.text or "-" end
+eq(table.concat(texts, "|"), "[Show]|Damage|DPS|Healing|HPS|Damage taken|Absorbs|Interrupts|Dispels|-|[From]|"
+  .. "This fight (or the last one)|Overall|Captain Gull · 1:35|Quay Rat · 0:41",
+  "what the pick-list holds, newest fight first")
+check(rows[2].chosen and not rows[3].chosen, "the view shown is the chosen one")
+check(rows[12].chosen, "this fight is the chosen tally")
+rows[3].pick()
+eq(f.title._text, "DPS", "picking a view shows it")
+eq(_G.RynaDB.meter.bars.view, "dps", "and keeps it")
+rows[15].pick()
+eq(f.holder._text, "Quay Rat · 0:41", "picking a past fight shows it by name")
+eq(f.rows[1].left._text, "1. Dela", "with that fight's rows")
+check(M.MenuRows()[15].chosen, "and it is the chosen one in the list")
+eq(_G.RynaDB.meter.bars.session, "current", "a past fight isn't what is kept for after /reload")
+F.Click(f.head, "RightButton")
+eq(M.SessionKey(), "current", "a right-click leaves a past fight for this fight")
+local opened
+_G.MenuUtil = { CreateContextMenu = function(owner, build)
+  opened = { owner = owner, n = 0 }
+  local root = { CreateTitle = function() end, CreateDivider = function() end,
+    CreateRadio = function(_, text, chosen, pick) opened.n = opened.n + 1; opened.last = { text, chosen, pick } end }
+  build(owner, root)
+end }
+F.Click(f.head, "LeftButton")
+check(opened and opened.owner == f.head and opened.n == 12, "a click opens the client's menu with every choice")
+eq(f.title._text, "DPS", "and no longer goes to the next view")
+opened.last[3]()
+eq(f.holder._text, "Quay Rat · 0:41", "a choice in the client's menu is made")
+_G.MenuUtil = nil
+M.Choose("current")
+M.Pick("damage")
+world.fights = nil
+world.sessions["1:0"] = { max = 300, duration = 20, source("Brom", "WARRIOR", 300, 15) }
 
 -- The setting, and /ryna meter ---------------------------------------------------------------
 

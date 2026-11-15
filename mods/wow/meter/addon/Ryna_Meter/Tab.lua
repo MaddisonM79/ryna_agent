@@ -19,8 +19,8 @@ local function build(f)
     .. "and says nothing in chat."])
   P.meter = W.checkbox(f, L["Show the meter"],
     L["Damage, healing and more for everyone in the fight, as the game counts them, live. Click its first "
-      .. "line for the next view (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels), "
-      .. "right-click it for this fight or overall, and drag it to move it."])
+      .. "line to choose what to show (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels) "
+      .. "and which fight, right-click it for this fight or overall, and drag it to move it."])
   W.toggle(P.meter, M.KEY, function()
     M.dirty = true
     M.Tick()

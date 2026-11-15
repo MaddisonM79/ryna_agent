@@ -31,8 +31,8 @@ L["Meter shows a fight as it happens: a meter of what the game itself counts, an
   .. "chat."] = true
 L["Show the meter"] = true
 L["Damage, healing and more for everyone in the fight, as the game counts them, live. Click its first line "
-  .. "for the next view (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels), right-click "
-  .. "it for this fight or overall, and drag it to move it."] = true
+  .. "to choose what to show (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels) and "
+  .. "which fight, right-click it for this fight or overall, and drag it to move it."] = true
 L["Show the threat bar while my group is fighting"] = true
 L["A small bar per group member for the enemy you have targeted: how close each is to pulling it. With a "
   .. "friend targeted, it follows the enemy that friend is on, from the nameplates on screen. Past 80% a bar "
@@ -50,9 +50,18 @@ L["Interrupts"] = true
 L["Dispels"] = true
 -- Beside the view: which tally, and (after " · ") the fight's length.
 L["this fight"] = true
+L["last fight"] = true
+L["an earlier fight"] = true
 L["overall"] = true
 -- The hint on the first line.
-L["Click: the next view. Right-click: this fight or overall. Drag to move."] = true
+L["Click: choose what to show. Right-click: this fight or overall. Drag to move."] = true
+-- The pick-list a click opens: its two headings, the two standing tallies, and a past fight the game
+-- gave no name for. %d: the game's number for that fight.
+L["Show"] = true
+L["From"] = true
+L["This fight (or the last one)"] = true
+L["Overall"] = true
+L["Fight %d"] = true
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = true
 L["Nothing yet."] = true

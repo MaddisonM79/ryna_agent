@@ -39,8 +39,8 @@ L["Meter shows a fight as it happens: a meter of what the game itself counts, an
   .. "chat."] = nil
 L["Show the meter"] = nil
 L["Damage, healing and more for everyone in the fight, as the game counts them, live. Click its first line "
-  .. "for the next view (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels), right-click "
-  .. "it for this fight or overall, and drag it to move it."] = nil
+  .. "to choose what to show (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels) and "
+  .. "which fight, right-click it for this fight or overall, and drag it to move it."] = nil
 L["Show the threat bar while my group is fighting"] = nil
 L["A small bar per group member for the enemy you have targeted: how close each is to pulling it. With a "
   .. "friend targeted, it follows the enemy that friend is on, from the nameplates on screen. Past 80% a bar "
@@ -58,9 +58,18 @@ L["Interrupts"] = nil
 L["Dispels"] = nil
 -- Beside the view: which tally, and (after " · ") the fight's length.
 L["this fight"] = nil
+L["last fight"] = nil
+L["an earlier fight"] = nil
 L["overall"] = nil
 -- The hint on the first line.
-L["Click: the next view. Right-click: this fight or overall. Drag to move."] = nil
+L["Click: choose what to show. Right-click: this fight or overall. Drag to move."] = nil
+-- The pick-list a click opens: its two headings, the two standing tallies, and a past fight the game
+-- gave no name for. %d: the game's number for that fight.
+L["Show"] = nil
+L["From"] = nil
+L["This fight (or the last one)"] = nil
+L["Overall"] = nil
+L["Fight %d"] = nil
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = nil
 L["Nothing yet."] = nil

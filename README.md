@@ -96,8 +96,8 @@ the mods that are on. Each mod is listed under the install with a switch; there 
   on your computer. Off by default.
 - **Meter**: a fight as it happens, read from the game itself, with nothing needed from the app. A
   live meter in a small frame: damage, DPS, healing, HPS, damage taken, absorbs, interrupts and
-  dispels for everyone in the fight, as the game counts them; click its first line for the next
-  view, right-click for this fight or overall. And a threat bar while your group is fighting: how
+  dispels for everyone in the fight, as the game counts them; click its first line to choose
+  what to show and which fight, right-click for this fight or overall. And a threat bar while your group is fighting: how
   close each member is to pulling the enemy you have targeted (or, with a friend targeted, the enemy
   that friend is on). Past 80% a bar turns orange; it makes no sound and says nothing in chat. Drag
   either to move it (`/ryna meter`, `/ryna meter threat`). Off by default.
