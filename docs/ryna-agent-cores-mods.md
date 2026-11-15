@@ -901,6 +901,11 @@ for damage, healing, absorbs, interrupts, dispels, damage taken and deaths, with
 `SecretWhenInCombat`: during a fight the numbers are secret values (they can be shown, not compared
 or summed), and after it they are plain.
 
+(Corrected 2026-11-15: an addon *can* draw its own live bars, because a status bar and a label take a
+secret value; Details' Forever build does. docs/forever-client-api.md, "A secret can be drawn". Ryna
+doesn't yet, and a finished fight could be harvested in game the moment it ends, with no file from the
+app. The split below is what is built, not a limit of the client.)
+
 So the split is: *during* the fight the live bars are the game's own meter, which Ryna doesn't
 redraw; *the moment it ends*, the Fights section has it: the fight list for the session, each
 fight's players ranked with bars, a player's spells, damage against healing against deaths, this
@@ -970,6 +975,39 @@ for it (`Window.lua`): a section's `say` (sentences above the column headings), 
 of the pickers and the search box) and a strip's `marks` (the game's skull at a death), and `empty` may be a
 function. Owed in game: that the TOC loads `Data\fights.lua`, the look of the strips, skulls and buttons in the
 default UI and ElvUI, and that the raid-target skull texture draws on Forever.
+
+**The threat bar (asked 2026-11-13, "can we see threat?"; probed and mocked up 2026-11-15, artifact "Ryna Threat View"; built the same day).**
+The combat log has no threat, so the fight timeline says whom an enemy "was attacking" and never
+"threat". The game does answer an addon directly, though (docs/forever-client-api.md, "Threat";
+Maddison's probes in The Deadmines): `UnitDetailedThreatSituation(unit, mob)` gives plain numbers for
+the player and for a party member, on trash and on a dungeon boss, when the enemy is named by the
+player's target or by a nameplate. Through a compound unit (`targettarget`) the same values come back
+secret. So the Fights mod draws them live (`Threat.lua`, `ThreatBar.lua`):
+
+- **What**: a small frame of its own (not a section: a bar in a window you have to open isn't used),
+  shown while anyone in the group is fighting and hidden otherwise, and when alone. One row per group
+  member on one enemy's list, whoever holds the enemy on top ("has it"), then by percentage; a full
+  bar is "pulls". The player's row carries a gold mark. Eight rows at most, always the player's.
+- **Which enemy**: the player's target when it is an enemy; with a friend targeted (a healer), the
+  enemy nameplate that friend is highest on; with nothing targeted, the one the player is highest on,
+  and failing that the group's. Enemies are found by walking the nameplates, never `targettarget`. A
+  line under the rows says the player's highest on another enemy on screen when it is above their
+  place on this one.
+- **The warning**: past 80% a bar turns orange and the frame's edge with it. Silent: no chat line, no
+  sound (her pick of the mockup's choices, 2026-11-15).
+- **Where the numbers are hidden** (a raid may; unprobed): each read asks
+  `C_Secrets.ShouldUnitThreatValuesBeSecret` and checks every value. A hidden value is handed to the
+  status bar untouched (the client fills a bar from a secret) and is never compared: rows keep the
+  group's order with the player first, the percentage is left out, and the words come from the threat
+  state (`UnitThreatSituation`: 2 or 3 "has it", 1 "close"), which the docs say stays readable.
+- **Settings**: one switch (`fightsThreatBar`, on with the mod) on a Fights tab of `/ryna`; the frame
+  is dragged with the left button and its place kept in `RynaDB.fights.threatBar`;
+  `/ryna fights threat` shows it with example rows to place it outside a fight.
+- **Left out for now**: pets as rows, and a sound. **Next step, not built**: keeping a reading a
+  second during the fight (only where it isn't hidden) for a Threat view of a finished fight in the
+  Fights section and, uploaded with the fight, real threat on the portal's timeline; fights without
+  readings keep "was attacking".
+- **Unseen in game** as of the build: the checklist is in its pull request.
 
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 

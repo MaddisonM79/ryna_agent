@@ -17,7 +17,10 @@
 --
 -- The footer says where the numbers come from and how old they are: the combat log as the Ryna app read
 -- it, as of the file's writtenAt; newer fights appear after /reload, since the game reads the file only
--- at login and /reload. Never the word "threat": the enemy rows say whom it was attacking.
+-- at login and /reload.
+-- Never the word "threat" in this section: the log has none, so the enemy rows say whom it was
+-- attacking (the threat bar, ThreatBar.lua, reads real threat during a fight and is the only place
+-- that says it).
 --
 -- With a core whose window lacks the fight pieces (Ryna.Window.MAX_SAY: cores after 0.4.2), nothing
 -- registers and /ryna fights says the core is too old.

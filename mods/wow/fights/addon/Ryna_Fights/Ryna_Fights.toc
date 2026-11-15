@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Ryna Fights
-## Notes: Your recent fights in Ryna's window: who struck first, who died when, damage done and taken over each fight, whom each enemy was attacking. From your combat log, as the Ryna app reads it. A mod of Ryna; /ryna fights.
+## Notes: Your recent fights in Ryna's window: who struck first, who died when, damage done and taken over each fight, whom each enemy was attacking, from your combat log as the Ryna app reads it. And a threat bar while your group is fighting. A mod of Ryna; /ryna fights.
 ## Author: Ryna contributors
 ## Version: 0.4.2
 ## Dependencies: Ryna
@@ -21,4 +21,7 @@ Locales\zhTW.lua
 Data.lua
 Story.lua
 Window.lua
+Threat.lua
+ThreatBar.lua
+Tab.lua
 Init.lua

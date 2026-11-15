@@ -4,7 +4,10 @@
 -- Ryna app, which reads every fight from the log file, writes the recent ones into the core's
 -- Data/fights.lua, which the game loads at login and /reload (Data.lua reads it). The list shows them
 -- newest first; a fight's detail tells its story in sentences (Story.lua) and draws a row per player
--- and per enemy (Window.lua). It writes nothing (not even settings) and never prints to chat unasked.
+-- and per enemy (Window.lua). Beside the section there is the threat bar (Threat.lua, ThreatBar.lua): while
+-- the group is fighting it reads each member's threat on one enemy from the game and draws it. The mod
+-- keeps one setting (fightsThreatBar) and where the bar was dragged (RynaDB.fights), and never prints
+-- to chat unasked.
 --
 -- Every file starts with `if ns.off then return end`: without the mod API (a core addon from before
 -- it), Fights loads nothing at all, and says nothing either.

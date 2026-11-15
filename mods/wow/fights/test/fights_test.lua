@@ -9,7 +9,8 @@
 -- case (the group's spell, a swing, a pet's, a miss, too close to call, the enemy's, none) and its
 -- deaths; the header's buttons going earlier and later; the strips' values, colours and skulls; the
 -- "was attacking" text; the enemies past three folded and opened; an absent file, one of another
--- version, an empty list and malformed rows; nothing in chat, no errors, never the word "threat".
+-- version, an empty list and malformed rows; nothing in chat, no errors, never the word "threat" in the
+-- section (only the threat bar, which reads real threat, says it).
 -- luacheck: ignore 1
 
 local CORE = "cores/wow/addon/Ryna/"
@@ -47,7 +48,9 @@ _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {
 
 local core, mod = {}, {}
 F.LoadAddon(CORE, "Ryna", core)
-F.LoadAddon(ADDON, "Ryna_Fights", mod)
+-- Without the mod's panel tab: it names the threat bar (threat_test.lua covers that), and this test
+-- holds the Fights section to never saying "threat".
+F.LoadAddon(ADDON, "Ryna_Fights", mod, { ["Tab.lua"] = true })
 dofile("mods/wow/fights/test/fixtures/fights.lua")
 F.Fire("ADDON_LOADED", "Ryna")
 F.Fire("PLAYER_LOGIN")

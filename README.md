@@ -93,7 +93,11 @@ the mods that are on. Each mod is listed under the install with a switch; there 
   done and taken over the fight, and whom each enemy was attacking. The game won't give addons the
   combat log, so the app writes what it read from the log file into the addon's folder, and the game
   shows it after a login or `/reload`. The file names the players who were in your fights and stays
-  on your computer. Off by default.
+  on your computer.
+  It also has a threat bar: while your group is fighting, a small frame shows how close each member is
+  to pulling the enemy you have targeted (or, with a friend targeted, the enemy that friend is on),
+  read from the game as it happens. Past 80% a bar turns orange; it makes no sound and says nothing
+  in chat. Drag it to move it (`/ryna fights threat` shows it outside a fight). Off by default.
 - **Settings**: your addons' settings (ElvUI and every other addon's, found from their own files),
   copied from one character to another and backed up to ryna.io, stored encrypted for you. It
   works in the app with the game closed and puts nothing in the game, so there's no addon folder for

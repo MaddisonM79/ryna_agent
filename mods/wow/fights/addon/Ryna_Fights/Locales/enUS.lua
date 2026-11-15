@@ -8,8 +8,8 @@
 -- which rewrites them with the same keys, keeping every translation already in them. Without
 -- --templates it only checks that this list matches what the code uses (L["..."] and N("...")).
 -- Debug lines (ns.Debug) are English on purpose and are not listed. A key the core addon's
--- Locales/enUS.lua already has isn't repeated here: Fights' L falls back to it. Never the word
--- "threat": the enemy rows say whom an enemy was attacking.
+-- Locales/enUS.lua already has isn't repeated here: Fights' L falls back to it. The Fights section
+-- never says "threat" (its enemy rows say whom an enemy was attacking); only the threat bar does.
 
 local _, ns = ...
 if ns.off then return end
@@ -20,6 +20,40 @@ local L = ns.L
 L["/ryna fights: your recent fights in Ryna's window"] = true
 -- Said when /ryna fights is typed with a core whose window can't draw the section.
 L["Fights needs a newer Ryna core: update the Ryna app."] = true
+-- Answers to /ryna fights threat.
+L["The threat bar is off: turn it on in /ryna, under Fights."] = true
+L["The threat bar is showing an example: drag it where you want it, then type /ryna fights threat again."] = true
+
+-- Tab.lua: the Fights tab of /ryna.
+L["Fights shows your recent fights in Ryna's window, and a threat bar while your group is fighting. It "
+  .. "reads the game and the fights the companion app found in your combat log: it does nothing for you "
+  .. "and says nothing in chat."] = true
+L["Show the threat bar while my group is fighting"] = true
+L["A small bar per group member for the enemy you have targeted: how close each is to pulling it. With "
+  .. "a friend targeted, it follows the enemy that friend is on, from the nameplates on screen. Past 80% "
+  .. "a bar turns orange. Hidden when you are alone. Drag it to move it; /ryna fights threat shows it "
+  .. "with an example so you can place it outside a fight."] = true
+
+-- ThreatBar.lua: the bar on screen during a fight.
+-- A row's right side for whoever the enemy is attacking, and (numbers hidden) for someone near pulling it.
+L["has it"] = true
+L["close"] = true
+-- Beside the enemy's name: who it is on. %s: a group member's name.
+L["on %s"] = true
+-- Stand-ins for a name the game didn't give.
+L["An enemy"] = true
+L["Someone"] = true
+-- Under the rows, where the game won't give threat as numbers (a raid may not).
+L["The game hides the numbers here."] = true
+-- Under the rows: the player's highest threat on another enemy. %s: that enemy; %d: percent.
+L["Your highest: %s, %d%%"] = true
+L["Your highest elsewhere: %d%%"] = true
+-- The example the bar shows for /ryna fights threat.
+L["Example enemy"] = true
+L["An example. Drag the bar where you want it."] = true
+L["The tank"] = true
+L["A damage dealer"] = true
+L["You"] = true
 
 -- Window.lua: the section's name in the rail, its title, and a fight's title. %s: what the fight was.
 L["Fights"] = true
