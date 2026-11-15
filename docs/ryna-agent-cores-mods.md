@@ -903,8 +903,8 @@ or summed), and after it they are plain.
 
 (Corrected 2026-11-15: an addon *can* draw its own live bars, because a status bar and a label take a
 secret value; Details' Forever build does. docs/forever-client-api.md, "A secret can be drawn". Ryna
-doesn't yet, and a finished fight could be harvested in game the moment it ends, with no file from the
-app. The split below is what is built, not a limit of the client.)
+draws them since "The meter" below; a finished fight could also be harvested in game the moment it ends,
+with no file from the app, which isn't built. The split below is what is built, not a limit of the client.)
 
 So the split is: *during* the fight the live bars are the game's own meter, which Ryna doesn't
 redraw; *the moment it ends*, the Fights section has it: the fight list for the session, each
@@ -1008,6 +1008,32 @@ secret. So the Fights mod draws them live (`Threat.lua`, `ThreatBar.lua`):
   Fights section and, uploaded with the fight, real threat on the portal's timeline; fights without
   readings keep "was attacking".
 - **Unseen in game** as of the build: the checklist is in its pull request.
+
+**The meter (asked 2026-11-15, "build dps/hps/etc too"; built the same day, in the threat bar's frame, with no mockup of its own).**
+Fights "in the manner of Details" gets its live half. `Meter.lua` draws the game's own tallies
+(`C_DamageMeter.GetCombatSessionFromType`) in a second small frame beside the threat bar's
+(`Frame.lua` is the frame both share):
+
+- **Views**, one at a time, a click on the first line going to the next: Damage, DPS, Healing, HPS,
+  Damage taken, Absorbs, Interrupts, Dispels. A right-click switches between this fight and overall
+  (everything since the game's meter was last reset). The first line names the view, the tally and,
+  when the game says it plainly, the fight's length.
+- **Rows**: the game's order, rank and name, the amount through the game's own formatter
+  (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and
+  kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
+- **In a fight** every amount, name and length is a secret value and goes from the game to its
+  widget untouched; nothing is compared, added or kept. After the fight the same read is plain.
+- **When it reads**: twice a second in a fight, otherwise only when the game says a tally changed
+  (`DAMAGE_METER_COMBAT_SESSION_UPDATED`, `..._CURRENT_SESSION_UPDATED`, `DAMAGE_METER_RESET`) or the
+  view was changed.
+- **Settings**: one switch (`fightsMeter`, on with the mod) on the Fights tab; `/ryna fights meter`
+  turns it on or off; dragged by its first line, its view, tally and place kept in
+  `RynaDB.fights.meter`. The game's own meter window is left as the player set it.
+- **Not in the game's tallies**, so not here: overhealing, healing taken, friendly fire, resources,
+  cooldowns, buff uptime. **Not built**: a player's spells on a click, a death's recap, and copying
+  the finished fight into the Fights section without the app's file.
+- **Unseen in game**, and the calls themselves were never run on our client (probes 10 to 12 and 16
+  of docs/forever-client-api.md are still owed; Details' Forever build is the evidence they answer).
 
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 

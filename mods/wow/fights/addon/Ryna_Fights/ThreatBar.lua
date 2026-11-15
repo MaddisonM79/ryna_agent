@@ -15,137 +15,25 @@ local _, ns = ...
 if ns.off then return end
 local L = ns.L
 local T = ns.Threat
+local BF = ns.BarFrame
 
 local B = {}
 ns.ThreatBar = B
 
 B.KEY = "fightsThreatBar"
-B.WIDTH, B.ROW, B.HEAD, B.PAD = 220, 17, 16, 4
 B.INTERVAL = 0.25
 
 ns.API.Settings.AddDefaults({ [B.KEY] = true })
-
-local EDGE, EDGE_WARN = { 0.23, 0.21, 0.28 }, { 0.94, 0.54, 0.17 }
-local WARN_BAR, PLAIN_BAR, GOLD = { 0.94, 0.54, 0.17 }, { 0.56, 0.54, 0.61 }, { 1, 0.82, 0 }
-local TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
 
 function B.On()
   return ns.API.Settings.Get(B.KEY) and true or false
 end
 
-local function saved()
-  local db = ns.API.DB()
-  if type(db) ~= "table" then return nil end
-  if type(db.fights) ~= "table" then db.fights = {} end
-  return db.fights
-end
-
-local function fontString(parent, justify)
-  local ok, fs = pcall(parent.CreateFontString, parent, nil, "OVERLAY", "GameFontHighlightSmall")
-  if not ok or not fs then fs = parent:CreateFontString(nil, "OVERLAY") end
-  fs:SetJustifyH(justify)
-  if fs.SetWordWrap then fs:SetWordWrap(false) end
-  return fs
-end
-
-local function colour(tex, c, a)
-  tex:SetColorTexture(c[1], c[2], c[3], a or 1)
-end
-
-local function place(frame)
-  local at = saved()
-  at = at and at.threatBar
-  frame:ClearAllPoints()
-  if type(at) == "table" and type(at.point) == "string" and type(at.x) == "number" and type(at.y) == "number" then
-    frame:SetPoint(at.point, _G.UIParent, type(at.rel) == "string" and at.rel or at.point, at.x, at.y)
-  else
-    frame:SetPoint("CENTER", _G.UIParent, "CENTER", 280, -60)
-  end
-end
-
-local function newRow(frame, i)
-  local bar = CreateFrame("StatusBar", nil, frame)
-  bar:SetStatusBarTexture(TEXTURE)
-  bar:SetMinMaxValues(0, 100)
-  bar:SetHeight(B.ROW - 1)
-  bar:SetPoint("TOPLEFT", frame, "TOPLEFT", B.PAD, -(B.PAD + B.HEAD + (i - 1) * B.ROW))
-  bar:SetPoint("RIGHT", frame, "RIGHT", -B.PAD, 0)
-  bar.back = bar:CreateTexture(nil, "BACKGROUND")
-  bar.back:SetAllPoints()
-  colour(bar.back, { 0.16, 0.15, 0.21 }, 0.9)
-  bar.mine = bar:CreateTexture(nil, "OVERLAY")
-  bar.mine:SetPoint("TOPLEFT")
-  bar.mine:SetPoint("BOTTOMLEFT")
-  bar.mine:SetWidth(2)
-  colour(bar.mine, GOLD)
-  bar.left = fontString(bar, "LEFT")
-  bar.left:SetPoint("LEFT", bar, "LEFT", 5, 0)
-  bar.right = fontString(bar, "RIGHT")
-  bar.right:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
-  bar.left:SetPoint("RIGHT", bar.right, "LEFT", -4, 0)
-  bar:Hide()
-  return bar
-end
-
 local function build()
-  if B.frame then return B.frame end
-  local f = CreateFrame("Frame", "RynaThreatBar", _G.UIParent)
-  f:SetSize(B.WIDTH, B.HEAD + B.ROW + 2 * B.PAD)
-  f:SetFrameStrata("MEDIUM")
-  f:SetClampedToScreen(true)
-  f:SetMovable(true)
-  f:EnableMouse(true)
-  f:RegisterForDrag("LeftButton")
-  f:SetScript("OnDragStart", function(self) self:StartMoving() end)
-  f:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    ns.Run("threat bar place", function()
-      local point, _, rel, x, y = self:GetPoint(1)
-      local at = saved()
-      if at and type(point) == "string" then at.threatBar = { point = point, rel = rel, x = x, y = y } end
-    end)
-  end)
-
-  f.back = f:CreateTexture(nil, "BACKGROUND")
-  f.back:SetAllPoints()
-  colour(f.back, { 0.08, 0.07, 0.1 }, 0.88)
-  f.edges = {}
-  for i, points in ipairs({
-    { "TOPLEFT", "TOPRIGHT", "h" }, { "BOTTOMLEFT", "BOTTOMRIGHT", "h" },
-    { "TOPLEFT", "BOTTOMLEFT", "v" }, { "TOPRIGHT", "BOTTOMRIGHT", "v" },
-  }) do
-    local e = f:CreateTexture(nil, "BORDER")
-    e:SetPoint(points[1])
-    e:SetPoint(points[2])
-    if points[3] == "h" then e:SetHeight(1) else e:SetWidth(1) end
-    f.edges[i] = e
+  if not B.frame then
+    B.frame = BF.Create({ name = "RynaThreatBar", key = "threatBar", rows = T.MAX_ROWS, x = 280, y = -60 })
   end
-
-  f.title = fontString(f, "LEFT")
-  f.title:SetPoint("TOPLEFT", f, "TOPLEFT", B.PAD + 2, -B.PAD)
-  f.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-  f.holder = fontString(f, "RIGHT")
-  f.holder:SetPoint("TOPRIGHT", f, "TOPRIGHT", -(B.PAD + 2), -B.PAD)
-  f.holder:SetTextColor(0.62, 0.59, 0.67)
-  f.title:SetPoint("RIGHT", f.holder, "LEFT", -6, 0)
-  f.foot = fontString(f, "LEFT")
-  f.foot:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", B.PAD + 2, B.PAD)
-  f.foot:SetPoint("RIGHT", f, "RIGHT", -B.PAD, 0)
-  f.foot:SetTextColor(0.62, 0.59, 0.67)
-
-  f.rows = {}
-  for i = 1, T.MAX_ROWS do f.rows[i] = newRow(f, i) end
-  place(f)
-  f:Hide()
-  B.frame = f
-  return f
-end
-
-local function classRGB(class)
-  local colors = _G.RAID_CLASS_COLORS
-  local c = class and type(colors) == "table" and colors[class]
-  if type(c) == "table" and type(c.r) == "number" then return c.r, c.g, c.b end
-  return PLAIN_BAR[1], PLAIN_BAR[2], PLAIN_BAR[3]
+  return B.frame
 end
 
 -- What a row says on the right: "has it", a percentage, or (numbers hidden) "close" or nothing.
@@ -186,9 +74,9 @@ function B.Draw(snap)
         bar:SetValue(r.tanking and 100 or math.min(r.pct, 100))
       end
       if T.Close(r) then
-        bar:SetStatusBarColor(WARN_BAR[1], WARN_BAR[2], WARN_BAR[3])
+        bar:SetStatusBarColor(BF.WARN[1], BF.WARN[2], BF.WARN[3])
       else
-        bar:SetStatusBarColor(classRGB(r.class))
+        bar:SetStatusBarColor(BF.ClassRGB(r.class))
       end
       if r.me then bar.mine:Show() else bar.mine:Hide() end
       bar:Show()
@@ -208,17 +96,9 @@ function B.Draw(snap)
     local ok, line = pcall(string.format, L["Your highest: %s, %d%%"], mobName(snap.top.mob), pct)
     foot = ok and line or string.format(L["Your highest elsewhere: %d%%"], pct)
   end
-  if foot then
-    f.foot:SetText(foot)
-    f.foot:Show()
-  else
-    f.foot:Hide()
-  end
-
-  local edge = snap.warn and EDGE_WARN or EDGE
-  for _, e in ipairs(f.edges) do colour(e, edge) end
-  f.warn = snap.warn and true or false
-  f:SetHeight(B.HEAD + #snap.rows * B.ROW + 2 * B.PAD + (foot and 14 or 0))
+  BF.Foot(f, foot)
+  BF.Edge(f, snap.warn)
+  BF.Fit(f, #snap.rows, foot)
   f:Show()
 end
 
@@ -260,9 +140,7 @@ function B.Place()
 end
 
 function B.ResetPlace()
-  local at = saved()
-  if at then at.threatBar = nil end
-  if B.frame then place(B.frame) end
+  BF.Forget(B.frame, "threatBar")
 end
 
 function B.Register()

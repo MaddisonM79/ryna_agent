@@ -1,7 +1,8 @@
 -- Init: Fights registers with the core (Ryna.RegisterMod). Loaded last, so every handler exists. At
 -- login it reads the app's fights file (Data.lua) and adds its section to Ryna's window (Window.lua);
 -- /ryna fights opens it there. It also starts the threat bar (ThreatBar.lua), which reads the game while
--- the group is fighting; /ryna fights threat shows that bar with an example, to be placed.
+-- the group is fighting (/ryna fights threat shows that bar with an example, to be placed), and the meter
+-- (Meter.lua), the game's own tallies drawn live; /ryna fights meter turns it on or off.
 
 local _, ns = ...
 if ns.off then return end
@@ -16,9 +17,13 @@ ns.API.RegisterMod({
     ns.Run("fights file", ns.Data.Load)
     ns.Run("fights window", ns.Window.Register)
     ns.Run("threat bar", ns.ThreatBar.Register)
+    ns.Run("meter", ns.Meter.Register)
     ns.Debug("fights: %d in the file (%s)", #ns.Data.list, tostring(ns.Data.why or "read"))
   end,
-  onDefaults = function() ns.Run("threat bar place", ns.ThreatBar.ResetPlace) end,
+  onDefaults = function()
+    ns.Run("threat bar place", ns.ThreatBar.ResetPlace)
+    ns.Run("meter place", ns.Meter.ResetPlace)
+  end,
 })
 
 local Slash = ns.API.Slash
@@ -36,6 +41,15 @@ if type(Slash) == "table" and type(Slash.Add) == "function" then
           ns.Print(L["The threat bar is showing an example: drag it where you want it, then type "
             .. "/ryna fights threat again."])
         end
+        return
+      end
+      -- /ryna fights meter: the meter on or off.
+      if type(arg) == "string" and arg:lower() == "meter" then
+        local on = not ns.Meter.On()
+        ns.API.Settings.Set(ns.Meter.KEY, on)
+        ns.Meter.dirty = true
+        ns.Meter.Tick()
+        ns.Print(on and L["The meter is on."] or L["The meter is off."])
         return
       end
       if not ns.Window.Open() then ns.Print(L["Fights needs a newer Ryna core: update the Ryna app."]) end

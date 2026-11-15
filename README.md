@@ -94,7 +94,9 @@ the mods that are on. Each mod is listed under the install with a switch; there 
   combat log, so the app writes what it read from the log file into the addon's folder, and the game
   shows it after a login or `/reload`. The file names the players who were in your fights and stays
   on your computer.
-  It also has a threat bar: while your group is fighting, a small frame shows how close each member is
+  It also has a live meter: damage, DPS, healing, HPS, damage taken, absorbs, interrupts and dispels
+  for everyone in the fight, as the game itself counts them, in a small frame you click through.
+  And a threat bar: while your group is fighting, a small frame shows how close each member is
   to pulling the enemy you have targeted (or, with a friend targeted, the enemy that friend is on),
   read from the game as it happens. Past 80% a bar turns orange; it makes no sound and says nothing
   in chat. Drag it to move it (`/ryna fights threat` shows it outside a fight). Off by default.

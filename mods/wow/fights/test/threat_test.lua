@@ -264,7 +264,7 @@ f._scripts.OnDragStop(f)
 local at = _G.RynaDB.fights and _G.RynaDB.fights.threatBar
 check(at and at.point == "TOPLEFT" and at.x == 40 and at.y == -300, "its place is kept when dragged")
 B.ResetPlace()
-eq(_G.RynaDB.fights.threatBar, nil, "Defaults forgets the place")
+eq(_G.RynaDB.fights.threatBar.point, nil, "Defaults forgets the place")
 eq((f:GetPoint(1)), "CENTER", "and puts it back")
 
 -- /ryna fights threat -------------------------------------------------------------------------------

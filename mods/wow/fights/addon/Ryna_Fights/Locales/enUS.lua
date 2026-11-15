@@ -25,14 +25,40 @@ L["The threat bar is off: turn it on in /ryna, under Fights."] = true
 L["The threat bar is showing an example: drag it where you want it, then type /ryna fights threat again."] = true
 
 -- Tab.lua: the Fights tab of /ryna.
-L["Fights shows your recent fights in Ryna's window, and a threat bar while your group is fighting. It "
-  .. "reads the game and the fights the companion app found in your combat log: it does nothing for you "
-  .. "and says nothing in chat."] = true
+L["Fights shows your recent fights in Ryna's window, a live meter, and a threat bar while your group is "
+  .. "fighting. It reads the game and the fights the companion app found in your combat log: it does nothing "
+  .. "for you and says nothing in chat."] = true
 L["Show the threat bar while my group is fighting"] = true
 L["A small bar per group member for the enemy you have targeted: how close each is to pulling it. With "
   .. "a friend targeted, it follows the enemy that friend is on, from the nameplates on screen. Past 80% "
   .. "a bar turns orange. Hidden when you are alone. Drag it to move it; /ryna fights threat shows it "
   .. "with an example so you can place it outside a fight."] = true
+
+L["Show the meter"] = true
+L["Damage, healing and more for everyone in the fight, as the game counts them, live. Click its first line "
+  .. "for the next view (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels), right-click "
+  .. "it for this fight or overall, and drag it to move it. It only shows what the game counted: nothing is "
+  .. "kept or sent."] = true
+-- Answers to /ryna fights meter.
+L["The meter is on."] = true
+L["The meter is off."] = true
+
+-- Meter.lua: the meter's views, as its first line names them.
+L["Damage"] = true
+L["DPS"] = true
+L["Healing"] = true
+L["HPS"] = true
+L["Absorbs"] = true
+L["Interrupts"] = true
+L["Dispels"] = true
+-- Beside the view: which tally, and (after " · ") the fight's length.
+L["this fight"] = true
+L["overall"] = true
+-- The hint on the first line.
+L["Click: the next view. Right-click: this fight or overall. Drag to move."] = true
+-- Under the rows when there is nothing to show.
+L["The game's meter isn't available here."] = true
+L["Nothing yet."] = true
 
 -- ThreatBar.lua: the bar on screen during a fight.
 -- A row's right side for whoever the enemy is attacking, and (numbers hidden) for someone near pulling it.

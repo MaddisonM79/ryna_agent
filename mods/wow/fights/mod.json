@@ -3,7 +3,7 @@
   "core": "wow",
   "name": "Fights",
   "version": "0.4.2",
-  "summary": "A Fights section in Ryna's window, in the manner of a damage meter: your recent fights, and for each one who struck first and who died when, every player's damage done and taken over the fight, and whom each enemy was attacking. Built from your own combat log as the Ryna app reads it (Data/fights.lua, which the game reads at login or /reload); it names the players who were in those fights and stays on this computer. And a threat bar while your group is fighting: how close each member is to pulling the enemy you have targeted, read from the game as it happens. Nothing in chat, nothing done for you.",
+  "summary": "A Fights section in Ryna's window, in the manner of a damage meter: your recent fights, and for each one who struck first and who died when, every player's damage done and taken over the fight, and whom each enemy was attacking. Built from your own combat log as the Ryna app reads it (Data/fights.lua, which the game reads at login or /reload); it names the players who were in those fights and stays on this computer. A live meter of the game's own tallies (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels). And a threat bar while your group is fighting: how close each member is to pulling the enemy you have targeted, read from the game as it happens. Nothing in chat, nothing done for you.",
   "kind": "addon",
   "actsInGame": false,
   "source": { "kind": "bundled" },
