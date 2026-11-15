@@ -27,6 +27,8 @@ Citations use these keys, with a path or line after. All were read on 2026-11-08
 | WSV | warcraft.wiki.gg, Secret Values | https://warcraft.wiki.gg/wiki/Secret_Values |
 | WTOC | warcraft.wiki.gg, TOC format | https://warcraft.wiki.gg/wiki/TOC_format |
 | Team | This repo's probes: commit messages, READMEs, code comments | as cited, 2026-11-07 and 08 |
+| Details | Details! Damage Meter, source at commit `256a0d7` (2026-11-09), read 2026-11-15; it ships `Details_Camelot.toc` (16001) and is not installed here (all rights reserved: read, never copy) | https://github.com/Tercioo/Details-Damage-Meter |
+| Blz70938 | The same `forever` branch at commit `bebcb6b`, "1.60.1 (70938)", read 2026-11-15 for the sections on secrets, the damage meter and threat | as Blz |
 
 The installed third-party addons are evidence of what the API does, nothing more. Their code is
 never copied into ours.
@@ -131,6 +133,26 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   on `live`), which exists and returns true in game (Team, 2026-11-08).
 - **Do instead**: pass every value from the game through a guard like the core's `IsSecret`
   before comparing it, and keep combat-time reads to a minimum.
+- **A secret can be drawn.** "Secret" stops code from computing with a value, not from showing
+  it. These take a secret from addon code (`SecretArguments = "AllowedWhenTainted"`, Docs at
+  Blz70938): `StatusBar:SetValue` and `SetMinMaxValues`, `FontString:SetText` and
+  `SetFormattedText`, `Texture:SetVertexColor`, `SetAlpha`, `SetTexture`, and the formatters
+  `AbbreviateNumbers`, `AbbreviateLargeNumbers`, `BreakUpLargeNumbers`. The widget then carries a
+  secret aspect (`Enum.SecretAspect.BarValue`, `Text`, ...), so reading it back is refused. Details
+  draws its whole in-combat window this way (Details `classes/class_damage.lua`,
+  `UpdateBarApocalypseWow`: `statusbar:SetMinMaxValues(0, topValue)`, `SetValue(value)`,
+  `AbbreviateNumbers(source.totalAmount, ...)` into `SetText`).
+- **A share of a secret** comes from a curve, not from division: `C_CurveUtil.CreateCurve()`,
+  `AddPoint(0, 0)`, `AddPoint(total, 100)`, `curve:Evaluate(amount)` (Details
+  `frames/window_breakdown_midnight/breakdown_dataprovider.lua:229-233`, in a `pcall`).
+- **Which restriction is on**: `C_RestrictedActions.GetAddOnRestrictionState(type)` and
+  `IsAddOnRestrictionActive(type)`, with `Enum.AddOnRestrictionType` Combat 0, Encounter 1,
+  ChallengeMode 2, PvPMatch 3, Map 4, Chat 5 and states Inactive 0, Activating 1, Active 2; the
+  event is `ADDON_RESTRICTION_STATE_CHANGED` (Docs `RestrictedActionsDocumentation.lua`,
+  `RestrictedActionsConstantsDocumentation.lua`). Each guarded function names its own rule
+  (`SecretWhenInCombat`, `SecretWhenUnitIdentityRestricted`, ...; all listed with their meaning in
+  Docs `SecretPredicatesDocumentation.lua`), and `C_Secrets.Should...BeSecret(...)` asks about one
+  call before making it. **Read the rule on the exact function before saying it can't be read.**
 
 ### Items: `GetItemInfo` and loading
 
@@ -367,8 +389,50 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   avoidable damage taken, deaths, enemy damage taken. Session types: overall 0, current 1, expired 2.
 - **Watch**: the session reads are `SecretWhenInCombat`; a source's `name` and `sourceGUID` are
   conditionally secret and `specIconID` always is.
-- **Unknown**: that an addon's calls answer on Forever, and what a finished session returns.
-- **Do instead of CLEU**: read finished fights from here; leave live bars to the game's meter.
+- **An addon's calls answer on Forever**: Details' Forever build has no combat-log parser at all
+  (`Details_Camelot.toc` loads `core/parser_nocleu*.lua`) and takes everything from these calls
+  (`Details:IsUsingBlizzardAPI` is true for `WOW_PROJECT_CAMELOT`, Details
+  `classes/class_damage.lua:2151`). Not yet run on our client: probes 10 to 12 below.
+- **During a fight** the game hands the sources already sorted, so a live window needs no
+  comparison: Details reads `GetCombatSessionFromType` on `DAMAGE_METER_COMBAT_SESSION_UPDATED`
+  and draws each source's secret amounts into its own bars (see "A secret can be drawn"). A
+  source's spells are live too (`GetCombatSessionSourceFromType`).
+- **After a fight** the values turn plain. Details polls once a second until `InCombatLockdown()`
+  is false, the Combat restriction state is 0 and no field of the session is secret, then copies
+  players, spells and per-target amounts into its own tables (Details `core/parser_nocleu1.lua`,
+  `startWaitSecretDropTimer`, `getBlizzardSegmentData`). So a finished fight is in the addon's hands
+  seconds after it ends, with no file from the app and no `/reload`.
+- **Not in the meter** (Details marks them unsupported on this path, `core/parser_nocleu.lua:20-62`):
+  overhealing, healing taken, friendly fire, resources gained, CC breaks, resurrections, cooldowns,
+  buff and debuff uptime. Deaths come with a `deathRecapID` for `C_DeathRecap`.
+- **Do instead of CLEU**: draw live bars from the session reads, harvest the finished fight when the
+  secrets drop, and keep the log file for what the meter has no events for (the timeline, casts).
+
+### Threat
+
+- **Forever**: `UnitThreatSituation(unit[, mob])` and `UnitThreatLeadSituation` are
+  `SecretWhenUnitThreatStateRestricted`; `UnitDetailedThreatSituation(unit, mob)` (isTanking, status,
+  scaledPercentage, rawPercentage, rawThreat; `MayReturnNothing`) and `UnitThreatPercentageOfLead`
+  are `SecretWhenUnitThreatValuesRestricted` (Docs `UnitDocumentation.lua`). The rules: a query
+  with one unit, or with the player, their pet or an ally against a target or nameplate, is
+  "generally not secret"; for values the docs say "a non-boss or nameplate target" (Docs
+  `SecretPredicatesDocumentation.lua:160-167`). Ask first with
+  `C_Secrets.ShouldUnitThreatStateBeSecret(unit, mob)` and `ShouldUnitThreatValuesBeSecret(unit, mob)`.
+- **Verified in game (Maddison, 2026-11-15, The Deadmines, in combat, a healer)**:
+  `ShouldUnitThreatStateBeSecret` and `ShouldUnitThreatValuesBeSecret("player","target")` are both
+  false; `UnitDetailedThreatSituation("player","target")` on a Defias mob gave
+  `false, 0, 16.92, 22, 47` and a moment later `false, 0, 30.77, 40, 156` (scaled is raw / 1.3, the
+  ranged pull line); `("party1","target")` gave `false, 0, 6.15, 8, 36`; on the boss Mr. Smite
+  `false, 0, 7.69, 10, 3` with the values rule still false; `UnitThreatSituation("player")` gave 0.
+  With a friendly unit as the mob the detailed call returns nothing; a character's name as the
+  unit also gave nothing.
+- **Unknown**: a raid boss, where the Encounter restriction may make the values secret. Plan for
+  it: ask the `C_Secrets` rule before each read and, when it says secret, draw the value without
+  reading it (a bar and the status colour) instead of numbers.
+- **The combat log file has no threat events**, so threat over a fight exists only if the addon
+  samples it during the fight.
+- Details' Tiny Threat plugin ships a Forever TOC and does arithmetic on these values (Details
+  `plugins/Details_TinyThreat/Details_TinyThreat.lua:297`).
 
 ### Collections, the encounter journal and load on demand
 
@@ -463,6 +527,9 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | The client holds combat-log lines and writes them in bursts: a `/reload` writes its `COMBAT_LOG_VERSION` header at once, in front of held lines up to 300 s older (once in a boss fight), so neither the header's time nor a quiet file means a fight is over | Disk (2026-11-15) | the same 40 logs; `cores/wow/core/src/combat/segment.rs` (`FLUSH_GRACE_MS`) |
 | Combat log `ZONE_CHANGE` names the zone as `GetRealZoneText` does (the dungeon inside one), and also a building walked into ("Lion's Pride Inn") and "UNKNOWN AREA" on a loading screen, neither with a `MAP_CHANGE` | Disk (2026-11-10) | 26 logs in `_forever_/Logs`; docs/ryna-agent-cores-mods.md 7.6 |
 | `C_MountJournal` lists 136, collected flag is `GetMountInfoByID`'s 11th value; `C_PetJournal.GetNumPets()` is listed, owned (owned only by default); the encounter journal is loadable and empty (`EJ_GetNumTiers()` 0); `C_AddOns.LoadAddOn` loads a load-on-demand addon | Game (2026-11-09); Blz | Team; Blz TOCs on `forever` |
+| Threat is readable in combat in a dungeon: `UnitDetailedThreatSituation` gives plain numbers for the player and for a party member against the target, a dungeon boss included; both `C_Secrets.ShouldUnitThreat...BeSecret("player","target")` are false | Game (2026-11-15) | Maddison's probes in The Deadmines; Docs `UnitDocumentation.lua`, `SecretPredicatesDocumentation.lua` |
+| Secrets may be passed to `SetValue`, `SetMinMaxValues`, `SetText`, `SetFormattedText`, `SetVertexColor`, `SetAlpha`, `AbbreviateNumbers`; a live meter is drawn that way | Docs; Addons (2026-11-15) | Docs at Blz70938; Details `classes/class_damage.lua` |
+| `C_DamageMeter` answers an addon on Forever, live and after combat | Addons (2026-11-15); not yet run by us | Details `Details_Camelot.toc`, `core/parser_nocleu1.lua` |
 
 ## How to probe
 
@@ -501,6 +568,9 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
     `/dump C_XMLUtil.GetTemplateInfo("WowStyle1DropdownTemplate") ~= nil, C_XMLUtil.GetTemplateInfo("SearchBoxTemplate") ~= nil`
     (the character picker falls back to a list of its own, the search box to a plain one);
     `/dump RAID_CLASS_COLORS.MAGE, ITEM_QUALITY_COLORS[2], FACTION_BAR_COLORS and FACTION_BAR_COLORS[5], FACTION_STANDING_LABEL5, LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE.MAGE, HEADSLOT, RANGEDSLOT`
+14. On a raid boss, in combat: `/dump C_Secrets.ShouldUnitThreatValuesBeSecret("player","target"), UnitDetailedThreatSituation("player","target")` (do the values go secret in a raid?)
+15. In combat with a mob: `/dump C_RestrictedActions.GetAddOnRestrictionState(0), C_RestrictedActions.GetAddOnRestrictionState(1), C_RestrictedActions.GetAddOnRestrictionState(4)` (Combat, Encounter, Map), and again inside a dungeon
+16. In combat: `/run local s=C_DamageMeter.GetCombatSessionFromType(1,0) local c=s.combatSources[1] print(#s.combatSources, c and issecretvalue(c.totalAmount), c and issecretvalue(c.name))` (the live session answers, and which fields are secret)
 14. The quest log's header rows as Chronicle reads them (Blizzard's source, not yet seen in game), with a few
     quests in the log: `/run for i=1,C_QuestLog.GetNumQuestLogEntries() do local q=C_QuestLog.GetInfo(i) if q then print(i, q.isHeader, q.title, q.questID) end end`
     (each header row should print `true` and the heading the quest log shows, its quests after it with `false`);
