@@ -910,6 +910,34 @@ the saved file alone. (3) Census, with a pooled summary file. (4) History, and A
 list. (5) Fights, after the probes. Then 7.4's Collections, Dungeons and Quests, and the Auctions
 section, each landing with its portal page.
 
+**Owed after the portal's 12 to 15 November features (proposed 2026-11-15; Maddison has the mockups and
+has not agreed yet).** Five things shipped on the portal ahead of their in-game view. Each is placed in
+the window that exists (7.4), drawn only with what a section can draw today plus one new piece:
+
+| Portal feature | Owed in game | The view | Data in game | Size |
+|---|---|---|---|---|
+| Where your gold is, where your time went (Overview) | A little | **Characters**, All characters: a bar behind each character's gold and played, the share in the played bar, and Gold and Played totals as tiles | The saved file, as today | Small |
+| An auction item's week (Market's sparkline) | Yes | A third Prices line in the item tooltip, "This week 1s 30c → 1s 0c, down 23%", only when the item had a low on two days of the week; a Week column when the Auctions section is built | `RynaData_auctions` gains the low of seven days ago per item, from the agent's price read | Small |
+| When you play, played each day (Overview, Activity) | Yes | **History › Play** beside Levels: tiles (this week, 30 days, busiest day and hour, longest sitting), a row per day with a bar of time played and its sessions, then seven weekday rows of 24 blocks | The journal's sessions in the saved file (30 days); nothing from the API | Medium |
+| The quest log by zone or heading | Nothing for the character you're on (the game's own log groups it); owed for the others | A **Quests** part of a character's detail in Characters: heading rows with a count, a quest per row with its level and progress bar, "Picked up before this was recorded" last | Each character's saved quest log and the `header` the addon records per quest (2026-11-15) | Small, with 7.4's J3 |
+| The fight timeline (Logs › a fight › Timeline) | Yes | **Fights › a fight**: the story in two sentences (first blow, deaths in order), a row per player with done, taken and a two-line strip over the fight's clock (done above, taken below, a skull at a death), and a row per enemy saying whom it was attacking, in order. Never the word "threat" | A `fights` data file the app writes from its own parse of the combat log: the last fights' story lines, totals and about 40 steps of done and taken per player | Large; after the meter probe |
+
+**The strip**, the one new thing a row can draw: a cell kind beside `bar`, a run of up to 48 small blocks,
+each a share from 0 to 1 shown as brightness (the weekday rows) or as height in one or two lines (a
+fight's done and taken). It keeps the window's rule: the game's own textures, no art of Ryna's.
+
+**Limits to say on the view.** History › Play covers the 30 days the saved journal keeps, against the
+portal's 90 (a compact per-day and per-hour tally kept in the saved file would close that). A fight's
+row arrives when the game next loads the app's files (login and `/reload`), so the footer says "as of",
+and only the game's own meter, if the probe proves it readable, can show a fight the moment it ends.
+
+**Order proposed.** (1) Characters bars and totals. (2) The tooltip's week line. (3) History › Play, with
+the strip. (4) A character's quests, with J3. (5) Fights, after the probes. The first two are small
+enough for the next release she asks for.
+
+**Hers to call.** Whether the window gains the strip; whether a fight's detail may lag until `/reload`
+or Fights waits for the meter probe; 30 days in game or a 90-day tally in the saved file; the order.
+
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 
 The ask came from the guild Discord, after a preview of Kills & Loot: "Do you have it set up so it keeps track
