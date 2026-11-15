@@ -426,6 +426,15 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   `false, 0, 7.69, 10, 3` with the values rule still false; `UnitThreatSituation("player")` gave 0.
   With a friendly unit as the mob the detailed call returns nothing; a character's name as the
   unit also gave nothing.
+- **How the enemy is named decides it (the same day, 16:05, Luna targeted)**: through a compound
+  unit the values are secret: `UnitCanAttack("player","targettarget")` was true and
+  `UnitDetailedThreatSituation("target","targettarget")` on Captain Greenskin dumped every value
+  tagged `<secret>` (true, 3, 100, 255, 234). Through nameplates they are plain:
+  `("target","nameplateN")` over the enemy plates printed `false 0 26.36 29 267`,
+  `false 0 15.45 17 141` and `false 0 49.09 54 482`, and nothing for a plate whose enemy the unit
+  wasn't on. Friendly players have nameplates too: skip them with `UnitCanAttack("player", unit)`.
+- **Do**: name the enemy by `target` or walk `nameplate1..40`; never `targettarget`. The game's own
+  unit tooltip prints "17% Threat" (seen on Captain Greenskin).
 - **Unknown**: a raid boss, where the Encounter restriction may make the values secret. Plan for
   it: ask the `C_Secrets` rule before each read and, when it says secret, draw the value without
   reading it (a bar and the status colour) instead of numbers.
@@ -528,6 +537,7 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | Combat log `ZONE_CHANGE` names the zone as `GetRealZoneText` does (the dungeon inside one), and also a building walked into ("Lion's Pride Inn") and "UNKNOWN AREA" on a loading screen, neither with a `MAP_CHANGE` | Disk (2026-11-10) | 26 logs in `_forever_/Logs`; docs/ryna-agent-cores-mods.md 7.6 |
 | `C_MountJournal` lists 136, collected flag is `GetMountInfoByID`'s 11th value; `C_PetJournal.GetNumPets()` is listed, owned (owned only by default); the encounter journal is loadable and empty (`EJ_GetNumTiers()` 0); `C_AddOns.LoadAddOn` loads a load-on-demand addon | Game (2026-11-09); Blz | Team; Blz TOCs on `forever` |
 | Threat is readable in combat in a dungeon: `UnitDetailedThreatSituation` gives plain numbers for the player and for a party member against the target, a dungeon boss included; both `C_Secrets.ShouldUnitThreat...BeSecret("player","target")` are false | Game (2026-11-15) | Maddison's probes in The Deadmines; Docs `UnitDocumentation.lua`, `SecretPredicatesDocumentation.lua` |
+| Threat through `targettarget` is secret; through `nameplateN` it is plain | Game (2026-11-15) | Maddison's probes in The Deadmines; Ryna_Fights `Threat.lua` |
 | Secrets may be passed to `SetValue`, `SetMinMaxValues`, `SetText`, `SetFormattedText`, `SetVertexColor`, `SetAlpha`, `AbbreviateNumbers`; a live meter is drawn that way | Docs; Addons (2026-11-15) | Docs at Blz70938; Details `classes/class_damage.lua` |
 | `C_DamageMeter` answers an addon on Forever, live and after combat | Addons (2026-11-15); not yet run by us | Details `Details_Camelot.toc`, `core/parser_nocleu1.lua` |
 
