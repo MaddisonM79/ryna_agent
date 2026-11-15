@@ -1,8 +1,9 @@
 -- ThreatBar: the small frame that shows, while the group is fighting, how close each member is to
 -- pulling one enemy (Threat.lua reads it; docs/ryna-agent-cores-mods.md 7.5, "The threat bar"). One
 -- row per member, whoever holds the enemy on top, a full bar meaning "pulls". Past 80% a bar turns
--- orange and the frame's edge with it. It is silent: no chat line, no sound. It hides when the fight
--- ends, when alone, and while the setting (meterThreat) is off.
+-- orange and the frame's edge with it. It is silent: no chat line, no sound. Between fights and when
+-- alone it stays on screen, empty ("Nobody is fighting."), unless meterThreatStay is off; it is away
+-- while the setting (meterThreat) is off.
 --
 -- Where the client hides the numbers (a raid may), the bar is still filled, because a status bar
 -- takes a secret value; the rows keep the group's order, the percentage is left out and the words
@@ -21,9 +22,11 @@ local B = {}
 ns.ThreatBar = B
 
 B.KEY = "meterThreat"
+-- Whether the frame stays on screen, empty, when nobody is fighting (on), or goes away (off).
+B.STAY = "meterThreatStay"
 B.INTERVAL = 0.25
 
-ns.API.Settings.AddDefaults({ [B.KEY] = true })
+ns.API.Settings.AddDefaults({ [B.KEY] = true, [B.STAY] = true })
 
 function B.On()
   return ns.API.Settings.Get(B.KEY) and true or false
@@ -106,12 +109,30 @@ function B.Hide()
   if B.frame then B.frame:Hide() end
 end
 
+-- The frame with nothing to show: its name and one line, so it keeps its place on screen between fights.
+function B.DrawIdle()
+  local f = build()
+  f.title:SetText(L["Threat"])
+  f.holder:SetText("")
+  for _, bar in ipairs(f.rows) do bar:Hide() end
+  BF.Foot(f, L["Nobody is fighting."])
+  BF.Edge(f, false)
+  BF.Fit(f, 0, true)
+  f:Show()
+end
+
+-- Nothing to read: the empty frame when it is set to stay, else none.
+local function idle()
+  if ns.API.Settings.Get(B.STAY) then return B.DrawIdle() end
+  return B.Hide()
+end
+
 -- One read and draw; the driver calls it four times a second.
 function B.Tick()
   if B.placing then return end
   if not B.On() then return B.Hide() end
   local snap = T.Snapshot()
-  if not snap then return B.Hide() end
+  if not snap then return idle() end
   B.Draw(snap)
 end
 

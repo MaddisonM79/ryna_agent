@@ -1012,6 +1012,9 @@ secret. So the Meter mod draws them live (`Threat.lua`, `ThreatBar.lua`):
 - **Settings**: one switch (`meterThreat`, on with the mod) on the Meter tab of `/ryna`; the frame
   is dragged with the left button and its place kept in `RynaDB.meter.threatBar`;
   `/ryna meter threat` shows it with example rows to place it outside a fight.
+- **Between fights** ("and threat window stay open too", the same evening): it stays on screen,
+  empty, under the name "Threat" with "Nobody is fighting.", so it keeps its place; `meterThreatStay`
+  (on) turns that off, and then it only appears while the group is fighting, as first built.
 - **Left out for now**: pets as rows, and a sound. **Next step, not built**: keeping a reading a
   second during the fight (only where it isn't hidden) for a Threat view of a finished fight in the
   Fights section and, uploaded with the fight, real threat on the portal's timeline; fights without
@@ -1035,7 +1038,10 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   pick-list's last rows open another window, up to four, and close one that isn't the first. A new
   window shows the partner of the first's view (DPS beside HPS, damage beside healing) when no open
   window has it, else the first view none shows. Each has its own view, tally and place
-  (`RynaDB.meter.bars`, `bars2`, ...); the one setting hides them all. The first line names the view, the tally and,
+  (`RynaDB.meter.bars`, `bars2`, ...); the one setting hides them all. A window can be **locked**
+  under or beside the open window before it ("can I lock windows together?"): it sits against it,
+  follows its height, and a drag of any window in the group moves the first of them; unlocking leaves
+  it where it is. The first line names the view, the tally and,
   when the game says it plainly, the fight's length.
 - **Rows**: the game's order, rank and name, the amount through the game's own formatter
   (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and

@@ -138,7 +138,8 @@ is the whole of it).
   line opens a pick-list of the views and of this fight, overall and the last ten fights the game
   holds, a right-click goes between this fight and overall; an empty current tally shows the newest
   held fight as "last fight"; the list also opens another window, up to four, each with its own view,
-  tally and place, and closes one), eight rows in the game's
+  tally and place, closes one, and locks one under or beside the window before it so they drag as
+  one), eight rows in the game's
   order with the player's marked and kept in the last row when further down. In a fight every amount
   is a secret value: it goes from the game to its bar and label untouched, through the game's
   formatter, and nothing is compared or kept. **The threat bar** (`Threat.lua`, `ThreatBar.lua`):
@@ -146,8 +147,9 @@ is the whole of it).
   (`UnitDetailedThreatSituation`), whoever holds it on top, a full bar meaning "pulls", orange past
   80%, silent; the enemy is the player's target, or with a friend targeted the enemy nameplate that
   friend is highest on, never `targettarget` (secret there); where the client hides the numbers the
-  bar is still filled and the words come from the threat state. Settings `meterBars` and
-  `meterThreat` on a Meter tab; `/ryna meter` turns the meter on or off and `/ryna meter threat`
+  bar is still filled and the words come from the threat state; between fights it stays on screen,
+  empty, unless `meterThreatStay` is off. Settings `meterBars`, `meterThreat` and `meterThreatStay`
+  on a Meter tab; `/ryna meter` turns the meter on or off and `/ryna meter threat`
   shows the threat bar with an example to place it; the places and the meter's view are kept in
   `RynaDB.meter`. It sends nothing and prints nothing unasked. `test/bars_test.lua` and
   `test/threat_test.lua` run both against a fake client whose secrets raise when compared.

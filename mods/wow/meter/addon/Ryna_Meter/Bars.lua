@@ -20,7 +20,8 @@
 -- "This fight" is the game's current tally; when that is empty (it is cleared between fights on some
 -- clients) the newest fight the game still holds is shown instead, so the meter never sits empty
 -- after a pull. The pick-list also opens another window (up to four: damage beside healing, DPS beside
--- HPS) and closes one. Each window's view, tally and place are kept in RynaDB.meter (bars, bars2, ...);
+-- HPS) and closes one, and locks a window under or beside the one before it, so they sit together and
+-- drag as one. Each window's view, tally, lock and place are kept in RynaDB.meter (bars, bars2, ...);
 -- a past fight picked from the list is kept only until /reload, since the game's fight numbers start
 -- over. Nothing is written elsewhere,
 -- nothing is said in chat, and the game's own meter is left as the player set it.
@@ -62,6 +63,8 @@ end
 -- Several windows can be open at once (damage beside healing, say), each with its own view, tally
 -- and place. Every function below takes the window's number last and means the first without one.
 M.MAX_WINDOWS = 4
+-- The space between two windows locked together.
+M.GAP = 2
 M.frames = {}
 -- A past fight picked for a window, this session: pickedBy[w] = { id, name }.
 local pickedBy = {}
@@ -241,9 +244,70 @@ local function build(w)
   return M.frames[w]
 end
 
+-- The open window before `w`, which `w` can be locked to; nil for the first.
+function M.Before(w)
+  for i = (w or 1) - 1, 1, -1 do
+    if M.IsOpen(i) then return i end
+  end
+  return nil
+end
+
+-- How a window is locked to the one before it: "below", "beside", or nil when it is free (or there is
+-- no window before it any more).
+function M.Lock(w)
+  local how = kept(w).lock
+  if (how == "below" or how == "beside") and M.Before(w) then return how end
+  return nil
+end
+
+-- The window a drag of `w` moves: the head of its group.
+local function head(w)
+  while M.Lock(w) do w = M.Before(w) end
+  return w
+end
+
+-- Puts a window where its lock says: under or beside the one before it, moving with it and following
+-- its height. A window just unlocked stays where it was drawn.
+local function position(w, f)
+  local how = M.Lock(w)
+  f.mover = how and function() return M.frames[head(w)] end or nil
+  if how then
+    local anchor = M.frames[M.Before(w)]
+    if not anchor then return end
+    f:ClearAllPoints()
+    if how == "below" then
+      f:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -M.GAP)
+    else
+      f:SetPoint("TOPLEFT", anchor, "TOPRIGHT", M.GAP, 0)
+    end
+    f.locked = true
+  elseif f.locked then
+    f.locked = nil
+    -- Its own place again: where it is now when the client can say, else where it was last left.
+    local left, top = ns.Try(f.GetLeft, f), ns.Try(f.GetTop, f)
+    if type(left) == "number" and type(top) == "number" then
+      f:ClearAllPoints()
+      f:SetPoint("TOPLEFT", _G.UIParent, "BOTTOMLEFT", left, top)
+      local k = kept(w)
+      k.point, k.rel, k.x, k.y = "TOPLEFT", "BOTTOMLEFT", left, top
+    else
+      BF.Place(f)
+    end
+  end
+end
+
+-- Locks a window under or beside the one before it ("below", "beside"), or frees it (nil).
+function M.SetLock(w, how)
+  if (w or 1) == 1 then return false end
+  kept(w).lock = (how == "below" or how == "beside") and how or nil
+  M.Draw()
+  return true
+end
+
 -- Draws one window.
 function M.DrawOne(w)
   local f = build(w)
+  position(w or 1, f)
   local view = M.View(w)
   local sessionKey = M.SessionKey(w)
   f.title:SetText(L[view.label])
@@ -417,6 +481,15 @@ function M.MenuRows(w)
     rows[#rows + 1] = { text = L["Open another window"], button = true, pick = function() M.Open() end }
   end
   if w > 1 then
+    local how = M.Lock(w)
+    if how then
+      rows[#rows + 1] = { text = L["Unlock this window"], button = true, pick = function() M.SetLock(w, nil) end }
+    elseif M.Before(w) then
+      rows[#rows + 1] = { text = L["Lock under the window before it"], button = true,
+        pick = function() M.SetLock(w, "below") end }
+      rows[#rows + 1] = { text = L["Lock beside the window before it"], button = true,
+        pick = function() M.SetLock(w, "beside") end }
+    end
     rows[#rows + 1] = { text = L["Close this window"], button = true, pick = function() M.Close(w) end }
   end
   return rows

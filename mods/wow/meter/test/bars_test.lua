@@ -303,7 +303,39 @@ f2:ClearAllPoints()
 f2:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 300, -90)
 f2.head._scripts.OnDragStop(f2.head)
 eq(_G.RynaDB.meter.bars2.x, 300, "the second window's place is its own")
+-- Locked together: under the one before it, dragged as one
+local names = {}
+for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
+eq(table.concat(names, "|"), "Open another window|Lock under the window before it|"
+  .. "Lock beside the window before it|Close this window", "a free window's list offers both locks")
+M.SetLock(2, "below")
+local pt = f2._points[1]
+check(#f2._points == 1 and pt[1] == "TOPLEFT" and pt[2] == f and pt[3] == "BOTTOMLEFT" and pt[5] == -2,
+  "locked below: its top on the first window's bottom")
+eq(_G.RynaDB.meter.bars2.lock, "below", "the lock is kept")
+names = {}
+for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
+eq(table.concat(names, "|"), "Open another window|Unlock this window|Close this window",
+  "a locked one offers to unlock")
+f:ClearAllPoints()
+f:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 77, -11)
+f2.head._scripts.OnDragStart(f2.head)
+f2.head._scripts.OnDragStop(f2.head)
+eq(_G.RynaDB.meter.bars.x, 77, "dragging the locked window moves the first, whose place is kept")
+eq(_G.RynaDB.meter.bars2.x, 300, "and its own free place is left for when it is unlocked")
+M.SetLock(2, "beside")
+pt = f2._points[1]
+check(pt[2] == f and pt[3] == "TOPRIGHT" and pt[4] == 2, "locked beside: its left on the first window's right")
+M.SetLock(2, nil)
+check(f2._points[1][2] == _G.UIParent and f2.mover == nil, "unlocked: on its own again")
+eq(M.SetLock(1, "below"), false, "the first window has nothing to lock to")
+M.SetLock(2, "below")
 eq(M.Open(), 3, "a third")
+M.SetLock(3, "below")
+check(M.frames[3]._points[1][2] == f2 and M.frames[3].mover() == f,
+  "a chain: the third under the second, all moved by the first")
+M.SetLock(3, nil)
+M.SetLock(2, nil)
 eq(M.Open(), 4, "a fourth")
 eq(M.Open(), nil, "and no more than four")
 check(M.MenuRows(1)[#M.MenuRows(1)].text ~= "Open another window", "with four open the list stops offering one")

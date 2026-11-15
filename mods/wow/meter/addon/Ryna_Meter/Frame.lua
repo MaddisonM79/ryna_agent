@@ -6,6 +6,7 @@
 --   F.Create{ name, key, rows, x, y, onClick, onEnter }   the frame, hidden; onClick(button) makes the
 --                                                         first line a button (it still drags)
 --   F.Place(f), F.Forget(f)    put it where it was left (or at its default); forget that and put it back
+--   f.mover                    set by the owner: a function naming the frame a drag of this one moves
 --   F.Edge(f, warn)            the edge in its usual colour, or the warning one
 --   F.Fit(f, rows, foot)       its height for that many rows, with or without the line under them
 --   F.Foot(f, text)            the line under the rows, or none; returns whether there is one
@@ -95,18 +96,27 @@ function F.Create(spec)
   f:SetMovable(true)
   f:EnableMouse(true)
   f:RegisterForDrag("LeftButton")
+  -- A drag moves this frame, or the one f.mover() names (a frame locked to another moves that one, and
+  -- so the whole group); the place kept is the moved frame's.
+  local moving
+  local function dragStart()
+    moving = (type(f.mover) == "function" and f.mover()) or f
+    moving:StartMoving()
+  end
   local function dragStop()
-    f:StopMovingOrSizing()
+    local m = moving or (type(f.mover) == "function" and f.mover()) or f
+    moving = nil
+    m:StopMovingOrSizing()
     ns.Run(spec.key .. " place", function()
-      local point, _, rel, x, y = f:GetPoint(1)
+      local point, _, rel, x, y = m:GetPoint(1)
       local saved = F.Saved()
       if not saved or type(point) ~= "string" then return end
-      if type(saved[f.key]) ~= "table" then saved[f.key] = {} end
-      local at = saved[f.key]
+      if type(saved[m.key]) ~= "table" then saved[m.key] = {} end
+      local at = saved[m.key]
       at.point, at.rel, at.x, at.y = point, rel, x, y
     end)
   end
-  f:SetScript("OnDragStart", function() f:StartMoving() end)
+  f:SetScript("OnDragStart", dragStart)
   f:SetScript("OnDragStop", dragStop)
 
   f.back = f:CreateTexture(nil, "BACKGROUND")
@@ -146,7 +156,7 @@ function F.Create(spec)
     head:SetHeight(F.HEAD + F.PAD)
     head:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     head:RegisterForDrag("LeftButton")
-    head:SetScript("OnDragStart", function() f:StartMoving() end)
+    head:SetScript("OnDragStart", dragStart)
     head:SetScript("OnDragStop", dragStop)
     head:SetScript("OnClick", function(_, button) ns.Run(spec.key .. " click", spec.onClick, button) end)
     if type(spec.onEnter) == "function" then
@@ -182,7 +192,7 @@ function F.Foot(f, text)
 end
 
 function F.Fit(f, rows, foot)
-  f:SetHeight(F.HEAD + math.max(rows, 1) * F.ROW + 2 * F.PAD + (foot and 14 or 0))
+  f:SetHeight(F.HEAD + rows * F.ROW + 2 * F.PAD + (foot and 14 or 0))
 end
 
 function F.ClassRGB(class)

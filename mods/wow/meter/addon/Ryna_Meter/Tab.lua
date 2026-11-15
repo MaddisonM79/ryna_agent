@@ -35,6 +35,13 @@ local function build(f)
     if not B.On() then B.Hide() end
     ns.API.Panel.RefreshIfShown()
   end)
+  P.stay = W.checkbox(f, L["Keep it on screen between fights"],
+    L["On: the threat bar stays where you put it, empty, when nobody is fighting or you are alone. Off: it "
+      .. "only appears while your group is fighting."])
+  W.toggle(P.stay, B.STAY, function()
+    B.Tick()
+    ns.API.Panel.RefreshIfShown()
+  end)
 end
 
 local function layout(s, settings)
@@ -43,6 +50,9 @@ local function layout(s, settings)
   P.meter.place(s, 4)
   P.bar:SetChecked(settings[B.KEY] and true or false)
   P.bar.place(s, 4)
+  P.stay:SetChecked(settings[B.STAY] and true or false)
+  P.stay.setActive(settings[B.KEY] and true or false)
+  P.stay.place(s, 30)
 end
 
 ns.API.Panel.AddTab({ key = "meter", label = L["Meter"], order = 39, build = build, layout = layout })

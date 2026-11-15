@@ -47,6 +47,10 @@ L["A small bar per group member for the enemy you have targeted: how close each 
   .. "turns orange. Hidden when you are alone. Drag it to move it; /ryna meter threat shows it with an "
   .. "example so you can place it outside a fight."] = nil
 
+L["Keep it on screen between fights"] = nil
+L["On: the threat bar stays where you put it, empty, when nobody is fighting or you are alone. Off: it only "
+  .. "appears while your group is fighting."] = nil
+
 -- Bars.lua: the meter's views, as its first line names them.
 L["Damage"] = nil
 L["DPS"] = nil
@@ -73,6 +77,10 @@ L["Fight %d"] = nil
 -- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
 L["Open another window"] = nil
 L["Close this window"] = nil
+-- Locking a window to the one before it, so they sit together and drag as one, and freeing it.
+L["Lock under the window before it"] = nil
+L["Lock beside the window before it"] = nil
+L["Unlock this window"] = nil
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = nil
 L["Nothing yet."] = nil
@@ -91,6 +99,9 @@ L["The game hides the numbers here."] = nil
 -- Under the rows: the player's highest threat on another enemy. %s: that enemy; %d: percent.
 L["Your highest: %s, %d%%"] = nil
 L["Your highest elsewhere: %d%%"] = nil
+-- The bar between fights, when it is set to stay: its name, and the line under it.
+L["Threat"] = nil
+L["Nobody is fighting."] = nil
 -- The example the bar shows for /ryna meter threat.
 L["Example enemy"] = nil
 L["An example. Drag the bar where you want it."] = nil

@@ -111,6 +111,9 @@ F.DropTimers()
 local T, B = mod.Threat, mod.ThreatBar
 check(T ~= nil and B ~= nil, "the threat files loaded")
 eq(_G.Ryna.Settings.Get("meterThreat"), true, "the bar is on by default")
+eq(_G.Ryna.Settings.Get("meterThreatStay"), true, "and stays on screen between fights by default")
+-- First with that off: the bar only while a fight is on.
+_G.Ryna.Settings.Set("meterThreatStay", false)
 
 -- Readings ---------------------------------------------------------------------------------------------
 
@@ -284,6 +287,23 @@ check(not B.placing and not f:IsShown(), "typed again: put away")
 B.Place()
 F.Fire("PLAYER_REGEN_DISABLED")
 eq(B.placing, false, "a fight ends the example")
+
+-- Kept on screen between fights ----------------------------------------------------------------------
+
+_G.Ryna.Settings.Set("meterThreatStay", true)
+for _, u in pairs(world.units) do u.combat = false end
+B.Tick()
+check(f:IsShown(), "set to stay: on screen with nobody fighting")
+eq(f.title._text, "Threat", "under its own name")
+eq(f.foot._text, "Nobody is fighting.", "saying why it is empty")
+check(not f.rows[1]:IsShown() and f.warn == false, "with no rows and no warning")
+world.units.party1, world.units.party2 = nil, nil
+B.Tick()
+check(f:IsShown(), "and when alone")
+_G.Ryna.Settings.Set("meterThreat", false)
+B.Tick()
+check(not f:IsShown(), "the bar's own setting still turns it off")
+_G.Ryna.Settings.Set("meterThreat", true)
 
 eq(core.errors.count, 0, "no errors caught: " .. tostring(core.errors.last))
 print(string.format("threat: %d checks, %d failed", checks, failures))
