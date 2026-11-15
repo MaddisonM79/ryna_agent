@@ -39,12 +39,12 @@ SOFTWARE.
 The Mac build's saves are Oodle-compressed. They are decompressed by
 [kraken-decode](https://github.com/MaddisonM79/kraken-decode), our own decoder, written without
 reading any other decoder's source (its `docs/SOURCES.md` says how). The build bundles the released
-`kraken-decode.mjs` (`src/vendor`, version 0.1.0) into `agent.mjs`.
+`kraken-decode.mjs` (`src/vendor`, version 0.1.1) into `agent.mjs`.
 
 ```
 MIT License
 
-Copyright (c) 2026 Maddison Markham
+Copyright (c) 2026 MaddisonM79
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

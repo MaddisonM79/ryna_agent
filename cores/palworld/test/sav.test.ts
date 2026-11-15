@@ -86,7 +86,7 @@ describe("decompress", () => {
 
   it("carries kraken-decode exactly as released (src/vendor/README.md)", () => {
     const vendored = readFileSync(new URL("../src/vendor/kraken-decode.mjs", import.meta.url));
-    expect(createHash("sha256").update(vendored).digest("hex")).toBe("709dc6d1a1283856b74d7864aa762b35eccfb4ea388383e0aa95b1d456a2e179");
+    expect(createHash("sha256").update(vendored).digest("hex")).toBe("48d07b34d928e2f02a7026d48ecb0bb3aee081d7eedd1a5269a8d36ed08697d7");
   });
 });
 
