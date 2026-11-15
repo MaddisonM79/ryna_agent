@@ -1043,8 +1043,11 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   follows its height, and a drag of any window in the group moves the first of them; unlocking leaves
   it where it is. The first line names the view, the tally and,
   when the game says it plainly, the fight's length.
-- **Rows**: the game's order, rank and name, the amount through the game's own formatter
-  (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and
+- **Rows**: the game's order, rank and name, the amount to two decimals ("18.57", "1.23K"; "decimals
+  too please... two points", the same evening), a bar of the total against the highest. A plain
+  number is formatted by the mod; a secret one only the game can format, so its formatter
+  (`AbbreviateNumbers`) is given the same rule as options, after it has shown at first use, on plain
+  numbers, that it follows them (with or without the step for numbers under a thousand). Eight rows, the player's marked and
   kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
 - **In a fight** every amount, name and length is a secret value and goes from the game to its
   widget untouched; nothing is compared, added or kept. After the fight the same read is plain.

@@ -182,18 +182,70 @@ function M.Read(view, sessionKey, w)
   return nil, "empty"
 end
 
+-- Numbers are shown to two decimals: "18.57", "1.23K", "4.56M". A plain number (out of a fight) is
+-- formatted here. A secret one (in a fight) can only be formatted by the game, so the game's formatter
+-- is given the same rule as its options, once it has shown at login, on plain numbers, that it follows
+-- it: with the rule for numbers under a thousand if it takes that, else without, else its own default.
+-- One step of the rule: from `from` up, the number over `per`, cut to two decimals, then `letter`.
+local function step(from, letter, per)
+  return { breakpoint = from, abbreviation = letter, significandDivisor = per / 100, fractionDivisor = 100,
+    abbreviationIsGlobal = false }
+end
+
+local function rule(small)
+  local data = { step(1e9, "B", 1e9), step(1e6, "M", 1e6), step(1e3, "K", 1e3) }
+  if small then data[#data + 1] = step(0, "", 1) end
+  local config = ns.Try(ns.Fn("CreateAbbreviateConfig"), data)
+  if config ~= nil then return { config = config } end
+  return { breakpointData = data }
+end
+
+local function reads(out, pattern)
+  return type(out) == "string" and not ns.IsSecret(out) and out:find(pattern) ~= nil
+end
+
+-- The options the game's formatter takes for two decimals: a table, or false when it follows none.
+-- Found once (M.options), by asking it for 1234.5 and 18.5 and reading what comes back.
+function M.Options()
+  if M.options ~= nil then return M.options end
+  M.options = false
+  local abbreviate = ns.Fn("AbbreviateNumbers")
+  if not abbreviate then return false end
+  for _, small in ipairs({ true, false }) do
+    local o = rule(small)
+    local thousands = ns.Try(abbreviate, 1234.5, o)
+    if reads(thousands, "^1[.,]23%s?K$") and (not small or reads(ns.Try(abbreviate, 18.5, o), "^18[.,]50?$")) then
+      M.options, M.optionsSmall = o, small
+      break
+    end
+  end
+  ns.Debug("meter: two decimals from the game's formatter: %s", M.options and (M.optionsSmall and "all" or
+    "thousands and up") or "no")
+  return M.options
+end
+
+local function plain(v)
+  if v >= 1e9 then return string.format("%.2fB", v / 1e9) end
+  if v >= 1e6 then return string.format("%.2fM", v / 1e6) end
+  if v >= 1e3 then return string.format("%.2fK", v / 1e3) end
+  if v == math.floor(v) then return string.format("%d", v) end
+  return string.format("%.2f", v)
+end
+
 -- A number for a label. A secret is never touched: it goes to the game's own formatter, or to the
 -- label as it is.
 function M.Short(v)
-  local abbreviate = ns.Fn("AbbreviateNumbers") or ns.Fn("AbbreviateLargeNumbers")
-  if abbreviate then
-    local out = ns.Try(abbreviate, v)
-    if ns.IsSecret(out) or out ~= nil then return out end
+  if not ns.IsSecret(v) then
+    if type(v) ~= "number" then return v end
+    return plain(v)
   end
-  if ns.IsSecret(v) or type(v) ~= "number" then return v end
-  if v >= 1e6 then return string.format("%.1fM", v / 1e6) end
-  if v >= 1e4 then return string.format("%.1fK", v / 1e3) end
-  return string.format("%d", math.floor(v + 0.5))
+  local abbreviate = ns.Fn("AbbreviateNumbers") or ns.Fn("AbbreviateLargeNumbers")
+  if not abbreviate then return v end
+  local options = M.Options()
+  local out
+  if options then out = ns.Try(abbreviate, v, options) else out = ns.Try(abbreviate, v) end
+  if ns.IsSecret(out) or out ~= nil then return out end
+  return v
 end
 
 -- "1:05" for a fight's length; nil when the game won't say or it is secret.

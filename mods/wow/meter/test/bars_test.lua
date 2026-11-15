@@ -58,10 +58,25 @@ end
 _G.Enum.DamageMeterType = { DamageDone = 0, Dps = 1, HealingDone = 2, Hps = 3, Absorbs = 4, Interrupts = 5,
   Dispels = 6, DamageTaken = 7 }
 _G.Enum.DamageMeterSessionType = { Overall = 0, Current = 1 }
-_G.AbbreviateNumbers = function(v)
-  if getmetatable(v) == SECRET then return secret("short " .. tostring(v.hiddenValue)) end
-  return "short " .. tostring(v)
+-- The game's formatter: its own default ("short N") without options; with them, the first breakpoint
+-- the number reaches, as floor(n / significandDivisor) / fractionDivisor and the abbreviation. It refuses
+-- a rule for numbers under a thousand while world.noSmall is set, as a client might.
+local function format(n, options)
+  local data = options and (options.breakpointData or (options.config and options.config.data))
+  if not data then return "short " .. tostring(n) end
+  for _, b in ipairs(data) do
+    if b.breakpoint < 1 and world.noSmall then error("breakpoint too small") end
+    if n >= b.breakpoint then
+      return tostring(math.floor(n / b.significandDivisor + 1e-9) / b.fractionDivisor) .. b.abbreviation
+    end
+  end
+  return tostring(math.floor(n))
 end
+_G.AbbreviateNumbers = function(v, options)
+  if getmetatable(v) == SECRET then return secret(format(v.hiddenValue, options)) end
+  return format(v, options)
+end
+_G.CreateAbbreviateConfig = function(data) return { data = data } end
 _G.C_DamageMeter = {
   IsDamageMeterAvailable = function() return world.available, "" end,
   GetAvailableCombatSessions = function() return world.fights or {} end,
@@ -119,7 +134,7 @@ eq(f.holder._text, "last fight · 1:05", "which tally and its length, out of a f
 local last = world.asked[#world.asked]
 check(last[1] == 1 and last[2] == 0, "the game was asked for the current fight's damage")
 eq(f.rows[1].left._text, "1. Ilse", "rank and name")
-eq(f.rows[1].right._text, "short 1200", "the total through the game's formatter")
+eq(f.rows[1].right._text, "1.20K", "the total to two decimals")
 eq(f.rows[1]._max, 1200, "the bar's top is the highest amount")
 eq(f.rows[1]._value, 1200, "the bar's value")
 eq(f.rows[1]._barColor[1], 0.25, "the class colour")
@@ -138,7 +153,7 @@ check(#world.asked > asks, "the game said it changed: a read")
 
 F.Click(f.head, "LeftButton")
 eq(f.title._text, "DPS", "a click: the next view")
-eq(f.rows[1].right._text, "short 18.5", "a rate view shows the per-second amount")
+eq(f.rows[1].right._text, "18.50", "a rate view shows the per-second amount, to two decimals")
 eq(f.rows[1]._value, 1200, "its bar is still the total")
 eq(_G.RynaDB.meter.bars.view, "dps", "the view is kept")
 F.Click(f.head, "RightButton")
@@ -158,13 +173,31 @@ eq(core.errors.count, 0, "no error with secret amounts: " .. tostring(core.error
 check(_G.issecretvalue(f.rows[1]._value), "the secret total went to the bar")
 check(_G.issecretvalue(f.rows[1]._max), "the secret top went to the bar")
 check(_G.issecretvalue(f.rows[1].right._text), "the formatted amount is still the game's secret")
-eq(f.rows[1].right._text.hiddenValue, "short 1200", "and it came through the game's formatter")
+eq(f.rows[1].right._text.hiddenValue, "1.2K", "and it came through the game's formatter, given the two-decimal rule")
+check(M.optionsSmall == true, "the formatter was found to take the rule for small numbers too")
+eq(M.Short(secret(18.57)).hiddenValue, "18.57", "a secret rate keeps its two decimals")
+eq(M.Short(secret(4567890)).hiddenValue, "4.56M", "a secret in the millions")
+eq(M.Short(90), "90", "a whole number under a thousand has no decimals")
+eq(M.Short(4567890), "4.57M", "a plain number in the millions")
+M.options, world.noSmall = nil, true
+eq(M.Short(secret(1234.5)).hiddenValue, "1.23K", "a client that refuses the small rule still gets thousands")
+check(M.optionsSmall == false, "found without the small rule")
+world.noSmall = nil
+local honest = _G.AbbreviateNumbers
+_G.AbbreviateNumbers = function(v)
+  if getmetatable(v) == SECRET then return secret("short " .. tostring(v.hiddenValue)) end
+  return "short " .. tostring(v)
+end
+M.options = nil
+eq(M.Short(secret(1234.5)).hiddenValue, "short 1234.5", "a formatter that follows no options is used as it is")
+eq(M.options, false, "and that is remembered")
+_G.AbbreviateNumbers, M.options = honest, nil
 eq(f.holder._text, "this fight", "a secret length is left out")
 check(f.rows[3].mine:IsShown(), "the player is still found: that flag is never secret")
 world.combat, world.secret = false, false
 F.Fire("PLAYER_REGEN_ENABLED")
 M.Tick()
-eq(f.rows[1].right._text, "short 1200", "plain again after the fight")
+eq(f.rows[1].right._text, "1.20K", "plain again after the fight")
 
 -- The player further down than the rows -------------------------------------------------------------
 
@@ -290,7 +323,7 @@ check(f2 ~= nil and f2:IsShown() and f2 ~= f, "it is a frame of its own")
 eq(f2.title._text, "HPS", "beside DPS it shows HPS")
 eq(f.title._text, "DPS", "the first keeps its view")
 eq(f2.rows[1].left._text, "1. Dela", "with its own rows")
-eq(f2.rows[1].right._text, "short 6", "and its own amounts")
+eq(f2.rows[1].right._text, "6", "and its own amounts")
 check(_G.RynaDB.meter.bars2.open == true and _G.RynaDB.meter.bars2.view == "hps",
   "its view and that it is open are kept")
 M.Pick("healing", 2)
