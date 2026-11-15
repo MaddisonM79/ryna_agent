@@ -137,6 +137,18 @@ pub fn addon_state(has_addon: bool, installed: Option<&str>, bundled: Option<&st
     }
 }
 
+/// Whether a front end should update this install's addon by itself: it is there, both sides name
+/// a version, and the installed one is older than `bundled`. Never where the addon isn't
+/// installed (that is the person's to choose), never a newer copy (installed from elsewhere), and
+/// never one that names no version.
+pub fn needs_update(install: &Install, bundled: Option<&str>) -> bool {
+    addon_state(
+        has_addon(install),
+        installed_addon_version(install).as_deref(),
+        bundled,
+    ) == AddonState::Older
+}
+
 fn has_toc(dir: &Path) -> bool {
     std::fs::read_dir(dir)
         .map(|rd| {
@@ -387,6 +399,29 @@ mod tests {
         assert_eq!(addon_state(true, None, Some("0.2.0")), Unknown);
         assert_eq!(addon_state(true, Some("0.2.0"), None), Unknown);
         assert_eq!(serde_json::to_value(NotInstalled).unwrap(), "notInstalled");
+    }
+
+    #[test]
+    fn only_an_older_installed_addon_is_updated_unasked() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = addon(dir.path());
+        let inst = Install {
+            path: dir.path().join("_forever_"),
+            flavor: Some("wowf".into()),
+        };
+        // Not installed: installing is the person's to choose.
+        assert!(!needs_update(&inst, Some("0.4.2")));
+        // Installed with no version: nothing to compare.
+        install(&a, &inst).unwrap();
+        assert!(!needs_update(&inst, Some("0.4.2")));
+        std::fs::write(a.join("Ryna.toc"), "## Version: 0.3.6\n").unwrap();
+        install(&a, &inst).unwrap();
+        assert!(needs_update(&inst, Some("0.4.2")));
+        assert!(needs_update(&inst, Some("0.10.0")));
+        assert!(!needs_update(&inst, Some("0.3.6")));
+        // A newer copy (installed from elsewhere) is left alone, and so is a build with no addon.
+        assert!(!needs_update(&inst, Some("0.3.5")));
+        assert!(!needs_update(&inst, None));
     }
 
     #[test]

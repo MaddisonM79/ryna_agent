@@ -1,6 +1,7 @@
 // Agent events in plain words, for the activity log. Null means "not worth a line".
 import { sidecarProblem } from "./coreWords";
 import type {
+  AddonUpdated,
   AccountView,
   AgentEvent,
   CombatStatus,
@@ -371,6 +372,17 @@ export function modToggledLines(r: ModToggleResult): string[] {
     lines.push(r.gameRunning ? RUNNING_CHANGE : CLOSED_CHANGE);
   }
   return lines;
+}
+
+/** The activity log's lines when the app updated the addon in a game folder by itself. */
+export function addonUpdatedLines(u: AddonUpdated): string[] {
+  if (u.error) return [`Couldn't update the addon in the game folder: ${u.error}`];
+  if (!u.result) return [];
+  const to = u.result.version ? ` to ${u.result.version}` : "";
+  return [
+    ...u.result.installed.map((i) => `Updated the addon in ${i.install}${to}: it was older than this app's.`),
+    ...modChangeLines(u.result.mods),
+  ];
 }
 
 /** What the row says after an install: what went in, and how the game picks it up. */

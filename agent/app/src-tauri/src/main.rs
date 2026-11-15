@@ -122,6 +122,9 @@ fn main() {
             if signed_in {
                 agent::start_watch(app.handle());
             }
+            // An addon in a game folder older than this app's is brought up to it (once the game
+            // is closed).
+            agent::begin_addon_updates(app.handle());
             // The cores answer: now, then hourly; it fetches and starts each fetched core.
             cores::begin(app.handle());
             // The window is created hidden (tauri.conf.json `visible: false`) and the plugin has
