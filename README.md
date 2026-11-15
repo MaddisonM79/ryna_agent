@@ -168,8 +168,8 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
   core's `settings` module), addon settings copied between characters and backed up encrypted.
   `cores/palworld` is the Palworld core (Node, macOS): it reads the Mac App Store build's saves
   and pushes them, run by the agent as a sidecar and fetched as a signed core package only for
-  people set up for it. Its save parser is a port of palworld-save-tools (MIT), and the built
-  package includes ooz-wasm (GPL-3.0-or-later); `cores/palworld/NOTICE.md` has both.
+  people set up for it. Its save parser is a port of palworld-save-tools (MIT), and it reads
+  the saves' compression with kraken-decode (MIT, our own); `cores/palworld/NOTICE.md` has both.
 - `mods/`: each core's mods (`mods/wow`), from stage 2 of the design.
 - `scripts/`: version checks, the release manifest, the CLI smoke test, `core-package.mjs` (a
   fetched core's package), and `capture.sh`, which turns a real `Ryna.lua` into a scrubbed test

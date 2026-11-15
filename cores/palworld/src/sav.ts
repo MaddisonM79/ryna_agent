@@ -6,12 +6,12 @@
  *     u32 uncompressed length, u32 compressed length, "PlM" or "PlZ", u8 type
  *
  * `PlM` is Oodle (current builds, including the Mac App Store one), decoded by
- * ooz-wasm. `PlZ` is zlib (older saves), where type 0x32 means it was
+ * kraken-decode, our own decoder (src/vendor). `PlZ` is zlib (older saves), where type 0x32 means it was
  * compressed twice.
  */
 
 import { inflateSync } from "node:zlib";
-import { decompress as oodle } from "ooz-wasm";
+import { decompress as oodle } from "./vendor/kraken-decode.mjs";
 
 const HEADER = 12;
 
@@ -31,8 +31,7 @@ export function decompress(data: Uint8Array): Uint8Array {
   let raw: Uint8Array;
   try {
     if (magic === "PlM") {
-      // ooz hands back a view into WASM memory, valid until the next call: copy it out.
-      raw = Uint8Array.from(oodle(body.subarray(0, clen), ulen));
+      raw = oodle(body.subarray(0, clen), ulen);
     } else {
       raw = inflateSync(body);
       if (kind === 0x32) raw = inflateSync(raw);

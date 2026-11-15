@@ -1533,7 +1533,7 @@ The sidecar writes to stdout:
 the rest of this repository, after the audit section 3 asked for (no credential, personal path,
 server address or world id in the source, fixtures or tests).
 
-- **Stays**: the save parser (`gvas`, `rawdata`, `sav`, Oodle through `ooz-wasm`), the snapshot
+- **Stays**: the save parser (`gvas`, `rawdata`, `sav`, Oodle through `kraken-decode`, which replaced the GPL `ooz-wasm` on 2026-11-14), the snapshot
   builder, the settle wait, the fingerprint, the ingest push and the heartbeat, with their tests.
 - **Goes**: launchd, `install.sh`, the Node copy with Full Disk Access, the agent's own sign-in and
   keychain code, its lock and log files, the once-a-day signed-out notification. The agent is the

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
@@ -8,6 +9,8 @@ const FIXTURES = new URL("./fixtures/", import.meta.url);
 // Real saves from the Mac build, scrubbed (scripts/scrub.ts): every world-made GUID is a stand-in. The player
 // save is rewrapped as uncompressed Oodle blocks ("PlM"), LocalData as zlib ("PlZ"), since nothing here can
 // compress Oodle; the GVAS inside each is the real one, byte for byte apart from the GUIDs.
+// fixtures/compressed holds that same player GVAS compressed by kraken-decode's test encoder, one file per
+// way of storing a chunk (its tests/fixtures/player.*.kdv: a u32 decoded length, then the stream).
 const PLAYER_SAV = readFileSync(new URL("Players/00000000000000000000000000000001.sav", FIXTURES));
 const LOCAL_SAV = readFileSync(new URL("LocalData.sav", FIXTURES));
 
@@ -55,7 +58,7 @@ describe("decompress", () => {
     garbled.fill(0xff, 12);
     expect(() => decompress(garbled)).toThrow(SaveFormatError);
     expect(() => decompress(garbled)).toThrow(/could not decompress/);
-    // An Oodle body whose block header ooz refuses.
+    // An Oodle body whose block header the decoder refuses.
     const oodle = Uint8Array.from(PLAYER_SAV);
     oodle.fill(0xff, 12, 14);
     expect(() => decompress(oodle)).toThrow(/could not decompress/);
@@ -64,6 +67,26 @@ describe("decompress", () => {
   it("reads an Oodle player save", () => {
     const raw = decompress(PLAYER_SAV);
     expect(raw.byteLength).toBe(27462);
+  });
+
+  it.each(["plain", "huffman", "runs", "array"])("reads a compressed Oodle save (%s)", (name) => {
+    const vector = readFileSync(new URL(`compressed/player.${name}.kdv`, FIXTURES));
+    const stream = vector.subarray(4);
+    const sav = new Uint8Array(12 + stream.byteLength);
+    const dv = new DataView(sav.buffer);
+    dv.setUint32(0, vector.readUInt32LE(0), true);
+    dv.setUint32(4, stream.byteLength, true);
+    sav.set([0x50, 0x6c, 0x4d, 0x31], 8); // "PlM", type 0x31
+    sav.set(stream, 12);
+    expect(stream.byteLength).toBeLessThan(27462);
+    expect(Buffer.from(decompress(sav)).equals(Buffer.from(decompress(PLAYER_SAV)))).toBe(true);
+    // Cut short, it is a bad save, not a crash.
+    expect(() => decompress(sav.subarray(0, sav.byteLength - 100))).toThrow(SaveFormatError);
+  });
+
+  it("carries kraken-decode exactly as released (src/vendor/README.md)", () => {
+    const vendored = readFileSync(new URL("../src/vendor/kraken-decode.mjs", import.meta.url));
+    expect(createHash("sha256").update(vendored).digest("hex")).toBe("709dc6d1a1283856b74d7864aa762b35eccfb4ea388383e0aa95b1d456a2e179");
   });
 });
 

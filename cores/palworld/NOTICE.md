@@ -34,15 +34,39 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## ooz-wasm (GPL-3.0-or-later)
+## kraken-decode (MIT)
 
 The Mac build's saves are Oodle-compressed. They are decompressed by
-[ooz-wasm](https://github.com/SnosMe/ooz-wasm) (Alexander Drozdov), WebAssembly bindings for
-[ooz](https://github.com/powzix/ooz), an npm dependency licensed **GPL-3.0-or-later**. Its code is
-not in this repository, but the build bundles it into `agent.mjs`, so the built core package
-(`ryna-core-palworld-<version>-<target>.tar.gz`) is a combined work distributed under the GPL's
-terms. Its source is this repository plus ooz-wasm's own; the package carries the GPL's text as
-`LICENSE-ooz-wasm`.
+[kraken-decode](https://github.com/MaddisonM79/kraken-decode), our own decoder, written without
+reading any other decoder's source (its `docs/SOURCES.md` says how). The build bundles the released
+`kraken-decode.mjs` (`src/vendor`, version 0.1.0) into `agent.mjs`.
+
+```
+MIT License
+
+Copyright (c) 2026 Maddison Markham
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Through 0.4.1 the core used ooz-wasm (GPL-3.0-or-later) for this, which made those built packages
+combined works under the GPL. Nothing of it is in this repository or in later packages.
 
 ## Node.js
 

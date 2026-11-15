@@ -7,7 +7,7 @@
  * 00000000-0000-0000-0000-00000000000X ids are every world's and stay.
  *
  * capture-rawdata.ts scrubs through this before it writes; `wrapStored` rebuilds a `.sav` around
- * scrubbed GVAS bytes as uncompressed Oodle blocks, which ooz decodes like any other.
+ * scrubbed GVAS bytes as uncompressed Oodle blocks, which the decoder reads like any other.
  */
 
 import { createHash } from "node:crypto";
@@ -116,7 +116,7 @@ export function scrubNames<T>(tree: T, names: ReadonlyMap<string, string>): T {
   return walk(tree, "") as T;
 }
 
-/** A `.sav` (PlM) around GVAS bytes, as uncompressed Oodle (Kraken) blocks: what ooz reads like any other. */
+/** A `.sav` (PlM) around GVAS bytes, as uncompressed Oodle (Kraken) blocks: what the decoder reads like any other. */
 export function wrapStored(gvas: Uint8Array): Uint8Array {
   const BLOCK = 0x40000;
   const blocks = Math.ceil(gvas.length / BLOCK);

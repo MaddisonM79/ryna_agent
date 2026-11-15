@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { manifest } from "./latest-json.mjs";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NODE_BUILDS, NODE_VERSION, PACKAGE_FILES, TARGETS, buildPackage, bundleNodeMajor, nodeTarball, packageName, shasumOf } from "./core-package.mjs";
@@ -167,12 +167,10 @@ test("a core package is flat: node, the bundle, the manifest and the licences, r
   writeFileSync(join(root, "LICENSE"), "MIT\n");
   const core = join(root, "cores", "palworld");
   mkdirSync(join(core, "dist"), { recursive: true });
-  mkdirSync(join(core, "node_modules", "ooz-wasm"), { recursive: true });
   writeFileSync(join(core, "core.json"), JSON.stringify({ id: "palworld", version: "0.5.0" }));
   writeFileSync(join(core, "package.json"), JSON.stringify({ version: "0.5.0", scripts: { build: `esbuild --target=node${NODE_VERSION.split(".")[0]}` } }));
   writeFileSync(join(core, "NOTICE.md"), "notice\n");
   writeFileSync(join(core, "dist", "agent.mjs"), "console.log(1)\n");
-  writeFileSync(join(core, "node_modules", "ooz-wasm", "LICENSE"), "GPL\n");
   // A stand-in for Node's tarball, with the symlinks the real one has (npm, npx): they stay out.
   const prefix = `node-v${NODE_VERSION}-darwin-arm64`;
   const nodeDir = join(root, "nodetar", prefix);
@@ -194,7 +192,7 @@ test("a core package is flat: node, the bundle, the manifest and the licences, r
   mkdirSync(unpacked);
   execFileSync("tar", ["-xzf", out, "-C", unpacked]);
   assert.equal(readFileSync(join(unpacked, "LICENSE-node"), "utf8"), "Node's licence\n");
-  assert.equal(readFileSync(join(unpacked, "LICENSE-ooz-wasm"), "utf8"), "GPL\n");
+  assert.equal(existsSync(join(unpacked, "LICENSE-ooz-wasm")), false);
 
   // A manifest and package.json that disagree, or a bundle for another Node, make no package.
   writeFileSync(join(core, "package.json"), JSON.stringify({ version: "0.4.9", scripts: { build: "esbuild --target=node26" } }));

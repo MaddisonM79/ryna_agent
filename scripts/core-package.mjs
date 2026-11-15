@@ -31,7 +31,7 @@ export const NODE_BUILDS = {
 export const TARGETS = Object.keys(NODE_BUILDS);
 
 /** What's in the package, in order: the runtime, the bundle, the manifest, then the licences. */
-export const PACKAGE_FILES = ["node", "agent.mjs", "core.json", "LICENSE", "NOTICE.md", "LICENSE-ooz-wasm", "LICENSE-node"];
+export const PACKAGE_FILES = ["node", "agent.mjs", "core.json", "LICENSE", "NOTICE.md", "LICENSE-node"];
 
 /** `ryna-core-<id>-<version>-<target>.tar.gz` (13.3: the host builds the URL from its own version and target). */
 export function packageName(id, version, target) {
@@ -63,7 +63,7 @@ const sha256 = (path) => createHash("sha256").update(readFileSync(path)).digest(
 
 /**
  * The package for one target, from a Node tarball already checked. Returns the archive's path.
- * `core` is cores/<id>: its core.json, NOTICE.md, dist/agent.mjs and node_modules/ooz-wasm/LICENSE.
+ * `core` is cores/<id>: its core.json, NOTICE.md and dist/agent.mjs.
  */
 export function buildPackage({ root, core, target, nodeTar, outDir, nodeVersion = NODE_VERSION }) {
   const manifest = JSON.parse(readFileSync(join(core, "core.json"), "utf8"));
@@ -89,7 +89,6 @@ export function buildPackage({ root, core, target, nodeTar, outDir, nodeVersion 
     copyFileSync(join(core, "core.json"), join(stage, "core.json"));
     copyFileSync(join(root, "LICENSE"), join(stage, "LICENSE"));
     copyFileSync(join(core, "NOTICE.md"), join(stage, "NOTICE.md"));
-    copyFileSync(join(core, "node_modules", "ooz-wasm", "LICENSE"), join(stage, "LICENSE-ooz-wasm"));
 
     mkdirSync(outDir, { recursive: true });
     const out = resolve(outDir, packageName(manifest.id, manifest.version, target));

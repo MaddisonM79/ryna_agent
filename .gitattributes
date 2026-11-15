@@ -1,3 +1,7 @@
 # Signed test fixtures are checked byte for byte: a checkout must never rewrite their line endings
 # (on Windows the 6-byte package fixture gained a CR and its signature stopped matching).
 agent/host/tests/fixtures/** -text
+
+# The vendored decoder is held to its release checksum (cores/palworld/test/sav.test.ts).
+cores/palworld/src/vendor/*.mjs -text
+cores/palworld/src/vendor/*.mts -text

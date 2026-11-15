@@ -35,8 +35,8 @@ updates:
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
 
-  # The Palworld core (cores/palworld, pnpm-lock.yaml). ooz-wasm is pinned exactly: a new version
-  # changes what decompresses every save, so take it on purpose.
+  # The Palworld core (cores/palworld, pnpm-lock.yaml). The save decoder isn't an npm dependency:
+  # it is vendored from a kraken-decode release (cores/palworld/src/vendor/README.md).
   - package-ecosystem: npm
     directory: /cores/palworld
     schedule: { interval: weekly, day: tuesday, time: "09:00", timezone: America/Chicago }
@@ -44,5 +44,3 @@ updates:
     commit-message: { prefix: "palworld core" }
     groups:
       palworld: { patterns: ["*"], update-types: [minor, patch] }
-    ignore:
-      - dependency-name: ooz-wasm
