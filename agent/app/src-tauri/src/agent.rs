@@ -39,6 +39,8 @@ pub const WATCH_STATE: &str = "watch-state";
 /// A `LoginFinished`, once the device grant ends either way (approved, refused, expired or
 /// cancelled).
 pub const LOGIN_FINISHED: &str = "login-finished";
+/// The app updated the addon in a game folder by itself (`AddonUpdated`).
+pub const ADDON_UPDATED: &str = "addon-updated";
 
 /// The device client id: `RYNA_CLIENT_ID` when it is set where the app runs, else one baked
 /// in at compile time (`RYNA_CLIENT_ID` in the build's environment), else the core's
@@ -857,22 +859,34 @@ fn targets<'a>(
 pub fn install_addon(app: &AppHandle, only: Option<&str>) -> Result<InstallResult, String> {
     // stage 1: direct; the core interface takes this in stage 2 (installing the core's addon).
     let source = bundled_addon(app)?;
-    let version = addon_install::bundled_addon_version(&source);
     let chosen = install_override(app);
     let found = discovery::discover(chosen.as_deref());
+    install_into(
+        app,
+        &source,
+        &targets(&found.installs, chosen.is_some(), only)?,
+    )
+}
+
+/// The bundled addon (`source`) and its mods into each of `installs`.
+fn install_into(
+    app: &AppHandle,
+    source: &Path,
+    installs: &[&Install],
+) -> Result<InstallResult, String> {
+    let version = addon_install::bundled_addon_version(source);
     let chosen_mods = app.state::<Agent>().live().settings.mods.clone();
     let mut installed = Vec::new();
     let mut changes = Vec::new();
-    for i in targets(&found.installs, chosen.is_some(), only)? {
-        let p = addon_install::install(&source, i).map_err(|e| format!("{e:#}"))?;
+    for i in installs {
+        let p = addon_install::install(source, i).map_err(|e| format!("{e:#}"))?;
         installed.push(Installed {
             install: display(&i.path),
             path: display(&p),
         });
         // The core's addon brings its mods: each on one in, each off one out.
-        changes.extend(
-            core_mods::apply(i, &source, &chosen_mods, None).map_err(|e| format!("{e:#}"))?,
-        );
+        changes
+            .extend(core_mods::apply(i, source, &chosen_mods, None).map_err(|e| format!("{e:#}"))?);
     }
     Ok(InstallResult {
         version,
@@ -880,6 +894,79 @@ pub fn install_addon(app: &AppHandle, only: Option<&str>) -> Result<InstallResul
         mods: changes,
         game_running: crate::game::game_running(),
     })
+}
+
+/// What the app did to the game folders by itself, for the window's activity log.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddonUpdated {
+    pub result: Option<InstallResult>,
+    pub error: Option<String>,
+}
+
+/// How long the window gets to start listening before the first look, so its log has the line.
+const ADDON_UPDATE_DELAY: Duration = Duration::from_secs(5);
+/// How often it looks again while the game is running.
+const ADDON_UPDATE_WAIT: Duration = Duration::from_secs(30);
+
+/// What one look at the game folders came to.
+enum AddonUpdate {
+    /// Nothing older than this app's addon (or no addon in this build, or no install).
+    Nothing,
+    /// An older addon is there and the game is running: look again once it has closed.
+    GameRunning,
+    Done(Result<InstallResult, String>),
+}
+
+/// A new Ryna carries a new addon, and updating the app never touched the game folder: a tester
+/// on app 0.4.0 was refused as unsupported over the 0.3.6 addon still in theirs (2026-11-13).
+/// So at launch (which is also the restart an update ends on) the app brings every installed
+/// addon older than its own up to its own, with the mods as `install_addon` does. Only where the
+/// addon already is, never a newer or unversioned copy (`addon_install::needs_update`), and
+/// never while the game runs: the game reads an addon's file list at start, so new files under a
+/// running game half-load at the next /reload. It waits for the game to close instead.
+pub fn begin_addon_updates(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(ADDON_UPDATE_DELAY);
+        loop {
+            match update_addons(&app) {
+                AddonUpdate::Nothing => break,
+                AddonUpdate::GameRunning => std::thread::sleep(ADDON_UPDATE_WAIT),
+                AddonUpdate::Done(done) => {
+                    let (result, error) = match done {
+                        Ok(r) => (Some(r), None),
+                        Err(e) => (None, Some(e)),
+                    };
+                    let _ = app.emit(ADDON_UPDATED, AddonUpdated { result, error });
+                    break;
+                }
+            }
+        }
+    });
+}
+
+fn update_addons(app: &AppHandle) -> AddonUpdate {
+    let Ok(source) = bundled_addon(app) else {
+        return AddonUpdate::Nothing;
+    };
+    let bundled = addon_install::bundled_addon_version(&source);
+    let chosen = install_override(app);
+    let found = discovery::discover(chosen.as_deref());
+    let Ok(allowed) = targets(&found.installs, chosen.is_some(), None) else {
+        return AddonUpdate::Nothing;
+    };
+    let old: Vec<&Install> = allowed
+        .into_iter()
+        .filter(|i| addon_install::needs_update(i, bundled.as_deref()))
+        .collect();
+    if old.is_empty() {
+        return AddonUpdate::Nothing;
+    }
+    if crate::game::game_running() {
+        return AddonUpdate::GameRunning;
+    }
+    AddonUpdate::Done(install_into(app, &source, &old))
 }
 
 /// What `set_mod_enabled` did.

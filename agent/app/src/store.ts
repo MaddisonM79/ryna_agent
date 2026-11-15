@@ -7,6 +7,7 @@ import {
   onAgentEvent,
   onCoreEvent,
   onCoreFetch,
+  onAddonUpdated,
   onLoginFinished,
   onWatchState,
   type AgentEvent,
@@ -15,7 +16,7 @@ import {
   type Status,
 } from "./api";
 import { describeCoreEvent } from "./coreWords";
-import { describe } from "./describe";
+import { addonUpdatedLines, describe } from "./describe";
 import { startUpdates } from "./updates";
 
 export interface LogLine {
@@ -175,6 +176,10 @@ export async function start(): Promise<void> {
     }),
     onWatchState((watching) => {
       if (status.value) status.value.watching = watching;
+    }),
+    onAddonUpdated((u) => {
+      for (const line of addonUpdatedLines(u)) log(line, u.error ? "error" : "info");
+      void refresh();
     }),
     onLoginFinished((r) => {
       login.value = null;

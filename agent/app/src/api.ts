@@ -558,6 +558,16 @@ export function onWatchState(f: (watching: boolean) => void): Promise<UnlistenFn
   return listen<boolean>("watch-state", (e) => f(e.payload));
 }
 
+/** The app updated the addon in a game folder by itself (agent.rs `AddonUpdated`). */
+export interface AddonUpdated {
+  result: InstallResult | null;
+  error: string | null;
+}
+
+export function onAddonUpdated(f: (u: AddonUpdated) => void): Promise<UnlistenFn> {
+  return listen<AddonUpdated>("addon-updated", (e) => f(e.payload));
+}
+
 export function onLoginFinished(f: (r: LoginFinished) => void): Promise<UnlistenFn> {
   return listen<LoginFinished>("login-finished", (e) => f(e.payload));
 }

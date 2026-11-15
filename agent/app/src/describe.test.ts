@@ -1,6 +1,6 @@
 import { describe as group, expect, it } from "vitest";
 import type { AddonState, InstallView } from "./api";
-import { aboutAddon, addonRow, ago, describe, installedLines, installedMessage, signInNote } from "./describe";
+import { aboutAddon, addonRow, addonUpdatedLines, ago, describe, installedLines, installedMessage, signInNote } from "./describe";
 
 function install(addon: AddonState, addonVersion: string | null): InstallView {
   return { path: "/wow/_forever_", flavor: "wowf", forever: true, hasAddon: addon !== "notInstalled", addonVersion, addon };
@@ -173,5 +173,18 @@ group("About's addon line", () => {
     });
     expect(aboutAddon([install("0.10.0")], "0.9.1").old).toBe(false);
     expect(aboutAddon([install("0.3.6")], null).text).toBe("0.3.6 in the game folder · none in this build");
+  });
+});
+
+group("the addon updated by the app itself", () => {
+  it("says where and to what, and what went wrong", () => {
+    const result = { version: "0.4.3", installed: [{ install: "/Games/WoW/_forever_", path: "/Games/WoW/_forever_/Interface/AddOns/Ryna" }], mods: [], gameRunning: false };
+    expect(addonUpdatedLines({ result, error: null })).toEqual([
+      "Updated the addon in /Games/WoW/_forever_ to 0.4.3: it was older than this app's.",
+    ]);
+    expect(addonUpdatedLines({ result: null, error: "the folder is read-only" })).toEqual([
+      "Couldn't update the addon in the game folder: the folder is read-only",
+    ]);
+    expect(addonUpdatedLines({ result: null, error: null })).toEqual([]);
   });
 });
