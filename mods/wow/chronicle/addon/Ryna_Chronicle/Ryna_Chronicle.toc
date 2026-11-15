@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Ryna Chronicle
+## Title: Chronicle by Ryna
 ## Notes: Records your characters, bags, bank, quests, guild roster, the players you see, and your kills and loot, for the Ryna companion app. A mod of Ryna; /ryna for settings.
 ## Author: Ryna contributors
 ## Version: 0.4.2

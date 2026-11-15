@@ -1,4 +1,4 @@
--- English (enUS): every string Ryna Chronicle shows, keyed by the English text itself. `true` means "the
+-- English (enUS): every string Chronicle by Ryna shows, keyed by the English text itself. `true` means "the
 -- text is the key"; ns.L returns the key for anything no locale file translates, so English is
 -- always the fallback. The other Locales/*.lua files are templates for translators, generated from
 -- this one: after adding, changing or removing a string here, run (from the repository root)

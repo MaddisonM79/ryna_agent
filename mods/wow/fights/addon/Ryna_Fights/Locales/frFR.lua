@@ -1,5 +1,5 @@
--- French (frFR) strings for Ryna Fights. Loaded on every client, applied only when the game runs
--- in frFR: GetLocale() is "frFR".
+-- French (frFR) strings for Fights by Ryna. Loaded on every client, applied only when the game
+-- runs in frFR: GetLocale() is "frFR".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

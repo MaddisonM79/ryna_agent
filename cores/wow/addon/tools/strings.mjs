@@ -196,14 +196,15 @@ export function addonFolders() {
   return out;
 }
 
-/** An addon's title for the template headers: "Ryna", "Ryna Chronicle". */
+/** An addon's title for the template headers: "Ryna", "Chronicle by Ryna". */
 function title(dir) {
-  return basename(dir).replace(/_/g, " ");
+  const [core, mod] = basename(dir).split("_");
+  return mod ? `${mod} by ${core}` : core;
 }
 
 function templateHeader(code, language, name, isMod) {
-  return `-- ${language} (${code}) strings for ${name}. Loaded on every client, applied only when the game runs
--- in ${code}: GetLocale() is "${code}".
+  return `-- ${language} (${code}) strings for ${name}. Loaded on every client, applied only when the game
+-- runs in ${code}: GetLocale() is "${code}".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

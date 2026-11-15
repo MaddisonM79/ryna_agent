@@ -1,5 +1,5 @@
--- Spanish (Spain) (esES) strings for Ryna. Loaded on every client, applied only when the game runs
--- in esES: GetLocale() is "esES".
+-- Spanish (Spain) (esES) strings for Ryna. Loaded on every client, applied only when the game
+-- runs in esES: GetLocale() is "esES".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

@@ -1,5 +1,5 @@
--- Spanish (Latin America) (esMX) strings for Ryna Fights. Loaded on every client, applied only when the game runs
--- in esMX: GetLocale() is "esMX".
+-- Spanish (Latin America) (esMX) strings for Fights by Ryna. Loaded on every client, applied only when the game
+-- runs in esMX: GetLocale() is "esMX".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

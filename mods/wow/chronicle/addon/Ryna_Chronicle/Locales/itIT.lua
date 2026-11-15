@@ -1,5 +1,5 @@
--- Italian (itIT) strings for Ryna Chronicle. Loaded on every client, applied only when the game runs
--- in itIT: GetLocale() is "itIT".
+-- Italian (itIT) strings for Chronicle by Ryna. Loaded on every client, applied only when the game
+-- runs in itIT: GetLocale() is "itIT".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

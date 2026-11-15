@@ -22,7 +22,7 @@ if type(R) ~= "table" or type(R.API) ~= "number" or R.API < 1 or type(R.Register
   ns.off = true
   local frame = _G.DEFAULT_CHAT_FRAME
   if frame and frame.AddMessage then
-    frame:AddMessage("|cff7fb2ffRyna Chronicle|r: the Ryna addon here is too old for it, so it is off. "
+    frame:AddMessage("|cff7fb2ffChronicle by Ryna|r: the Ryna addon here is too old for it, so it is off. "
       .. "Update the addon from the Ryna companion app.")
   end
   return
