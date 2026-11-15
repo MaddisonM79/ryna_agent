@@ -35,7 +35,10 @@
 --                                     0.3.9; a mod checks `Ryna.Window` before using it); a "strip"
 --                                     column and row.strips, .STRIP_MAX (48) and .StripShare(v) (the
 --                                     0..1 a block draws), and a title that is function(ctx) (cores
---                                     after 0.4.2; a mod checks `Ryna.Window.STRIP_MAX`)
+--                                     after 0.4.2; a mod checks `Ryna.Window.STRIP_MAX`); a section's
+--                                     `say` lines and header `buttons`, a strip's `marks`, .MAX_SAY,
+--                                     .MAX_BUTTONS and .STRIP_MARKS (cores after 0.4.2; a mod checks
+--                                     `Ryna.Window.MAX_SAY`)
 --   Ryna.Tooltip.HasLine(tooltip, text), .AddLine(tooltip, text, r, g, b, wrap)   the shared guard:
 --                                     a line is never added twice, nor over the same text already
 --                                     drawn (cores after 0.3.9)
@@ -198,6 +201,7 @@ R.Window = {
   Match = Wn.Match, QualityColor = Wn.QualityColor, ClassColor = Wn.ClassColor, ClassName = Wn.ClassName,
   Money = Wn.Money, ItemIcon = Wn.ItemIcon,
   STRIP_MAX = Wn.STRIP_MAX, StripShare = Wn.StripShare,
+  STRIP_MARKS = Wn.STRIP_MARKS, MAX_SAY = Wn.MAX_SAY, MAX_BUTTONS = Wn.MAX_BUTTONS,
 }
 
 R.Tooltip = {

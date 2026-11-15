@@ -3,7 +3,9 @@
 --   luacheck cores/wow/addon/ mods/wow/ --config cores/wow/addon/.luacheckrc
 std = "lua51"
 max_line_length = 120
-exclude_files = { ".luacheckrc" }
+-- Test fixtures written by the companion app's own code (fights_data's test writes the Fights mod's) are
+-- its output, not ours to style.
+exclude_files = { ".luacheckrc", "**/test/fixtures/*.lua" }
 
 -- What the core addon defines: its SavedVariable, the mod API (`Ryna`, which the mods read), the
 -- companion app's status file and its slash command.
@@ -12,6 +14,7 @@ globals = {
   "Ryna",
   "RynaAgentStatus",
   "RynaData_auctions", -- the companion app's data-layer tables (Data.lua, Data/*.lua)
+  "RynaData_fights",
   "RynaData_vendors",
   "RynaDB",
   "SLASH_RYNA1",

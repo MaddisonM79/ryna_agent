@@ -302,8 +302,8 @@ It uses the game's own fonts, tooltip backdrop, close button, search box, dropdo
 no art of its own, so it sits in the default UI and in a dark one like ElvUI's.
 
 - **The rail**, down the left, lists the sections in three groups: **Me**, **World** and **Combat and
-  gold**. Only sections that exist are listed; a group with none isn't drawn. Today all of them are
-  Chronicle's, under Me.
+  gold**. Only sections that exist are listed; a group with none isn't drawn. Chronicle's are under
+  Me; the Fights mod's Fights is under Combat and gold.
 - **The header** is the same on every section: its title, the **character picker** ("All characters"
   and each character on the account) and the **search box**. A section about one character (Kills,
   Loot, History) reads All characters as the one you're on; Session is always the one you're on, so
@@ -428,6 +428,29 @@ reused after, so 2,000 rows with strips cost what 20 do. A section's `title` may
 `function(ctx)`, for a title that follows its picker ("History › Play"). Both are in cores after
 0.4.2: a mod checks `Ryna.Window.STRIP_MAX` first.
 
+Three more pieces, built for the Fights mod's fight detail (also in cores after 0.4.2; a mod checks
+`Ryna.Window.MAX_SAY` first, and an older core ignores them: no sentences, no buttons, no skulls):
+
+```lua
+say = function(ctx)        -- up to 3 lines under the tiles, above the column headings; the list moves down
+  return { "Aster Vale opened with Flame Lash on Harbor Brute at 0:08.",
+    { text = "Dela died at 0:26, Aster at 0:29.", dim = true } }
+end,
+buttons = function(ctx)    -- up to 4, at the header's right, in place of the pickers and the search box
+  return { { label = "0:36 · 5 players" },                         -- no click: plain text
+    { label = "‹ Earlier", click = function(ctx) end, disabled = false, width = 84 },
+    { label = "Later ›", click = function(ctx) end, disabled = true } }
+end,
+strips = { [4] = { form = "height", values = done, below = taken, marks = { 26 } } },   -- a skull at block 26
+```
+
+A section's `empty` may also be `function(ctx)` (the reason a data file reads as absent). `say` and
+`buttons` run every draw; nothing (or an empty list) leaves no gap and brings the character
+picker and the search box back. A button is the game's own push button (`UIPanelButtonTemplate`) and
+its click runs under the core's error guard with the section's context. A strip's `marks` (at most 4,
+`Ryna.Window.STRIP_MARKS`) are the game's raid-target skull centred on those blocks, clamped into the
+run; an axis row (`labels`) draws none.
+
 `Ryna.Window` also has `Open(key)`, `Toggle(key)`, `Hide()`, `IsShown()`, `Selected()`,
 `Refresh(key)` (redraw if that section is on screen; rows rebuild only when its version moved),
 `Choose(guid)`, `SetFilter(key, value)` (a section's filter from outside, nil for its default),
@@ -479,7 +502,8 @@ line: "Ryna: the companion app hasn't synced recently."
 The same trick, generalised (docs/ryna-agent-cores-mods.md section 7): the app writes versioned
 tables under `Interface/AddOns/Ryna/Data/`, one file each, loaded at login and `/reload`, each
 one global `RynaData_<name>` shaped `{ version, writtenAt, flavor, items = { [itemId] = ... } }`.
-Today there are two, both for the Prices mod and both pooled from everyone's uploads, about no one:
+Two are for the Prices mod, both pooled from everyone's uploads, about no one; the third is the
+Fights mod's, from this computer's own combat log:
 
 - `Data/vendors.lua` (`RynaData_vendors`): which vendors sell an item. Per item id, up to three
   rows of `{ npcId, name, zone, price, stack, observers, currency }`: `price` is copper for `stack`
@@ -489,8 +513,13 @@ Today there are two, both for the Prices mod and both pooled from everyone's upl
   `{ min, med, listings, snapshots, observers, asOf, weekMed, weekDays, weekSnapshots }`: today's
   agreed lowest unit buyout and median, the mean listings per snapshot, how many snapshots and
   people, when (unix); then the last 7 days' median, days with data and snapshots. 0 means none.
+- `Data/fights.lua` (`RynaData_fights`): your most recent fights, newest first (`items` is a list),
+  as the app read them from the combat log: each one's story, its players' and enemies' totals and
+  40 steps of done and taken (the whole shape is in `cores/wow/core/src/fights_data.rs`). It names
+  the players who were in those fights, like a damage meter's saved data, and stays on this
+  computer: nothing in it is fetched or sent. The app rewrites it when a fight ends and at start-up.
 
-The addon ships both as stubs (the global `nil`) and a mod reads them through `Ryna.Data.Get(name,
+The addon ships all three as stubs (the global `nil`) and a mod reads them through `Ryna.Data.Get(name,
 version)`, which gives the table only when it carries the version the mod knows, else nil and why
 ("absent" or "version"), so a file from another release is ignored rather than misread. What shows
 in game is as fresh as the last login or `/reload`; the app rewrites the files after a sync only

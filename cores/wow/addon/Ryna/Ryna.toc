@@ -32,3 +32,4 @@ Init.lua
 AgentStatus.lua
 Data\vendors.lua
 Data\auctions.lua
+Data\fights.lua
