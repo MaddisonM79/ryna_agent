@@ -9,9 +9,16 @@
 //! }
 //! RynaData_auctions = {
 //!   version = 1, writtenAt = 1762464000, flavor = "wowf",
-//!   items = { [2589] = { 80, 110, 3, 2, 2, 1762464060, 110, 1, 2 } },  -- today's agreed min, median, listings, snapshots, observers, asOf; the week's median, days, snapshots (0: none)
+//!   items = { [2589] = { 80, 110, 3, 2, 2, 1762464060, 110, 1, 2 },  -- today's agreed min, median, listings, snapshots, observers, asOf; the week's median, days, snapshots (0: none)
+//!             [2592] = { 100, 120, 4, 3, 2, 1762464060, 115, 3, 6, 130, 20396 } },  -- … and where the week's low started: that day's agreed min, its unix day
 //! }
 //! ```
+//!
+//! The last two numbers of an auction row (the API's `weekStart`, docs/wow.md 17.2) are there only
+//! when the week had a low on two days or more; otherwise the row stays nine long. They were added
+//! without a version bump on purpose: an addon from before them reads a row's first nine places by
+//! position and never looks past them, so it keeps its lines from the new file, where a bump would
+//! have made it drop every auction price until it updated.
 //!
 //! One plain global per file (`RynaData_<table>`, the form SavedVariables take, which [`crate::lua`]
 //! reads back; the core addon's `Ryna.Data.Get(name)` reads it). Each table carries its `version`
@@ -82,6 +89,10 @@ pub struct Auction {
     pub week_med: i64,
     pub week_days: i64,
     pub week_snapshots: i64,
+    /// Where the week's low started (the API's `weekStart`): that day's agreed min and its unix
+    /// day, zeros when the week has fewer than two days with a low (or the API doesn't say).
+    pub week_start_min: i64,
+    pub week_start_day: i64,
 }
 
 impl Auction {
@@ -160,6 +171,14 @@ pub fn fold_page(pooled: &mut Pooled, data: &Value) {
             a.week_med = int(week.get("med"));
             a.week_days = int(week.get("days"));
             a.week_snapshots = int(week.get("snapshots"));
+        }
+        // Both or neither: a start with no price or no day can't say anything.
+        if let Some(start) = item.get("weekStart").filter(|s| s.is_object()) {
+            let (min, day) = (int(start.get("min")), int(start.get("day")));
+            if min > 0 && day > 0 {
+                a.week_start_min = min;
+                a.week_start_day = day;
+            }
         }
         if !a.is_empty() {
             pooled.auctions.insert(id, a);
@@ -269,8 +288,15 @@ pub fn vendors_lua(pooled: &Pooled, ids: &[i64], written_at: i64, flavor: &str) 
 }
 
 fn auction_row(a: &Auction) -> String {
+    // The week's start goes after the nine, and only when there is one: an older addon reads the
+    // first nine by position, so a row it knows is unchanged for it either way.
+    let start = if a.week_start_min > 0 && a.week_start_day > 0 {
+        format!(", {}, {}", a.week_start_min, a.week_start_day)
+    } else {
+        String::new()
+    };
     format!(
-        "{{ {}, {}, {}, {}, {}, {}, {}, {}, {} }}",
+        "{{ {}, {}, {}, {}, {}, {}, {}, {}, {}{start} }}",
         a.min,
         a.med,
         a.listings,
@@ -299,7 +325,7 @@ pub fn auctions_lua(
         let mut out = String::new();
         header(
             &mut out,
-            "Data/auctions.lua: everyone's auction house prices per item. Rows: today's agreed min, median, listings, snapshots, observers, asOf (unix); the week's median, days, snapshots (0: none).",
+            "Data/auctions.lua: everyone's auction house prices per item. Rows: today's agreed min, median, listings, snapshots, observers, asOf (unix); the week's median, days, snapshots (0: none); then, when the week had a low on two days, the first of those days' agreed min and its unix day.",
             "auctions",
             written_at,
             flavor,
@@ -521,6 +547,78 @@ mod tests {
         ] })
     }
 
+    /// A page from an API that serves `weekStart` (docs/wow.md 17.2, 2026-11-15).
+    fn week_page() -> Value {
+        json!({ "flavor": "wowf", "items": [
+            { "itemId": 4306, "vendors": [],
+              "today": { "min": 100, "med": 120, "listings": 4, "quantity": 9, "snapshots": 3, "observers": 2, "asOf": 1_762_464_060 },
+              "week": { "med": 115, "days": 3, "snapshots": 6 }, "weekStart": { "day": 20_396, "min": 130 } },
+            // One day: null. A start with no price, or no day, or not an object: nothing.
+            { "itemId": 2589, "vendors": [],
+              "today": { "min": 80, "med": 110, "listings": 3, "quantity": 10, "snapshots": 2, "observers": 2, "asOf": 1_762_464_060 },
+              "week": { "med": 110, "days": 1, "snapshots": 2 }, "weekStart": null },
+            { "itemId": 2592, "vendors": [], "today": null, "week": { "med": 400, "days": 3, "snapshots": 5 }, "weekStart": { "day": 20_396, "min": 0 } },
+            { "itemId": 2770, "vendors": [], "today": null, "week": { "med": 50, "days": 2, "snapshots": 2 }, "weekStart": { "min": 60 } },
+            { "itemId": 2771, "vendors": [], "today": null, "week": { "med": 50, "days": 2, "snapshots": 2 }, "weekStart": [20_396, 60] },
+        ] })
+    }
+
+    #[test]
+    fn carries_the_week_start_after_the_nine_and_only_when_there_is_one() {
+        let mut pooled = Pooled::default();
+        fold_page(&mut pooled, &week_page());
+        assert_eq!(pooled.auctions[&4306].week_start_min, 130);
+        assert_eq!(pooled.auctions[&4306].week_start_day, 20_396);
+        for id in [2589, 2592, 2770, 2771] {
+            assert_eq!(
+                (
+                    pooled.auctions[&id].week_start_min,
+                    pooled.auctions[&id].week_start_day
+                ),
+                (0, 0),
+                "{id}"
+            );
+        }
+        let ids = [4306, 2589, 2592];
+        let (a, n) = auctions_lua(&pooled, &ids, 1_762_464_000, "wowf");
+        assert_eq!(n, 3);
+        assert!(
+            a.contains("\t\t[4306] = { 100, 120, 4, 3, 2, 1762464060, 115, 3, 6, 130, 20396 },\n")
+        );
+        // Without a start the row is the nine numbers it always was, byte for byte.
+        assert!(a.contains("\t\t[2589] = { 80, 110, 3, 2, 2, 1762464060, 110, 1, 2 },\n"));
+        let read = lua::parse(&a).unwrap();
+        let t = &read["RynaData_auctions"];
+        // Same version: an addon from before reads the first nine places by position, and they
+        // hold what they always held (pooled_test.lua checks the reader against such a row).
+        assert_eq!(t["version"], json!(1));
+        assert_eq!(VERSION, 1);
+        assert_eq!(
+            t["items"]["4306"],
+            json!([100, 120, 4, 3, 2, 1_762_464_060, 115, 3, 6, 130, 20_396])
+        );
+        assert_eq!(
+            t["items"]["2589"],
+            json!([80, 110, 3, 2, 2, 1_762_464_060, 110, 1, 2])
+        );
+        assert_eq!(t["items"]["2592"], json!([0, 0, 0, 0, 0, 0, 400, 3, 5]));
+
+        // An API from before weekStart: the same rows, nine long.
+        let mut old = week_page();
+        for item in old["items"].as_array_mut().unwrap() {
+            item.as_object_mut().unwrap().remove("weekStart");
+        }
+        let mut before = Pooled::default();
+        fold_page(&mut before, &old);
+        let (b, _) = auctions_lua(&before, &ids, 1_762_464_000, "wowf");
+        assert!(b.contains("\t\t[4306] = { 100, 120, 4, 3, 2, 1762464060, 115, 3, 6 },\n"));
+        assert_eq!(
+            a.replace(", 130, 20396 }", " }"),
+            b,
+            "the start's two numbers are the only difference"
+        );
+    }
+
     #[test]
     fn folds_a_page_and_writes_lua_the_reader_reads_back() {
         let mut pooled = Pooled::default();
@@ -608,6 +706,7 @@ mod tests {
                     week_med: 2,
                     week_days: 1,
                     week_snapshots: 4,
+                    ..Auction::default()
                 },
             );
         }
