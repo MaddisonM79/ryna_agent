@@ -12,6 +12,7 @@
 //! - [`watch`]: the loop the desktop app runs while it is open, with status events and a cancel handle.
 //! - [`agent_status`]: `AgentStatus.lua`, what the agent tells the addon after every run.
 //! - [`prices_data`]: `Data/vendors.lua` and `Data/auctions.lua`, the pooled prices brought down for the Prices mod.
+//! - [`fights_data`]: `Data/fights.lua`, the recent fights from the combat log for the Fights mod's section.
 //! - [`addon_install`]: copying the addon into the game, and reading the installed one's version.
 //! - [`mods`]: the bundled mods (Chronicle first): what's on, installing and removing their folders.
 //! - [`game_process`]: whether the game is running (a best guess from the process list).
@@ -30,6 +31,7 @@ pub mod agent_status;
 pub mod census;
 pub mod combat;
 pub mod discovery;
+pub mod fights_data;
 pub mod game_process;
 pub mod lua;
 pub mod lua_write;
