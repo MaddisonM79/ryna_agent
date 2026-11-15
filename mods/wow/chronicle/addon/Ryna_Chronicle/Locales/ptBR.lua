@@ -354,6 +354,29 @@ L["%s at this level"] = nil
 L["Level %s %s"] = nil
 L["Click for this character's gear, professions and reputations."] = nil
 L["From your saved file: each character as of its last logout; the one you're on is live."] = nil
+-- One character's Quests (the detail's picker: Character, Quests): the column heading's counts, "14 active
+-- · 4 ready to turn in"; the Progress column; a heading row with its count, "Zephras Isle (6)"; the last
+-- group, quests saved before the addon recorded each quest's heading; "ready" on a full progress bar (every
+-- objective done); a quest with no title saved, "quest 86012"; an empty log.
+L["%d active · %d ready to turn in"] = nil
+L["Progress"] = nil
+L["%s (%d)"] = nil
+L["Picked up before this was recorded"] = nil
+L["ready"] = nil
+L["quest %s"] = nil
+L["Unknown quest"] = nil
+L["No quests in this character's log."] = nil
+-- A quest row's tooltip: "Level 10"; an objective with no text saved, "Objective 2"; a done objective,
+-- "Kobold Vermin slain: 10/10 (done)"; and the line under them.
+L["Level %s"] = nil
+L["Objective %d"] = nil
+L["%s (done)"] = nil
+L["Every objective is done: ready to turn in."] = nil
+L["No objectives to count were saved for this quest."] = nil
+-- The Quests footer for another character: "From your saved file, as Alyra-Dawnmere last logged out, 4 days
+-- ago." (%s: the character, then how long ago); when that time isn't known.
+L["From your saved file, as %s last logged out, %s."] = nil
+L["an unknown time ago"] = nil
 -- Equipment slots, where the client has no name of its own for one.
 L["Ammo"] = nil
 L["Head"] = nil

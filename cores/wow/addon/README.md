@@ -336,7 +336,12 @@ Chronicle's sections, under Me:
   was last seen. A character with no gold or time recorded keeps its text as before over an empty
   bar. A click on a row (or the picker) shows that character: its class, guild,
   zone and talents, its gear by slot (the game's item tooltip on hover), its professions and its
-  reputations, each with a bar. The one you're on is live; the others are as of their last logout.
+  reputations, each with a bar. Its picker's Quests shows that character's quest log as it was saved
+  (an alt's without logging over): "14 active · 4 ready to turn in" over the quests, grouped under the
+  headings the game's log filed them under with a count each ("Zephras Isle (6)"), the biggest first,
+  each with its level and a bar of its objectives done ("1 / 3", "ready" when all are), and the quests
+  saved before headings were recorded last ("Picked up before this was recorded"). The one you're on
+  is live; the others are as of their last logout.
 - **Items**: everything in every character's bags and bank (each character's bags as of its last
   login, its bank as of its last visit), one row per item: its icon and name, the total, how many in
   bags and in the bank, and who holds it. Hovering shows the game's item tooltip and, under it, each
@@ -399,7 +404,8 @@ Ryna.Window.AddSection({
   click = function(row, ctx) end,
   footer = function(ctx) return "Your last auction-house visit, 2 hours ago." end,
   -- optional: a second picker, left of the character picker, on this section only (Chronicle's
-  -- zones); the first choice is the default (value nil), and ctx.filter is the chosen value
+  -- zones); the first choice is the default (value nil), and ctx.filter is the chosen value;
+  -- fewer than two choices hide it (Characters offers its views only with one character picked)
   filter = function(ctx) return { { value = nil, label = "All zones" }, { value = "Westfall", label = "Westfall" } } end,
 })
 ```
