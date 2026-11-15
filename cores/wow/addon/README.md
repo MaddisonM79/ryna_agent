@@ -391,6 +391,28 @@ Ryna.Window.AddSection({
 
 Up to 8 columns.
 
+**The strip**, the one cell a row can draw besides text and a bar: a column with `kind = "strip"` draws a
+row's `strips[col]`, a run of up to 48 small blocks, each a share from 0 to 1 (a row with a bar there
+and no strip draws the bar, so a section can mix them):
+
+```lua
+strips = { [2] = {
+  values = { 0, 0.25, 1, 0.5 },   -- one block each; below 0 or not a number is 0, above 1 is 1
+  form = "brightness",            -- (default) one line, each block's alpha its share: the hours of a day
+  -- form = "height": each block's height its share, up from the bottom; with `below`, two lines from
+  -- the middle, `values` up and `below` down (a fight's damage done and taken)
+  below = { 0.5, 0, 0.2 }, color = { 0.7, 0.6, 0.9 }, belowColor = { 0.8, 0.2, 0.2 },
+  count = 24, labels = { [1] = "12 AM", [7] = "6 AM" },   -- an axis row: texts at those blocks, no blocks
+} }
+```
+
+Past 48 values the rest are left out (the first 48 are drawn); `Ryna.Window.STRIP_MAX` is 48 and
+`Ryna.Window.StripShare(v)` is the share a block draws. The blocks are the game's plain colour
+texture over a faint track, made the first time one of the window's 20 row frames needs them and
+reused after, so 2,000 rows with strips cost what 20 do. A section's `title` may also be
+`function(ctx)`, for a title that follows its picker. Both are in cores after
+0.4.2: a mod checks `Ryna.Window.STRIP_MAX` first.
+
 `Ryna.Window` also has `Open(key)`, `Toggle(key)`, `Hide()`, `IsShown()`, `Selected()`,
 `Refresh(key)` (redraw if that section is on screen; rows rebuild only when its version moved),
 `Choose(guid)`, `SetFilter(key, value)` (a section's filter from outside, nil for its default),

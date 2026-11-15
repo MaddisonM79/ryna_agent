@@ -125,6 +125,7 @@ function methods.GetValue(self) return self._value end
 function methods.SetTexture(self, t) self._texture = t end
 function methods.GetTexture(self) return self._texture end
 function methods.SetStatusBarColor(self, r, g, b) self._barColor = { r, g, b } end
+function methods.SetColorTexture(self, r, g, b, a) self._colorTexture = { r, g, b, a } end
 function methods.SetChecked(self, on) self._checked = on and true or false end
 function methods.GetChecked(self) return self._checked end
 function methods.GetCenter() return 0, 0 end

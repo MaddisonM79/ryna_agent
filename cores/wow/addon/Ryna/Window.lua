@@ -31,7 +31,8 @@
 --
 --   key        unique string
 --   group      "me", "world" or "combat"
---   label      the rail's text; title (optional) the header's, else the label
+--   label      the rail's text; title (optional) the header's, else the label: a string, or
+--              function(ctx) -> one (History's "History › Play" follows its filter)
 --   order      within its group, lowest first
 --   characters "all" (the default: the picker offers All characters and each character),
 --              "one" (needs one character: All means the character you're on, and the picker
@@ -39,9 +40,11 @@
 --   search     false greys the search box (default: on)
 --   sortable   false: the column headings don't sort (rows with headings in them; default: on)
 --   icons      true leaves room for an icon at the start of every row
---   columns    { { title, width, justify = "LEFT"|"RIGHT", kind = "bar", sort = false }, ... } (at
---              most 8; sort = false: its heading doesn't sort, for a column with no row.sort key whose
---              text only fill() makes), or function(ctx) -> that list
+--   columns    { { title, width, justify = "LEFT"|"RIGHT", kind = "bar"|"strip", sort = false }, ... }
+--              (at most 8; kind "bar" draws a row's bars[col] under its text, kind "strip" a row's
+--              strips[col], or its bars[col] when it has no strip there; sort = false: its heading
+--              doesn't sort, for a column with no row.sort key whose text only fill() makes), or
+--              function(ctx) -> that list
 --   rows       function(ctx) -> the section's rows, in its own order (see "A row" below)
 --   fill       optional function(row, ctx): fills row.cells (and icon, link, ...) for a row about to
 --              be drawn, once per row and again each minute (ages move on): rows(ctx) may return
@@ -67,8 +70,28 @@
 -- A row = { cells = { "text", ... } (by column), sort = { value, ... } (what a column sorts by;
 -- default its cell's text), icon (a texture), link (an item link: the game's own tooltip),
 -- quality (cell 1 in the item quality's colour), color ("|cffRRGGBB" for cell 1), bars = { [col] =
--- { value, max, r, g, b } } (drawn in that column, its cell's text over the bar), header (a gold
--- heading row: no hover, no click), and anything the section's tooltip, fill or click want }.
+-- { value, max, r, g, b } } (drawn in that column, its cell's text over the bar), strips = { [col] =
+-- a strip } (below; drawn in a "strip" column instead of its cell's text), header (a gold heading row:
+-- no hover, no click), and anything the section's tooltip, fill or click want }.
+--
+-- A strip: a run of up to 48 small blocks in one cell, each a share from 0 to 1 (Ryna.Window.STRIP_MAX):
+--
+--   values     { share, ... }: one block each, left to right. A share below 0 (or not a number) is
+--              drawn as 0 and one above 1 as 1. Past 48 the rest are left out: the first 48 are drawn
+--   form       "brightness" (the default): one line of blocks of equal height, each block's alpha its
+--              share (the hours of a weekday). "height": each block's height its share, growing up
+--              from the bottom; with `below`, two lines: `values` grows up from the middle and
+--              `below` down from it (a fight's damage done above, taken below)
+--   below      height only: the second line's shares, as `values`
+--   color      { r, g, b } of the blocks (default the window's bar blue); belowColor the second line's
+--              (default a muted red)
+--   count      the run's length when it isn't #values (an axis row with labels only), at most 48
+--   labels     { [i] = "text" }: a small text at block i's left edge instead of blocks, for the row
+--              under a set of strips ("12 AM" under the first hour); blocks past `count` aren't labelled
+--
+-- The blocks are the game's plain colour texture, made the first time a row frame needs them and
+-- reused after, like the bars: 20 row frames whatever the list's length, so 2,000 rows with strips
+-- cost what 20 do. A faint track sits behind the blocks so an empty block still reads as a place.
 
 local _, ns = ...
 local L = ns.L
@@ -92,6 +115,12 @@ local BOTTOM = 34    -- above the footer
 local BAR_TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
 local HIGHLIGHT = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
 local GOLD = "|cffffd100"
+local STRIP_MAX = 48
+local STRIP_H = ROW_H - 6
+local STRIP_BLUE = { 0.26, 0.52, 0.9 }
+local STRIP_RED = { 0.75, 0.25, 0.22 }
+local PLAIN_TEXTURE = "Interface\\Buttons\\WHITE8X8"
+Wn.STRIP_MAX = STRIP_MAX
 
 Wn.GROUPS = {
   { key = "me", label = L["Me"] },
@@ -303,7 +332,8 @@ function Wn.AddSection(spec)
   if not CHARACTER_MODES[mode] then return false end
   local s = {
     key = spec.key, group = spec.group, label = tostring(spec.label or spec.key),
-    title = spec.title and tostring(spec.title) or nil, order = tonumber(spec.order) or 100,
+    title = (type(spec.title) == "function" and spec.title) or (spec.title and tostring(spec.title)) or nil,
+    order = tonumber(spec.order) or 100,
     characters = mode, search = spec.search ~= false, sortable = spec.sortable ~= false,
     icons = spec.icons and true or false, columns = spec.columns, rows = spec.rows, fill = spec.fill,
     tiles = spec.tiles, tooltip = spec.tooltip, click = spec.click, footer = spec.footer,
@@ -761,9 +791,153 @@ end
 
 -- Rows -------------------------------------------------------------------------------------------------------
 
+-- Strips (see the top of the file) ------------------------------------------------------------------
+
+-- A share as a strip draws it: a number from 0 to 1 (anything else, NaN and secret values too, is 0).
+local function stripShare(v)
+  if type(v) ~= "number" or ns.IsSecret(v) or v ~= v then return 0 end
+  if v < 0 then return 0 end
+  if v > 1 then return 1 end
+  return v
+end
+Wn.StripShare = stripShare
+
+-- A plain colour texture: the client's own colour fill, else its white texture tinted.
+local function plainTexture(parent, layer)
+  local t = parent:CreateTexture(nil, layer or "ARTWORK")
+  if not pcall(t.SetColorTexture, t, 1, 1, 1, 1) then
+    pcall(t.SetTexture, t, PLAIN_TEXTURE)
+  end
+  return t
+end
+
+local function tint(t, color, fallback)
+  local c = type(color) == "table" and color or fallback
+  local r, g, b = tonumber(c[1]) or fallback[1], tonumber(c[2]) or fallback[2], tonumber(c[3]) or fallback[3]
+  if not pcall(t.SetColorTexture, t, r, g, b, 1) then pcall(t.SetVertexColor, t, r, g, b) end
+end
+
+-- A row frame's strip holder for column c, made the first time a strip is drawn there.
+local function stripFrame(row, c)
+  row.strips = row.strips or {}
+  local st = row.strips[c]
+  if st then return st end
+  st = CreateFrame("Frame", nil, row)
+  st:SetHeight(STRIP_H)
+  local track = plainTexture(st, "BACKGROUND")
+  track:SetAllPoints()
+  pcall(track.SetColorTexture, track, 1, 1, 1, 0.05)
+  st.track = track
+  st.top, st.below, st.labels = {}, {}, {}
+  st:Hide()
+  row.strips[c] = st
+  local x, w = row.colX and row.colX[c], row.colW and row.colW[c]
+  if x and w then
+    st:SetPoint("LEFT", row, "LEFT", x, 0)
+    st:SetWidth(w)
+  end
+  return st
+end
+
+local function block(st, line, i)
+  local list = st[line]
+  local b = list[i]
+  if not b then
+    b = plainTexture(st, "ARTWORK")
+    list[i] = b
+  end
+  return b
+end
+
+local function label(st, i)
+  local fs = st.labels[i]
+  if not fs then
+    fs = fontString(st, "GameFontDisableSmall")
+    st.labels[i] = fs
+  end
+  return fs
+end
+
+-- Draws strip spec `sp` into holder `st` (its width already set). Returns how many blocks it drew.
+local function drawStrip(st, sp)
+  local values = type(sp.values) == "table" and sp.values or {}
+  local below = sp.form == "height" and type(sp.below) == "table" and sp.below or nil
+  local n = math.min(STRIP_MAX, math.max(#values, below and #below or 0, math.floor(tonumber(sp.count) or 0)))
+  local labels = type(sp.labels) == "table" and sp.labels or nil
+  local width = tonumber(st:GetWidth()) or 0
+  local step = n > 0 and width / n or 0
+  local gap = step >= 4 and 1 or 0
+  local bw = math.max(1, step - gap)
+  local drawn = 0
+  for i = 1, STRIP_MAX do
+    local top, bottom = st.top[i], st.below[i]
+    local x = (i - 1) * step
+    if i <= n and not labels then
+      local share = stripShare(values[i])
+      top = block(st, "top", i)
+      tint(top, sp.color, STRIP_BLUE)
+      top:ClearAllPoints()
+      if sp.form == "height" then
+        local half = below and STRIP_H / 2 or STRIP_H
+        top:SetAlpha(1)
+        if below then
+          top:SetPoint("BOTTOMLEFT", st, "LEFT", x, 0)
+        else
+          top:SetPoint("BOTTOMLEFT", st, "BOTTOMLEFT", x, 0)
+        end
+        top:SetSize(bw, math.max(1, share * half))
+        if share > 0 then top:Show() else top:Hide() end
+        if below then
+          local down = stripShare(below[i])
+          bottom = block(st, "below", i)
+          tint(bottom, sp.belowColor, STRIP_RED)
+          bottom:ClearAllPoints()
+          bottom:SetPoint("TOPLEFT", st, "LEFT", x, 0)
+          bottom:SetSize(bw, math.max(1, down * half))
+          bottom:SetAlpha(1)
+          if down > 0 then bottom:Show() else bottom:Hide() end
+        elseif bottom then
+          bottom:Hide()
+        end
+      else
+        top:SetPoint("LEFT", st, "LEFT", x, 0)
+        top:SetSize(bw, STRIP_H)
+        top:SetAlpha(share)
+        top:Show()
+        if bottom then bottom:Hide() end
+      end
+      drawn = drawn + 1
+    else
+      if top then top:Hide() end
+      if bottom then bottom:Hide() end
+    end
+  end
+  local used = {}
+  if labels then
+    for i, text in pairs(labels) do
+      if type(i) == "number" and i >= 1 and i <= n and i == math.floor(i) then
+        local fs = label(st, i)
+        fs:ClearAllPoints()
+        fs:SetPoint("LEFT", st, "LEFT", (i - 1) * step, 0)
+        fs:SetText(tostring(text))
+        fs:Show()
+        used[i] = true
+      end
+    end
+  end
+  for i, fs in pairs(st.labels) do
+    if not used[i] then fs:Hide() end
+  end
+  if labels then st.track:Hide() else st.track:Show() end
+  st:Show()
+  return drawn
+end
+Wn.DrawStrip = drawStrip
+
 local function layoutColumns(f, columns, icons)
   local function place(row, cols, bars)
     local x = 4 + (icons and (ICON + 4) or 0)
+    row.colX, row.colW = {}, {}
     for c = 1, MAX_COLS do
       local spec = columns[c]
       local w = spec and tonumber(spec.width) or 0
@@ -771,6 +945,8 @@ local function layoutColumns(f, columns, icons)
       fs:ClearAllPoints()
       local bar = bars and bars[c]
       if bar then bar:ClearAllPoints() end
+      local st = row.strips and row.strips[c]
+      if st then st:ClearAllPoints() end
       if w > 0 then
         fs:SetPoint("LEFT", row, "LEFT", x, 0)
         fs:SetWidth(w - 8)
@@ -780,9 +956,15 @@ local function layoutColumns(f, columns, icons)
           bar:SetPoint("LEFT", row, "LEFT", x, 0)
           bar:SetWidth(w - 8)
         end
+        row.colX[c], row.colW[c] = x, w - 8
+        if st then
+          st:SetPoint("LEFT", row, "LEFT", x, 0)
+          st:SetWidth(w - 8)
+        end
       else
         fs:Hide()
         if bar then bar:Hide() end
+        if st then st:Hide() end
       end
       x = x + w
     end
@@ -821,8 +1003,17 @@ local function fillRow(row, data, columns, icons)
       elseif c == 1 and type(data.color) == "string" then
         text = data.color .. text .. "|r"
       end
-      local b = spec.kind == "bar" and not header and type(data.bars) == "table" and data.bars[c] or nil
-      if type(b) == "table" and tonumber(b.max) and tonumber(b.max) > 0 then
+      local sp = spec.kind == "strip" and not header and type(data.strips) == "table" and data.strips[c] or nil
+      if type(sp) ~= "table" then sp = nil end
+      local st = row.strips and row.strips[c]
+      if st and not sp then st:Hide() end
+      local b = (spec.kind == "bar" or spec.kind == "strip") and not header and not sp
+        and type(data.bars) == "table" and data.bars[c] or nil
+      if sp then
+        bar:Hide()
+        fs:SetText("")
+        drawStrip(stripFrame(row, c), sp)
+      elseif type(b) == "table" and tonumber(b.max) and tonumber(b.max) > 0 then
         local max = tonumber(b.max)
         local value = math.max(0, math.min(tonumber(b.value) or 0, max))
         bar:SetMinMaxValues(0, max)
@@ -838,6 +1029,8 @@ local function fillRow(row, data, columns, icons)
     else
       fs:SetText("")
       bar:Hide()
+      local st = row.strips and row.strips[c]
+      if st then st:Hide() end
     end
   end
 end
@@ -917,7 +1110,9 @@ function Wn.Draw()
   Wn.ctx = ctx
   local v = Wn.View(section, ctx)
 
-  f.title:SetText(section.title or section.label)
+  local title = section.title
+  if type(title) == "function" then title = title(ctx) end
+  f.title:SetText(type(title) == "string" and title or section.label)
   -- The picker and the search box follow the section and the choice, not every redraw: a kill
   -- redraws the window, and must neither close the picker's list nor undo what is being typed.
   local pickerFor = section.key .. ":" .. tostring(ctx.character)
