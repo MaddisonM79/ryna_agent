@@ -353,6 +353,120 @@ a = lineStarting(tip, "AH (everyone)")
 check(a == "AH (everyone): 1s 10c each · 3 listed · as of 1800s ago",
   "no stack total when that is off: " .. tostring(a))
 
+-- The week line (2026-11-15): "This week <first day's low> → <today's low>, down/up N% | unchanged", under
+-- everyone's auction line, from the two numbers after a row's nine. --------------------------------
+local WRITTEN = 1700000000 - 3600
+local WDAY = math.floor(WRITTEN / 86400) -- the table's own day; today's rows below are on it too
+local AS_OF = 1700000000 - 1800
+for id = 9001, 9012 do ITEMS[id] = { name = "Item " .. id, price = 1, stack = 20 } end
+local function weekRow(min, start, day)
+  return { min, 0, 5, 2, 2, AS_OF, min, 3, 6, start, day }
+end
+_G.RynaData_vendors = nil
+_G.RynaData_auctions = {
+  version = 1, writtenAt = WRITTEN, flavor = "wowf",
+  items = {
+    [9001] = weekRow(100, 130, WDAY - 3), -- down 23.08%
+    [9002] = weekRow(112, 100, WDAY - 6), -- up 12%
+    [9003] = weekRow(100, 101, WDAY - 2), -- -0.99%: unchanged
+    [9004] = weekRow(199, 200, WDAY - 2), -- -0.5% (would round to 1): still unchanged, under 1%
+    [9005] = weekRow(101, 100, WDAY - 2), -- exactly 1%: up 1%
+    [9006] = { 100, 0, 5, 2, 2, AS_OF, 100, 1, 2 }, -- no start (one day of the week): no line
+    [9007] = weekRow(100, 0, WDAY - 3), -- a zero start: no line
+    [9008] = weekRow(100, "x", WDAY - 3), -- an unreadable start: no line
+    [9009] = weekRow(100, 130, WDAY - 9), -- 9 days before the table was written: no line
+    [9010] = weekRow(100, 130, WDAY - 8), -- 8 days: still shown
+    [9011] = { 0, 0, 0, 0, 0, 0, 120, 3, 6, 130, WDAY - 3 }, -- no low today: no line
+    [9012] = weekRow(100, 130, nil), -- a start with no day: no line
+  },
+}
+load(true)
+local function weekLine(id)
+  local t = newTooltip()
+  t:Fill(id, 1)
+  return lineStarting(t, "This week"), t
+end
+local w, wt = weekLine(9001)
+check(w == "This week 1s 30c → 1s, down 23%", "down, rounded: " .. tostring(w))
+local _, wraw = lineStarting(wt, "This week")
+check(wraw and wraw:sub(1, 10) == "|cffa8d8ff", "in everyone's colour: " .. tostring(wraw))
+check(plain(wt.lines[#wt.lines]) == w and plain(wt.lines[#wt.lines - 1]):sub(1, 13) == "AH (everyone)",
+  "the line right under everyone's auction line, last")
+check(#wt.lines == 4, "name, sell, everyone's auction, week: 4 lines, not " .. #wt.lines)
+w = weekLine(9002)
+check(w == "This week 1s → 1s 12c, up 12%", "up: " .. tostring(w))
+w = weekLine(9003)
+check(w == "This week 1s 1c → 1s, unchanged", "under 1% is unchanged: " .. tostring(w))
+w = weekLine(9004)
+check(w == "This week 2s → 1s 99c, unchanged", "half a percent is unchanged, not 1%: " .. tostring(w))
+w = weekLine(9005)
+check(w == "This week 1s → 1s 1c, up 1%", "1% is said: " .. tostring(w))
+for _, case in ipairs({ { 9006, "no start" }, { 9007, "a zero start" }, { 9008, "an unreadable start" },
+  { 9009, "a start 9 days before the table" }, { 9011, "no low today" }, { 9012, "a start with no day" } }) do
+  local l, t = weekLine(case[1])
+  check(l == nil, case[2] .. ": no week line, not " .. tostring(l))
+  check(case[1] == 9011 or lineStarting(t, "AH (everyone)") ~= nil, case[2] .. ": everyone's auction line stays")
+  for i = 2, #t.lines do check(not plain(t.lines[i]):find("no data", 1, true), case[2] .. ": never \"no data\"") end
+end
+w = weekLine(9010)
+check(w == "This week 1s 30c → 1s, down 23%", "a start 8 days before the table is still shown: " .. tostring(w))
+-- A table with no writtenAt can't say how old the start is: no line.
+_G.RynaData_auctions.writtenAt = nil
+load(true)
+check(weekLine(9001) == nil, "no writtenAt: no week line")
+_G.RynaData_auctions.writtenAt = WRITTEN
+load(true)
+-- The toggle and the auction house: with everyone's line.
+settings.pricePooledAuctionLine = false
+check(weekLine(9001) == nil, "pooled auction line off: no week line")
+settings.pricePooledAuctionLine = true
+_G.AuctionHouseFrame = { IsShown = function() return true end }
+wt = newTooltip()
+wt:Fill(9001, 1, _G.AuctionHouseFrame)
+check(lineStarting(wt, "This week") == nil, "no week line while the house shows the item")
+_G.AuctionHouseFrame = nil
+-- A refresh by hand sets the line over the one there, never a second.
+wt = newTooltip()
+wt:Fill(9001, 1)
+for i = 1, #wt.lines do
+  local line = wt.lines[i]
+  _G[wt.name .. "TextLeft" .. i].SetText = function(_, t) wt.lines[i] = t end
+  _G[wt.name .. "TextLeft" .. i].GetText = function() return wt.lines[i] end
+  wt.lines[i] = line
+end
+ns.Tooltip.OnItem(wt, nil, true)
+local weeks = 0
+for _, l in ipairs(wt.lines) do if plain(l):sub(1, 9) == "This week" then weeks = weeks + 1 end end
+check(weeks == 1, "one week line after a refresh by hand, not " .. weeks)
+
+-- The same version: a row carrying the two new numbers reads its first nine exactly as before, so an
+-- addon that knows only nine (every release before this line) keeps its lines from the new file.
+_G.RynaData_auctions = {
+  version = 1, writtenAt = WRITTEN, flavor = "wowf",
+  items = {
+    [9001] = { 80, 110, 3, 2, 2, AS_OF, 110, 3, 6 },
+    [9002] = { 80, 110, 3, 2, 2, AS_OF, 110, 3, 6, 130, WDAY - 3 },
+  },
+}
+load(true)
+check(ns.Pooled.auctionsWhy == nil and ns.Pooled.auctions ~= nil, "the new file is read at version 1")
+local nine, eleven = ns.Pooled.Auction(9001), ns.Pooled.Auction(9002)
+local same = true
+local NINE = { "min", "med", "listings", "snapshots", "observers", "asOf", "weekMed", "weekDays", "weekSnapshots" }
+for _, key in ipairs(NINE) do
+  if nine[key] ~= eleven[key] then same = false end
+end
+check(same, "the first nine fields are the same with or without the start")
+check(nine.weekStartMin == nil and eleven.weekStartMin == 130 and eleven.weekStartDay == WDAY - 3,
+  "the start read from 10 and 11")
+local t9, t11 = newTooltip(), newTooltip()
+t9:Fill(9001, 1)
+t11:Fill(9002, 1)
+check(lineStarting(t9, "AH (everyone)") == lineStarting(t11, "AH (everyone)"),
+  "everyone's auction line is unchanged by the two numbers: " .. tostring(lineStarting(t11, "AH (everyone)")))
+check(lineStarting(t9, "This week") == nil and lineStarting(t11, "This week") == "This week 1s 30c → 80c, down 38%",
+  "only the row with a start has the week line: " .. tostring(lineStarting(t11, "This week")))
+
 -- Reading the tables never touched the stores, and nothing was said. ---------------------------
 check(#chat == 0, "nothing in chat: " .. table.concat(chat, " | "))
 check(#errors == 0, "no errors: " .. table.concat(errors, " | "))

@@ -5,7 +5,12 @@
 -- Prices knows (version 1) once at login and answers the tooltip's questions:
 --
 --   vendors[itemId]  = { { npcId, name, zone, price, stack, observers, currency }, ... }  best first
---   auctions[itemId] = { min, med, listings, snapshots, observers, asOf, weekMed, weekDays, weekSnapshots }
+--   auctions[itemId] = { min, med, listings, snapshots, observers, asOf, weekMed, weekDays, weekSnapshots
+--                        [, weekStartMin, weekStartDay] }
+--
+-- The last two (2026-11-15) are where the week's low started, the first day of the last seven with a low
+-- (its agreed min, and its unix day), there only when two or more days had one. They came without a
+-- version bump: an addon from before them reads the first nine places and never looks further.
 --
 -- A table from another version (an older app, or a newer one than this addon) is ignored whole, and
 -- /ryna prices says so; a missing one reads as "no pooled prices yet". A core without Ryna.Data (one
@@ -79,7 +84,18 @@ function P.Auction(id)
     a[key] = isNumber(row[i]) and row[i] or 0
   end
   if a.asOf <= 0 and a.weekDays <= 0 then return nil end
+  -- Where the week started, only as a pair of positive numbers (else both nil).
+  if isNumber(row[10]) and isNumber(row[11]) and row[10] > 0 and row[11] > 0 then
+    a.weekStartMin, a.weekStartDay = row[10], row[11]
+  end
   return a
+end
+
+-- When the auction table was written (unix seconds), or nil.
+function P.AuctionsWrittenAt()
+  local D = ns.API.Data
+  if type(D) ~= "table" or type(D.WrittenAt) ~= "function" then return nil end
+  return D.WrittenAt(P.auctions)
 end
 
 -- When the tables were written (the older of the two), or nil.

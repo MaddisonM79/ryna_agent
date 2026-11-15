@@ -50,6 +50,14 @@
 -- one, and it stays away where the own line does (the auction house showing the item). The age is
 -- "as of", the data's time, not the file's.
 --
+-- Under it, with the same toggle and colour, the week line (2026-11-15, docs/ryna-agent-cores-mods.md
+-- 7.5): "This week 1s 30c → 1s 0c, down 23%", from the low on the first day of the week that had one
+-- to today's agreed low, "up 12%", or "unchanged" for a move under 1% (rounded to a whole number
+-- otherwise). Only when the item had a low on two days of the week: it is left out, never "no data",
+-- when the table has no start for the item, today has no low, the start is zero or unreadable, or the
+-- start's day is more than 8 days before the table was written (a stale file says nothing about this
+-- week).
+--
 -- Hooked like Chronicle's lines: TooltipDataProcessor where the client has it, GameTooltip's and
 -- ItemRefTooltip's OnTooltipSetItem otherwise. Every client call goes through ns.Try.
 
@@ -335,6 +343,28 @@ function T.PooledAuctionLine(id, howMany)
   return line
 end
 
+local DAY = 86400
+local WEEK_LINE_DAYS = 8 -- a start older than this, by the table's written-at time, says nothing about this week
+
+-- The week line for item `id`: "This week 1s 30c → 1s 0c, down 23%", or nil when the item had no low on
+-- two days of the week (or the table can't say).
+function T.PooledWeekLine(id)
+  local a = ns.Pooled.Auction(id)
+  if not a or a.asOf <= 0 or a.min <= 0 then return nil end
+  local from, day = a.weekStartMin, a.weekStartDay
+  if type(from) ~= "number" or type(day) ~= "number" or from <= 0 or day <= 0 then return nil end
+  local written = ns.Pooled.AuctionsWrittenAt()
+  if type(written) ~= "number" or math.floor(written / DAY) - day > WEEK_LINE_DAYS then return nil end
+  -- The start is an earlier day than today's low, or it isn't a move over the week.
+  if day >= math.floor(a.asOf / DAY) then return nil end
+  local change = (a.min - from) / from * 100
+  local fromText, toText = T.Money(from), T.Money(a.min)
+  if math.abs(change) < 1 then return string.format(L["This week %s → %s, unchanged"], fromText, toText) end
+  local pct = math.floor(math.abs(change) + 0.5)
+  if change < 0 then return string.format(L["This week %s → %s, down %d%%"], fromText, toText, pct) end
+  return string.format(L["This week %s → %s, up %d%%"], fromText, toText, pct)
+end
+
 -- What our auction lines start with, in this client's language: the text before the first %s of
 -- each form ("AH: ", "AH: from ").
 local function prefixes()
@@ -350,6 +380,19 @@ end
 local function pooledPrefixes()
   local out = {}
   local forms = { L["AH (everyone): %s · %d listed · as of %s"], L["AH (everyone): %s each this week · %d snapshots"] }
+  for _, form in ipairs(forms) do
+    local p = form:match("^(.-)%%s")
+    if p and p ~= "" then out[#out + 1] = POOLED .. p end
+  end
+  return out
+end
+
+-- What the week line starts with, in this client's language, in its colour.
+local function weekPrefixes()
+  local out = {}
+  local forms = {
+    L["This week %s → %s, down %d%%"], L["This week %s → %s, up %d%%"], L["This week %s → %s, unchanged"],
+  }
   for _, form in ipairs(forms) do
     local p = form:match("^(.-)%%s")
     if p and p ~= "" then out[#out + 1] = POOLED .. p end
@@ -394,6 +437,11 @@ function T.SetPooledAuctionLine(tooltip, line)
   return setLine(tooltip, line, pooledPrefixes(), POOLED)
 end
 
+-- The week line, the same way, under everyone's auction line.
+function T.SetPooledWeekLine(tooltip, line)
+  return setLine(tooltip, line, weekPrefixes(), POOLED)
+end
+
 -- Adds the lines to `tooltip`; `show` re-shows it (the script hooks, and a refresh by hand).
 function T.OnItem(tooltip, data, show)
   local sell, auction = S.On("priceSellLine"), S.On("priceAuctionLine")
@@ -428,7 +476,10 @@ function T.OnItem(tooltip, data, show)
   if vendor and id then added = add(tooltip, T.VendorLine(id), show) or added end
   if id and (auction or pooled) and not ns.Auction.HouseShows(tooltip, id) then
     if auction then added = T.SetAuctionLine(tooltip, T.AuctionLine(id, slotCount())) or added end
-    if pooled then added = T.SetPooledAuctionLine(tooltip, T.PooledAuctionLine(id, slotCount())) or added end
+    if pooled then
+      added = T.SetPooledAuctionLine(tooltip, T.PooledAuctionLine(id, slotCount())) or added
+      added = T.SetPooledWeekLine(tooltip, T.PooledWeekLine(id)) or added
+    end
   end
   if added and show and type(tooltip.Show) == "function" then tooltip:Show() end
 end

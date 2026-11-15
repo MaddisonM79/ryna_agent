@@ -52,6 +52,11 @@ L["+ other costs"] = nil
 L["AH (everyone): %s · %d listed · as of %s"] = nil
 -- Everyone's auction line where only older days this week have data. %s: money; %d: snapshots.
 L["AH (everyone): %s each this week · %d snapshots"] = nil
+-- The week line under it: the low on the week's first day with one, then today's low (both money), and how
+-- it moved. %d: the change in percent, a whole number; "unchanged" is a move under 1%.
+L["This week %s → %s, down %d%%"] = nil
+L["This week %s → %s, up %d%%"] = nil
+L["This week %s → %s, unchanged"] = nil
 
 -- Settings.lua
 -- The checkboxes (also /ryna prices' lines).
