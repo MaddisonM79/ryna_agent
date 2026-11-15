@@ -53,7 +53,8 @@
       "../../../cores/wow/addon/Ryna": "addon/Ryna/",
       "../../../mods/wow/chronicle/addon/Ryna_Chronicle": "addon/Ryna_Chronicle/",
       "../../../mods/wow/automation/addon/Ryna_Automation": "addon/Ryna_Automation/",
-      "../../../mods/wow/prices/addon/Ryna_Prices": "addon/Ryna_Prices/"
+      "../../../mods/wow/prices/addon/Ryna_Prices": "addon/Ryna_Prices/",
+      "../../../mods/wow/fights/addon/Ryna_Fights": "addon/Ryna_Fights/"
     },
     "windows": {
       "nsis": {

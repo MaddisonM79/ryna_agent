@@ -440,6 +440,7 @@ mod tests {
                 "Chronicle",
                 "Automation",
                 "Prices",
+                "Fights",
                 "Settings",
                 "Log",
                 "Fights, last 12 h",

@@ -88,6 +88,12 @@ the mods that are on. Each mod is listed under the install with a switch; there 
   It also adds an auction price ("AH: 4g 20s each · 31 listed · 2 hours ago") from one snapshot of the
   auction house per visit, kept as per-item totals with nothing about a seller, and sent with the rest
   when you're signed in; the snapshot has its own switch. It never buys, sells or bids. Off by default.
+- **Fights**: a Fights section in Ryna's window (`/ryna fights`), in the manner of a damage meter:
+  your recent fights, and for each one who struck first and who died when, every player's damage
+  done and taken over the fight, and whom each enemy was attacking. The game won't give addons the
+  combat log, so the app writes what it read from the log file into the addon's folder, and the game
+  shows it after a login or `/reload`. The file names the players who were in your fights and stays
+  on your computer. Off by default.
 - **Settings**: your addons' settings (ElvUI and every other addon's, found from their own files),
   copied from one character to another and backed up to ryna.io, stored encrypted for you. It
   works in the app with the game closed and puts nothing in the game, so there's no addon folder for
@@ -164,7 +170,8 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
   the mod API); and the scrubbed test fixtures in `cores/wow/fixtures`. Its mods are in `mods/wow`:
   Chronicle (`mods/wow/chronicle`), everything recorded about a character, Automation
   (`mods/wow/automation`), the chores (quests, vendors, trainers, mail, rolls, invites and the like),
-  each off until ticked, Prices (`mods/wow/prices`), vendor prices on item tooltips, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
+  each off until ticked, Prices (`mods/wow/prices`), vendor prices on item tooltips, Fights
+  (`mods/wow/fights`), the Fights section from the app's reading of the combat log, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
   core's `settings` module), addon settings copied between characters and backed up encrypted.
   `cores/palworld` is the Palworld core (Node, macOS): it reads the Mac App Store build's saves
   and pushes them, run by the agent as a sidecar and fetched as a signed core package only for

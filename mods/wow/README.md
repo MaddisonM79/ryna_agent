@@ -111,6 +111,25 @@ is the whole of it).
   `minPrice` is per unit for stackable goods, and that `AUCTION_HOUSE_BROWSE_RESULTS_UPDATED` is the
   event a search fires. `test/prices_test.lua` runs the vendor line against a fake client,
   `test/auction_test.lua` the auction side.
+- `fights/`: **Fights**, off by default (`defaultOn: false`, `actsInGame: false`;
+  docs/ryna-agent-cores-mods.md 7.5, "Fights as built"): the Fights section of Ryna's window, under
+  Combat and gold (`/ryna fights` opens it). Forever refuses the combat log to addons, so it reads
+  `Data/fights.lua` (`RynaData_fights`, version 1), which the app writes from its own reading of the
+  log file (`cores/wow/core/src/fights_data.rs` has the shape; the core ships the stub), loaded at
+  login and `/reload`. **The list**: the fights newest first, when (the window's age wording), what
+  (the boss, else the zone and "trash" or "open world"), the length, a boss's result, and your own
+  damage done and taken; tiles for the fights, the bosses killed and your deaths; the character picker
+  narrows it to one character's fights. **A fight** (a click on its row; "‹ Earlier", "Later ›" and
+  "All fights" in the header): its story in sentences (who struck first, with what, on whom, when, and
+  the enemy's answer when the group opened; the deaths in order), a row per player (and per pet that
+  took damage) with done, taken and a two-line strip of 40 steps over the fight (done above in the
+  class colour, taken below in the game's red, a skull at a death), then a row per enemy with whom it
+  was attacking, in order, with seconds (three shown, a row opens the rest). The footer says it is
+  the combat log as the app read it, as of the file's time, and that newer fights appear after
+  `/reload`. A file of another version is ignored and said so; an absent one says fights appear once
+  the app has read the log and the game is reloaded. It writes nothing, not even settings, and prints
+  nothing unasked. `test/fights_test.lua` runs it against the app's own output
+  (`test/fixtures/fights.lua`, written by `fights_data`'s test).
 - `settings/`: **Settings**, off by default (`kind: "agent"`, `defaultOn: false`, `actsInGame:
   false`; docs/ryna-agent-cores-mods.md 7.2): addon settings copied between characters and backed
   up to ryna.io, encrypted on this machine (the API's docs/wow.md section 15). All of it is the core's

@@ -944,6 +944,33 @@ enough for the next release she asks for.
 is built from the app's file and doesn't wait for the meter probe. History › Play covers the 30 days the journal
 keeps; no 90-day tally.
 
+**Fights as built (2026-11-15, not yet run in game).** Neither this note nor section 11 names a home for
+Fights (the one-suite table lists it beside Chronicle, not in it), so it is its own small mod, `mods/wow/fights`
+(addon `Ryna_Fights`, `actsInGame: false`, off by default like every new mod), with no settings and no saved
+data of its own. The data is the app's: when the tailer has cut a fight (`combat::tail`), `fights_data` keeps
+what the view needs in `<state>/combat/fights.json` per install and writes the newest 20 into the core's
+`Data/fights.lua` (`RynaData_fights`, version 1, `items` the fights newest first, the whole shape in
+`fights_data.rs`), atomically, only into an install whose `Ryna` addon folder the discovery found, and only when
+the rows changed: when a fight finishes and at start-up, the logs still on disk read once for an install that has
+nothing kept. Per fight: start, length, kind, zone, a boss's name and result; the first blow (side, who, a pet's
+name, on whom, with what, when, a miss, `close` when the other side struck within 250 ms) and the enemy's answer
+when the group opened; deaths in order; up to 25 player rows (pets' damage in their owner's, a pet that took
+damage its own row, a resummoned pet one row) with done, taken, healing and 40 steps of done and of taken as
+shares of the fight's biggest; up to 8 enemies (same names numbered by first appearance) with whom each was
+attacking, up to 12 spans each; the rest folded with a count. The rules are the portal's `timeline.ts` ported
+(swings decide, a spell only with no swing within 1 s, an area spell on two or more of the group within 100 ms
+never; a span ends at the next attack on someone else, 2 s after its last attack, the enemy's death or the
+fight's end, or after 4 s without one); the amounts are the agent's meters' (its swing dedupe, not the API's
+second pass). Budget 192 KB: a 5-player fight is about 2 KB, a full one about 14 KB, twenty typical ones 45 KB.
+**This file holds other players' names**: the people who were in the logger's own fights, as a damage meter's
+saved data does, and nobody else. It stays on the machine; nothing in it is fetched, pooled or sent, and the
+names are stripped of `|` and control characters. Class colours come from the accounts' own characters (the
+log never says a class), so other players show in the window's neutral colour. The window gained three pieces
+for it (`Window.lua`): a section's `say` (sentences above the column headings), its header `buttons` (in place
+of the pickers and the search box) and a strip's `marks` (the game's skull at a death), and `empty` may be a
+function. Owed in game: that the TOC loads `Data\fights.lua`, the look of the strips, skulls and buttons in the
+default UI and ElvUI, and that the raid-target skull texture draws on Forever.
+
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 
 The ask came from the guild Discord, after a preview of Kills & Loot: "Do you have it set up so it keeps track
