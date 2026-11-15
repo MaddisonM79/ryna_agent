@@ -292,6 +292,13 @@ L["Professions"] = nil
 L["Last seen"] = nil
 L["now"] = nil
 L["%s %s"] = nil
+-- All characters: the played column's text with the character's share of the account's time played,
+-- "1d 4h · 73%" (%% prints one %); the tiles' small lines: "highest level 17", "all on Maddiep" (all the
+-- gold is on that character; %s is its first name) and "across 3 characters" (time played).
+L["%s · %d%%"] = nil
+L["highest level %d"] = nil
+L["all on %s"] = nil
+L["across %d characters"] = nil
 -- One character's detail: the headings of its groups and the rows under "Character".
 L["Class"] = nil
 L["Guild"] = nil

@@ -2,8 +2,12 @@
 -- from the saved file (RynaDB.characters, what Character.lua records; nothing new is recorded here).
 --
 -- All characters: one row each, the one you're on first: the name in its class colour, the level
--- (with the experience bar), gold, time played, professions with their ranks, and when it was last
--- seen; tiles for how many characters, their gold and their time played. A click on a row picks that
+-- (with the experience bar), gold and time played (each over a bar of that character's share of the
+-- account's, and the played bar's text with the share, "1d 4h · 73%", once more than one character
+-- has time), professions with their ranks, and when it was last seen; tiles for how many characters
+-- (and the highest level), their gold (and whose it is, when it is all on one), their time played,
+-- and the last time another character was seen (docs/ryna-agent-cores-mods.md 7.5, "Owed after the
+-- portal's 12 to 15 November features"). A click on a row picks that
 -- character. One character: its detail, as headed groups of rows: the character (class, guild, zone,
 -- talents), its gear by slot (the game's own item tooltip on hover), its professions and its
 -- reputations, each with a bar.
@@ -97,10 +101,85 @@ end
 -- All characters --------------------------------------------------------------------------------------
 
 local ALL_COLUMNS = {
-  { title = L["Character"], width = 160 }, { title = L["Level"], width = 60, justify = "RIGHT", kind = "bar" },
-  { title = L["Gold"], width = 105, justify = "RIGHT" }, { title = L["Played"], width = 75, justify = "RIGHT" },
-  { title = L["Professions"], width = 120 }, { title = L["Last seen"], width = 70, justify = "RIGHT" },
+  { title = L["Character"], width = 140 }, { title = L["Level"], width = 50, justify = "RIGHT", kind = "bar" },
+  { title = L["Gold"], width = 115, justify = "RIGHT", kind = "bar" },
+  { title = L["Played"], width = 105, justify = "RIGHT", kind = "bar" },
+  { title = L["Professions"], width = 110 }, { title = L["Last seen"], width = 70, justify = "RIGHT" },
 }
+
+-- The share bars' colours: the game's gold text colour and a muted violet, both dimmed so the
+-- white text over them reads.
+local GOLD_BAR = { 0.55, 0.45, 0.05 }
+local PLAYED_BAR = { 0.33, 0.31, 0.45 }
+
+-- Each character's short name: its first name, or its full name when another character on the
+-- account shares the first name (or it has none).
+local function shortNames(list)
+  local count, out = {}, {}
+  for _, c in ipairs(list) do
+    local first = ns.NonEmpty(c.rec.firstName)
+    if first then count[first] = (count[first] or 0) + 1 end
+  end
+  for _, c in ipairs(list) do
+    local first = ns.NonEmpty(c.rec.firstName)
+    out[c.guid] = (first and count[first] == 1 and plain(first)) or c.name
+  end
+  return out
+end
+
+-- The account's gold and time played, and each character's part of them (nothing is recorded for
+-- this: it is the saved file's gold and played, summed). A value the record doesn't have (nil, or
+-- not a number) counts as nothing and is drawn as an empty bar.
+-- -> { list (RW.Characters()), names, gold = { [guid] = copper or nil }, played = { [guid] = s or nil },
+--      goldTotal, playedTotal, withGold, withTime, maxLevel, richest (a guid) }
+function Ch.Shares()
+  local list = RW.Characters()
+  local s = { list = list, names = shortNames(list), gold = {}, played = {}, goldTotal = 0, playedTotal = 0,
+    withGold = 0, withTime = 0 }
+  for _, c in ipairs(list) do
+    local gold, total, level = num(c.rec.gold), played(c.rec), num(c.rec.level)
+    -- Unreadable: a secret value (never in a saved file, but never compared either) or NaN.
+    if gold and (ns.IsSecret(gold) or gold ~= gold) then gold = nil end
+    if total and (ns.IsSecret(total) or total ~= total) then total = nil end
+    if level and (ns.IsSecret(level) or level ~= level) then level = nil end
+    s.gold[c.guid], s.played[c.guid] = gold, total
+    if gold and gold > 0 then
+      s.goldTotal = s.goldTotal + gold
+      s.withGold = s.withGold + 1
+      s.richest = c.guid
+    end
+    if total and total > 0 then
+      s.playedTotal = s.playedTotal + total
+      s.withTime = s.withTime + 1
+    end
+    if level and (s.maxLevel == nil or level > s.maxLevel) then s.maxLevel = level end
+  end
+  if s.withGold ~= 1 then s.richest = nil end
+  return s
+end
+
+-- A share of a total as a whole percent (0 when there is no total).
+function Ch.Percent(part, total)
+  if not part or not total or total <= 0 or part <= 0 then return 0 end
+  return math.floor(part * 100 / total + 0.5)
+end
+
+-- The played cell's text: "1d 4h · 73%" when more than one character has time and the share rounds
+-- to at least 1%; "1d 4h" otherwise; "pending" (/played hasn't answered) when there is none.
+function Ch.PlayedText(total, s)
+  if not total then return L["pending"] end
+  local text = ns.Session.Duration(total)
+  local pct = Ch.Percent(total, s.playedTotal)
+  if s.withTime > 1 and pct >= 1 then return string.format(L["%s · %d%%"], text, pct) end
+  return text
+end
+
+-- A bar of `part` of `total`; an empty one (max 1) when either is missing.
+local function shareBar(part, total, color)
+  local max = total and total > 0 and total or 1
+  local value = part and part > 0 and part or 0
+  return { value = math.min(value, max), max = max, r = color[1], g = color[2], b = color[3] }
+end
 
 local DETAIL_COLUMNS = {
   { title = "", width = 220 }, { title = "", width = 140 }, { title = "", width = 170, kind = "bar" },
@@ -109,17 +188,19 @@ local DETAIL_COLUMNS = {
 
 function Ch.AllRows(ctx)
   local rows = {}
-  for _, c in ipairs(RW.Characters()) do
+  local s = Ch.Shares()
+  for _, c in ipairs(s.list) do
     local rec = c.rec
     if RW.Match(c.name, ctx.search) then
-      local total = played(rec)
+      local gold, total = s.gold[c.guid], s.played[c.guid]
       local xp, xpMax = num(rec.xp), num(rec.xpMax)
       rows[#rows + 1] = {
         ref = c.guid, rec = rec, color = RW.ClassColor(rec.class),
-        cells = { c.name, tostring(num(rec.level) or "?"), RW.Money(rec.gold),
-          total and ns.Session.Duration(total) or L["pending"], Ch.ProfessionsText(rec), lastSeen(rec, ctx) },
-        bars = { [2] = xp and xpMax and xpMax > 0 and { value = xp, max = xpMax } or nil },
-        sort = { c.name:lower(), num(rec.level) or 0, num(rec.gold) or 0, total or 0, nil,
+        cells = { c.name, tostring(num(rec.level) or "?"), RW.Money(gold), Ch.PlayedText(total, s),
+          Ch.ProfessionsText(rec), lastSeen(rec, ctx) },
+        bars = { [2] = xp and xpMax and xpMax > 0 and { value = xp, max = xpMax } or nil,
+          [3] = shareBar(gold, s.goldTotal, GOLD_BAR), [4] = shareBar(total, s.playedTotal, PLAYED_BAR) },
+        sort = { c.name:lower(), num(rec.level) or 0, gold or 0, total or 0, nil,
           c.current and math.huge or (num(rec.lastSeen) or 0) },
       }
     end
@@ -127,17 +208,35 @@ function Ch.AllRows(ctx)
   return rows
 end
 
-function Ch.AllTiles()
-  local n, gold, total = 0, 0, 0
-  for _, c in ipairs(RW.Characters()) do
-    n = n + 1
-    gold = gold + (num(c.rec.gold) or 0)
-    total = total + (played(c.rec) or 0)
+-- The tiles over every character: Characters (and the highest level), Gold (and whose, when it is all
+-- on one of several), Played (and across how many), and Last seen: the last time another character
+-- was seen (the one you're on is "now"; with no other character, that is the tile).
+function Ch.AllTiles(ctx)
+  local s = Ch.Shares()
+  local n = #s.list
+  local gold = { label = L["Gold"], value = RW.Money(s.goldTotal) }
+  if n > 1 and s.richest then gold.sub = string.format(L["all on %s"], s.names[s.richest]) end
+  local playedTile = { label = L["Played"],
+    value = s.withTime > 0 and ns.Session.Duration(s.playedTotal) or L["pending"] }
+  if n > 1 and s.withTime > 1 then playedTile.sub = string.format(L["across %d characters"], s.withTime) end
+  local last, lastAt
+  for _, c in ipairs(s.list) do
+    local at = num(c.rec.lastSeen)
+    if c.guid ~= ctx.current and at and (lastAt == nil or at > lastAt) then last, lastAt = c, at end
+  end
+  local seen
+  if last then
+    seen = { label = L["Last seen"], value = ns.Status.Ago(lastAt) or L["never"], sub = s.names[last.guid] }
+  else
+    for _, c in ipairs(s.list) do
+      if c.guid == ctx.current then seen = { label = L["Last seen"], value = L["now"], sub = s.names[c.guid] } end
+    end
+    seen = seen or { label = L["Last seen"], value = L["never"] }
   end
   return {
-    { label = L["Characters"], value = tostring(n) },
-    { label = L["Gold"], value = RW.Money(gold) },
-    { label = L["Played"], value = ns.Session.Duration(total) },
+    { label = L["Characters"], value = tostring(n),
+      sub = s.maxLevel and string.format(L["highest level %d"], s.maxLevel) or nil },
+    gold, playedTile, seen,
   }
 end
 

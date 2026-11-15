@@ -328,9 +328,13 @@ Chronicle's sections, under Me:
   when it started; then levels gained, money gained / spent, quests turned in, items looted and
   deaths; then this session's kills by creature (name, kills, experience), most first.
 - **Characters**: every character on the account, from the saved file, the one you're on first: name
-  in its class colour, level (over its experience bar), gold, time played, professions with their
-  ranks, and when it was last seen ("now" for the one you're on); tiles for how many characters, their
-  gold and their time played. A click on a row (or the picker) shows that character: its class, guild,
+  in its class colour, level (over its experience bar), gold and time played (each over a bar of that
+  character's share of the account's; the played text carries the share, "1d 4h · 73%", once more
+  than one character has time), professions with their ranks, and when it was last seen ("now" for
+  the one you're on); tiles for how many characters (and the highest level), their gold (and whose,
+  "all on Brennic", when one character holds it all), their time played, and when another character
+  was last seen. A character with no gold or time recorded keeps its text as before over an empty
+  bar. A click on a row (or the picker) shows that character: its class, guild,
   zone and talents, its gear by slot (the game's item tooltip on hover), its professions and its
   reputations, each with a bar. The one you're on is live; the others are as of their last logout.
 - **Items**: everything in every character's bags and bank (each character's bags as of its last
