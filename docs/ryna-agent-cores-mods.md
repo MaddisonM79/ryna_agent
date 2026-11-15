@@ -910,8 +910,7 @@ the saved file alone. (3) Census, with a pooled summary file. (4) History, and A
 list. (5) Fights, after the probes. Then 7.4's Collections, Dungeons and Quests, and the Auctions
 section, each landing with its portal page.
 
-**Owed after the portal's 12 to 15 November features (proposed 2026-11-15; Maddison has the mockups and
-has not agreed yet).** Five things shipped on the portal ahead of their in-game view. Each is placed in
+**Owed after the portal's 12 to 15 November features (mockups shown and agreed by Maddison, 2026-11-15).** Five things shipped on the portal ahead of their in-game view. Each is placed in
 the window that exists (7.4), drawn only with what a section can draw today plus one new piece:
 
 | Portal feature | Owed in game | The view | Data in game | Size |
@@ -931,12 +930,13 @@ portal's 90 (a compact per-day and per-hour tally kept in the saved file would c
 row arrives when the game next loads the app's files (login and `/reload`), so the footer says "as of",
 and only the game's own meter, if the probe proves it readable, can show a fight the moment it ends.
 
-**Order proposed.** (1) Characters bars and totals. (2) The tooltip's week line. (3) History › Play, with
+**Order (hers, 2026-11-15: all five, in this order, each its own pull request).** (1) Characters bars and totals. (2) The tooltip's week line. (3) History › Play, with
 the strip. (4) A character's quests, with J3. (5) Fights, after the probes. The first two are small
 enough for the next release she asks for.
 
-**Hers to call.** Whether the window gains the strip; whether a fight's detail may lag until `/reload`
-or Fights waits for the meter probe; 30 days in game or a 90-day tally in the saved file; the order.
+**Decided by Maddison, 2026-11-15.** The window gains the strip. A fight's detail may lag until `/reload`: Fights
+is built from the app's file and doesn't wait for the meter probe. History › Play covers the 30 days the journal
+keeps; no 90-day tally.
 
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 
