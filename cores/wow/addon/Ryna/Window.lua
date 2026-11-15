@@ -59,8 +59,10 @@
 --   empty      optional text for a list with nothing in it (default "Nothing recorded yet.")
 --   filter     optional function(ctx) -> { { value, label }, ... }: a second picker, left of the
 --              character picker, on this section only (Chronicle's zones). The first choice is the
---              default and has value nil; the others' values are strings. Ryna.Window.SetFilter(key,
---              value) picks one from outside (a Zones row opening Kills on its zone)
+--              default and has value nil; the others' values are strings. Fewer than two choices
+--              hide the picker (Characters offers its views only with one character picked).
+--              Ryna.Window.SetFilter(key, value) picks one from outside (a Zones row opening Kills on
+--              its zone)
 --
 -- ctx = { section, character (a GUID, or nil for all characters), current (the GUID you're on),
 -- all (character == nil), search (lowercased, trimmed; "" for none), filter (the section's filter
@@ -1122,7 +1124,8 @@ function Wn.Draw()
   end
   local filterFor = section.filter and (pickerFor .. ":" .. tostring(ctx.filter)) or false
   if f.filter and f.filterFor ~= filterFor then
-    if filterFor then
+    -- (its choices are counted only when the section or the choice changed, not every redraw)
+    if filterFor and #Wn.FilterChoices(section, ctx) > 1 then
       f.filter:Show()
       if f.filter.sync then f.filter.sync(section, ctx) end
     else
