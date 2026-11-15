@@ -33,6 +33,7 @@ pub const BUNDLED_MOD_JSON: &[&str] = &[
     include_str!("../../../../mods/wow/automation/mod.json"),
     include_str!("../../../../mods/wow/prices/mod.json"),
     include_str!("../../../../mods/wow/fights/mod.json"),
+    include_str!("../../../../mods/wow/meter/mod.json"),
     include_str!("../../../../mods/wow/settings/mod.json"),
 ];
 
@@ -393,6 +394,10 @@ mod tests {
         let fights = bundled().iter().find(|m| m.id == "fights").unwrap();
         assert!(!fights.default_on && !fights.acts_in_game);
         assert_eq!(fights.addons, ["Ryna_Fights"]);
+        // Meter only reads and draws what the game says of a fight: off by default, acts on nothing.
+        let meter = bundled().iter().find(|m| m.id == "meter").unwrap();
+        assert!(!meter.default_on && !meter.acts_in_game);
+        assert_eq!(meter.addons, ["Ryna_Meter"]);
         // Settings runs in the agent: no folder, nothing in the game, off until turned on.
         let settings = bundled().iter().find(|m| m.id == "settings").unwrap();
         assert!(is_agent_mod(settings) && settings.addons.is_empty());
@@ -407,6 +412,7 @@ mod tests {
             "Ryna_Automation",
             "Ryna_Prices",
             "Ryna_Fights",
+            "Ryna_Meter",
         ] {
             let a = dir.join("release").join(name);
             std::fs::create_dir_all(&a).unwrap();

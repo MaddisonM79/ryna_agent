@@ -441,6 +441,7 @@ mod tests {
                 "Automation",
                 "Prices",
                 "Fights",
+                "Meter",
                 "Settings",
                 "Log",
                 "Fights, last 12 h",

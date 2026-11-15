@@ -883,7 +883,7 @@ one agent behind it:
 | Dungeon journal | Doud's Dungeon Journal | Chronicle's journal (7.4) |
 | Alts, their bags and bank | Altoholic, BagSync | Chronicle: Characters and Items |
 | Who is playing | CensusPlus | Chronicle: Census |
-| Damage and healing meters | Details | Fights |
+| Damage and healing meters, threat | Details and its Tiny Threat | Meter, live; Fights for the finished fight |
 | Logs and their analysis | Warcraft Logs and its uploader | The agent, and the portal's Logs |
 | Settings backup and copy | Hand-copying WTF folders | The Settings mod |
 
@@ -900,6 +900,12 @@ for damage, healing, absorbs, interrupts, dispels, damage taken and deaths, with
 `DAMAGE_METER_COMBAT_SESSION_UPDATED` when one changes. The session reads are marked
 `SecretWhenInCombat`: during a fight the numbers are secret values (they can be shown, not compared
 or summed), and after it they are plain.
+
+(Corrected 2026-11-15: an addon *can* draw its own live bars, because a status bar and a label take a
+secret value; Details' Forever build does. docs/forever-client-api.md, "A secret can be drawn". The
+Meter mod draws them, below. A finished fight could also be harvested in game the moment it ends, with
+no file from the app, which isn't built. The split in the next paragraph is how Fights was first
+designed, not a limit of the client.)
 
 So the split is: *during* the fight the live bars are the game's own meter, which Ryna doesn't
 redraw; *the moment it ends*, the Fights section has it: the fight list for the session, each
@@ -970,6 +976,73 @@ for it (`Window.lua`): a section's `say` (sentences above the column headings), 
 of the pickers and the search box) and a strip's `marks` (the game's skull at a death), and `empty` may be a
 function. Owed in game: that the TOC loads `Data\fights.lua`, the look of the strips, skulls and buttons in the
 default UI and ElvUI, and that the raid-target skull texture draws on Forever.
+
+**The Meter mod (Maddison, 2026-11-15: "threat, healing, all that stuff goes into a meter; the logs
+and the deep analysis from the combat log can be Fights").** Two mods, split by where the data comes
+from. **Meter** (`mods/wow/meter`, `Ryna_Meter`) is a fight as it happens, read from the game itself:
+the live meter and the threat bar, below. It needs nothing from the app. **Fights**
+(`mods/wow/fights`) is the finished fight in depth, from the combat log as the app reads it: the
+list, the story, the timeline, and the portal's Logs page as its robust form. Both were first built
+inside Fights the same day and moved out before anything was released.
+
+**The threat bar (asked 2026-11-13, "can we see threat?"; probed and mocked up 2026-11-15, artifact "Ryna Threat View"; built the same day).**
+The combat log has no threat, so the fight timeline says whom an enemy "was attacking" and never
+"threat". The game does answer an addon directly, though (docs/forever-client-api.md, "Threat";
+Maddison's probes in The Deadmines): `UnitDetailedThreatSituation(unit, mob)` gives plain numbers for
+the player and for a party member, on trash and on a dungeon boss, when the enemy is named by the
+player's target or by a nameplate. Through a compound unit (`targettarget`) the same values come back
+secret. So the Meter mod draws them live (`Threat.lua`, `ThreatBar.lua`):
+
+- **What**: a small frame of its own (not a section: a bar in a window you have to open isn't used),
+  shown while anyone in the group is fighting and hidden otherwise, and when alone. One row per group
+  member on one enemy's list, whoever holds the enemy on top ("has it"), then by percentage; a full
+  bar is "pulls". The player's row carries a gold mark. Eight rows at most, always the player's.
+- **Which enemy**: the player's target when it is an enemy; with a friend targeted (a healer), the
+  enemy nameplate that friend is highest on; with nothing targeted, the one the player is highest on,
+  and failing that the group's. Enemies are found by walking the nameplates, never `targettarget`. A
+  line under the rows says the player's highest on another enemy on screen when it is above their
+  place on this one.
+- **The warning**: past 80% a bar turns orange and the frame's edge with it. Silent: no chat line, no
+  sound (her pick of the mockup's choices, 2026-11-15).
+- **Where the numbers are hidden** (a raid may; unprobed): each read asks
+  `C_Secrets.ShouldUnitThreatValuesBeSecret` and checks every value. A hidden value is handed to the
+  status bar untouched (the client fills a bar from a secret) and is never compared: rows keep the
+  group's order with the player first, the percentage is left out, and the words come from the threat
+  state (`UnitThreatSituation`: 2 or 3 "has it", 1 "close"), which the docs say stays readable.
+- **Settings**: one switch (`meterThreat`, on with the mod) on the Meter tab of `/ryna`; the frame
+  is dragged with the left button and its place kept in `RynaDB.meter.threatBar`;
+  `/ryna meter threat` shows it with example rows to place it outside a fight.
+- **Left out for now**: pets as rows, and a sound. **Next step, not built**: keeping a reading a
+  second during the fight (only where it isn't hidden) for a Threat view of a finished fight in the
+  Fights section and, uploaded with the fight, real threat on the portal's timeline; fights without
+  readings keep "was attacking".
+- **Unseen in game** as of the build: the checklist is in its pull request.
+
+**The meter (asked 2026-11-15, "build dps/hps/etc too"; built the same day, in the threat bar's frame, with no mockup of its own).**
+The live half of Fights "in the manner of Details". `Bars.lua` draws the game's own tallies
+(`C_DamageMeter.GetCombatSessionFromType`) in a second small frame beside the threat bar's
+(`Frame.lua` is the frame both share):
+
+- **Views**, one at a time, a click on the first line going to the next: Damage, DPS, Healing, HPS,
+  Damage taken, Absorbs, Interrupts, Dispels. A right-click switches between this fight and overall
+  (everything since the game's meter was last reset). The first line names the view, the tally and,
+  when the game says it plainly, the fight's length.
+- **Rows**: the game's order, rank and name, the amount through the game's own formatter
+  (`AbbreviateNumbers`), a bar of the total against the highest. Eight rows, the player's marked and
+  kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
+- **In a fight** every amount, name and length is a secret value and goes from the game to its
+  widget untouched; nothing is compared, added or kept. After the fight the same read is plain.
+- **When it reads**: twice a second in a fight, otherwise only when the game says a tally changed
+  (`DAMAGE_METER_COMBAT_SESSION_UPDATED`, `..._CURRENT_SESSION_UPDATED`, `DAMAGE_METER_RESET`) or the
+  view was changed.
+- **Settings**: one switch (`meterBars`, on with the mod) on the Meter tab; `/ryna meter`
+  turns it on or off; dragged by its first line, its view, tally and place kept in
+  `RynaDB.meter.bars`. The game's own meter window is left as the player set it.
+- **Not in the game's tallies**, so not here: overhealing, healing taken, friendly fire, resources,
+  cooldowns, buff uptime. **Not built**: a player's spells on a click, a death's recap, and copying
+  the finished fight into the Fights section without the app's file.
+- **Unseen in game**, and the calls themselves were never run on our client (probes 10 to 12 and 16
+  of docs/forever-client-api.md are still owed; Details' Forever build is the evidence they answer).
 
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 

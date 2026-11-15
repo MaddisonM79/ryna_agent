@@ -13,7 +13,7 @@ live elsewhere. `README.md` covers installing; `docs/ryna-agent-cores-mods.md` c
 - `cores/satisfactory/core`: the Satisfactory core in Rust, a relay: one outbound WebSocket to the API,
   answered from the Ficsit Remote Monitoring mod on `127.0.0.1` (docs section 14). Shown only to the
   factory's host, off until turned on there. `src/frm.rs` is the security boundary: test every limit.
-- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `prices`, `settings`), each with `addon/`,
+- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `fights`, `meter`, `prices`, `settings`), each with `addon/`,
   `mod.json` and `test/*_test.lua`.
 - `agent/cli`, `agent/host`: Rust crates. `agent/app`: the desktop app (Vue 3, pnpm, vitest, Tauri 2).
 - `scripts/`: release helpers, the version check and the CLI smoke test.
