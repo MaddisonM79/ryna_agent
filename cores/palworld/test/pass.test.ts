@@ -389,6 +389,15 @@ describe("pass", () => {
     expect((beats[0]!.lastRun as Dict)["error"]).toBe("TypeError: Cannot read properties of undefined (reading 'get')");
   });
 
+  it("says how to let Ryna in when macOS refuses the save folder", async () => {
+    const { deps } = oneWorld();
+    const r = await run({ ...deps, worlds: () => [], blocked: () => true });
+    expect(r.ok).toBe(false);
+    expect(r.events).toEqual([{ kind: "error", message: expect.stringContaining("Full Disk Access, turn on Ryna, and press Sync now") }]);
+    expect(r.rows).toEqual([{ label: "Palworld", value: "can't read the saves yet", chip: "error" }]);
+    expect((readJson(deps.statusPath)["lastRun"] as Dict)["error"]).toBe("macOS hasn't let Ryna read Palworld's saves");
+  });
+
   it("has a row that says so when there are no worlds", async () => {
     const { deps } = oneWorld();
     const r = await run({ ...deps, worlds: () => [] });

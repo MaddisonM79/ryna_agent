@@ -23,6 +23,21 @@ const entries = (dir: string): string[] => {
   }
 };
 
+/**
+ * Has macOS refused this process the save folder? Palworld's saves sit in the game's own container,
+ * which another app may read only once the person turns it on under Full Disk Access; until then
+ * listing the folder fails with EPERM (or EACCES). A folder that isn't there is not this.
+ */
+export function blocked(root = SAVE_ROOT): boolean {
+  try {
+    readdirSync(root);
+    return false;
+  } catch (e) {
+    const code = (e as { code?: unknown }).code;
+    return code === "EPERM" || code === "EACCES";
+  }
+}
+
 /** Every world folder (SaveGames/<user>/<world>/Level.sav). */
 export function worlds(root = SAVE_ROOT): string[] {
   const out: string[] = [];

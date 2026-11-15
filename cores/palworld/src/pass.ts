@@ -12,7 +12,7 @@ import { Run, log, logTail } from "./agent/status.js";
 import { SaveFormatError } from "./sav.js";
 import type { Dict } from "./snapshot/util.js";
 import { VERSION } from "./version.js";
-import { fingerprint, loadState, readFiles, saveState, settled, worlds, type Clock } from "./worlds.js";
+import { blocked, fingerprint, loadState, readFiles, saveState, settled, worlds, type Clock } from "./worlds.js";
 
 /** 13.4's event kinds. `row` is the world's id (its save folder's name). */
 export type EventKind = "waiting" | "pushing" | "pushed" | "error" | "info";
@@ -24,6 +24,8 @@ export type StatusRow = { label: string; value: string; chip: Chip };
 /** Everything a pass touches outside its own logic, so the tests can stand in for the disk and the API. */
 export type Deps = {
   worlds: () => string[];
+  /** macOS hasn't let this process into the save folder (worlds.ts `blocked`). */
+  blocked?: () => boolean;
   settled: (world: string, signal?: AbortSignal) => Promise<string[] | null>;
   readFiles: (files: string[]) => RawFiles;
   snapshotWorld: (worldId: string, raw: RawFiles) => { snap: Dict; files: RawFiles };
@@ -45,6 +47,7 @@ export type Deps = {
 /** The real ones, under the save root and the state folder given. */
 export const defaults = (paths: { root: string; statePath: string; statusPath: string; clock?: Clock }): Deps => ({
   worlds: () => worlds(paths.root),
+  blocked: () => blocked(paths.root),
   settled: (w, signal) => settled(w, 4, paths.clock, signal),
   readFiles,
   snapshotWorld: realSnapshotWorld,
@@ -76,6 +79,10 @@ export function ago(iso: unknown, now: number): string | null {
   if (s < 48 * 3600) return `${Math.floor(s / 3600)} h ago`;
   return `${Math.floor(s / 86400)} days ago`;
 }
+
+/** What to do when macOS keeps this core out of the game's saves (Maddison's own route, 2026-11-15). */
+export const BLOCKED_HELP =
+  "macOS hasn't let Ryna read Palworld's saves. Open System Settings, then Privacy & Security, then Full Disk Access, turn on Ryna, and press Sync now.";
 
 /** A world's name for a person: the save's own, else its id's first eight characters. */
 const labelOf = (worldId: string, name: unknown): string => (typeof name === "string" && name.trim() ? name : `World ${worldId.slice(0, 8)}`);
@@ -124,8 +131,16 @@ export async function pass(input: PassInput, deps: Deps): Promise<PassResult> {
   try {
     found = deps.worlds();
     if (!found.length) {
+      if (deps.blocked?.()) {
+        // The one thing a person has to do by hand, so it is said in full, as an error, every pass.
+        log("macOS refused the save folder");
+        st.finish(false, "macOS hasn't let Ryna read Palworld's saves");
+        emit({ kind: "error", message: BLOCKED_HELP });
+        await beat(st, deps, api);
+        return { ok: false, rows: [{ label: "Palworld", value: "can't read the saves yet", chip: "error" }] };
+      }
       log("no worlds found under the save folder");
-      st.finish(false, "no worlds found (has macOS allowed Ryna to read Palworld's saves?)");
+      st.finish(false, "no worlds found");
       const bad = sayApi(await beat(st, deps, api), null, emit);
       return { ok: !bad, rows: rows(found, st.worlds, chips, deps.now()) };
     }
