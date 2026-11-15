@@ -5,3 +5,7 @@ agent/host/tests/fixtures/** -text
 # The vendored decoder is held to its release checksum (cores/palworld/test/sav.test.ts).
 cores/palworld/src/vendor/*.mjs -text
 cores/palworld/src/vendor/*.mts -text
+
+# The Fights fixture is the app's own output, compared byte for byte by fights_data's test: a CRLF
+# checkout made that test fail on Windows.
+mods/wow/fights/test/fixtures/** -text
