@@ -111,7 +111,7 @@ function C.Login()
     level = ns.Try(UnitLevel, "player"),
     xp = ns.Try(UnitXP, "player"),
     xpMax = ns.Try(UnitXPMax, "player"),
-    gold = ns.Try(GetMoney),
+    gold = nil, -- C.ReadLoginMoney, below
     playedTotal = nil, -- from TIME_PLAYED_MSG; absent until it arrives
     playedLevel = nil,
     zone = NonEmpty(ns.Try(ns.Fn("GetRealZoneText"))),
@@ -148,7 +148,7 @@ function C.Login()
   ns.db.characters[guid] = rec
   ns.rec = rec
   ns.playerGuid = guid
-  C.goldAnchor = rec.gold
+  C.ReadLoginMoney(rec, prev.gold)
   C.UpdateGuild()
   return rec
 end
@@ -445,14 +445,41 @@ function C.UpdateXp()
   rec.level = ns.Try(UnitLevel, "player") or rec.level
 end
 
--- Gold: the record always has the current amount; a `gold` event is written once the change
+-- Gold: the record always has the last real amount; a `gold` event is written once the change
 -- since the last gold event (or login) reaches 1 gold either way.
+--
+-- "Real" is a readable number (not nil, not secret). C.lastMoney is the last one read at login or
+-- on PLAYER_MONEY, which the client sends whenever the amount changes, a change to 0 included.
+-- Saved records had gold 0 for characters whose journal showed gold (2026-11-12): the logout read,
+-- the only other writer, gave 0 (a 0 is a number, so `or rec.gold` kept it). So a logout read of 0
+-- or of nothing never replaces a known amount; a positive one is taken. At login a 0 read for a
+-- character the record had with gold is held the same way until the first PLAYER_MONEY.
 local GOLD_EVENT_COPPER = 10000
+
+local function readMoney()
+  local money = ns.Try(GetMoney)
+  if type(money) ~= "number" or ns.IsSecret(money) or money < 0 then return nil end
+  return money
+end
+
+function C.ReadLoginMoney(rec, prevGold)
+  local money = readMoney()
+  local known = type(prevGold) == "number" and not ns.IsSecret(prevGold) and prevGold > 0 and prevGold or nil
+  if money and (money > 0 or not known) then
+    rec.gold, C.lastMoney, C.goldAnchor = money, money, money
+  else
+    -- Unreadable, or 0 where the record had gold: keep what it had, and let the first
+    -- PLAYER_MONEY set the amount and the anchor (no gold event for the gap).
+    rec.gold, C.lastMoney, C.goldAnchor = known, nil, nil
+  end
+end
+
 function C.UpdateMoney()
   local rec = ns.rec
   if not rec then return end
-  local money = ns.Try(GetMoney)
-  if type(money) ~= "number" then return end
+  local money = readMoney()
+  if not money then return end
+  C.lastMoney = money
   rec.gold = money
   local anchor = C.goldAnchor or money
   local delta = money - anchor
@@ -558,6 +585,15 @@ function C.PlayedNow()
   return rec.playedTotal + elapsed, (rec.playedLevel or 0) + elapsed
 end
 
+-- The amount to save at logout: a positive read, else the last real one (login or PLAYER_MONEY),
+-- else what the record has.
+function C.LogoutMoney(current)
+  local money = readMoney()
+  if money and money > 0 then return money end
+  if C.lastMoney ~= nil then return C.lastMoney end
+  return current
+end
+
 function C.Logout()
   local rec = ns.rec
   if not rec then return end
@@ -566,7 +602,7 @@ function C.Logout()
     rec.playedTotal, rec.playedLevel = total, atLevel
     C.playedAt = GetTime()
   end
-  rec.gold = ns.Try(GetMoney) or rec.gold
+  rec.gold = C.LogoutMoney(rec.gold)
   rec.lastSeen = ns.Now()
   ns.Journal.Add("session", { kind = "logout", clock = time(), playedTotal = rec.playedTotal })
   ns.Debug("logout: record updated (played %s, gold %s); the game writes RynaDB now",

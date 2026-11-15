@@ -503,6 +503,9 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
     quests in the log: `/run for i=1,C_QuestLog.GetNumQuestLogEntries() do local q=C_QuestLog.GetInfo(i) if q then print(i, q.isHeader, q.title, q.questID) end end`
     (each header row should print `true` and the heading the quest log shows, its quests after it with `false`);
     then `/dump issecretvalue(C_QuestLog.GetInfo(1).title)` (expect `false`)
+15. Gold at logout (what `GetMoney()` answers during `PLAYER_LOGOUT` is unknown; saved records had 0): log
+    character A out to the character list, log in character B, and open Ryna's window, Characters: A's gold
+    should be what A carried, not 0
 
 ## Links
 
