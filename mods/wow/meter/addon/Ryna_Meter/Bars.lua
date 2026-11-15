@@ -23,8 +23,9 @@
 -- HPS) and closes one, and locks a window under or beside the one before it, so they sit together and
 -- drag as one. Each window's view, tally, lock and place are kept in RynaDB.meter (bars, bars2, ...);
 -- a past fight picked from the list is kept only until /reload, since the game's fight numbers start
--- over. Nothing is written elsewhere,
--- nothing is said in chat, and the game's own meter is left as the player set it.
+-- over. The list also announces a window's rows to party, raid, guild or say: only on that click, and
+-- only once the fight is over, since hidden amounts can't be sent. Nothing is written elsewhere,
+-- nothing else is ever said in chat, and the game's own meter is left as the player set it.
 
 local _, ns = ...
 if ns.off then return end
@@ -356,14 +357,9 @@ function M.SetLock(w, how)
   return true
 end
 
--- Draws one window.
-function M.DrawOne(w)
-  local f = build(w)
-  position(w or 1, f)
-  local view = M.View(w)
-  local sessionKey = M.SessionKey(w)
-  f.title:SetText(L[view.label])
-  local data, why = M.Read(view, sessionKey, w)
+-- Which tally a window is showing, in words, with the fight's length when the game says it plainly:
+-- "last fight · 1:05".
+function M.Where(sessionKey, data, w)
   local where
   if sessionKey == "id" then
     where = pickedBy[w or 1].name or L["an earlier fight"]
@@ -375,7 +371,18 @@ function M.DrawOne(w)
     where = L["this fight"]
   end
   local length = data and clock(data.duration)
-  f.holder:SetText(length and string.format("%s · %s", where, length) or where)
+  return length and string.format("%s · %s", where, length) or where
+end
+
+-- Draws one window.
+function M.DrawOne(w)
+  local f = build(w)
+  position(w or 1, f)
+  local view = M.View(w)
+  local sessionKey = M.SessionKey(w)
+  f.title:SetText(L[view.label])
+  local data, why = M.Read(view, sessionKey, w)
+  f.holder:SetText(M.Where(sessionKey, data, w))
 
   local rows = data and M.Rows(data) or {}
   for i, bar in ipairs(f.rows) do
@@ -495,6 +502,61 @@ function M.Close(w)
   return true
 end
 
+-- Announcing: a window's rows said in chat, when the player picks a channel from its list. Only ever
+-- on that click, and only what the window shows.
+M.ANNOUNCE_ROWS = 5
+-- The channels offered, in order: the chat type, its name in the list, and whether it applies now.
+M.CHANNELS = {
+  { type = "PARTY", label = N("Party"), when = function() return ns.Try(ns.Fn("IsInGroup")) == true end },
+  { type = "RAID", label = N("Raid"), when = function() return ns.Try(ns.Fn("IsInRaid")) == true end },
+  { type = "GUILD", label = N("Guild"), when = function() return ns.Try(ns.Fn("IsInGuild")) == true end },
+  { type = "SAY", label = N("Say"), when = function() return true end },
+}
+
+-- The lines an announcement would say: "Meter by Ryna: DPS, last fight · 1:05", then "1. Ilse 18.50".
+-- Returns nil and "empty" (nothing to say) or "hidden" (a fight is on: the game hides the names and
+-- amounts, and hidden text can't be sent or even put together).
+function M.Report(w)
+  local view = M.View(w)
+  local sessionKey = M.SessionKey(w)
+  local data = M.Read(view, sessionKey, w)
+  if not data then return nil, "empty" end
+  local lines = { string.format(L["Meter by Ryna: %s, %s"], L[view.label], M.Where(sessionKey, data, w)) }
+  for i = 1, math.min(data.count, M.ANNOUNCE_ROWS) do
+    local src = data.sources[i]
+    if type(src) == "table" then
+      local amount = view.rate and src.amountPerSecond or src.totalAmount
+      if ns.IsSecret(src.name) or ns.IsSecret(amount) then return nil, "hidden" end
+      if type(src.name) == "string" and type(amount) == "number" then
+        lines[#lines + 1] = string.format("%d. %s %s", i, src.name, M.Short(amount))
+      end
+    end
+  end
+  if #lines < 2 then return nil, "empty" end
+  return lines
+end
+
+-- Says a window's rows in a channel. Returns true, or false and why: "empty", "hidden", "absent" (no
+-- way to send) or "refused" (the game wouldn't send it here).
+function M.Announce(chatType, w)
+  local lines, why = M.Report(w)
+  if not lines then return false, why end
+  local send = ns.Fn("C_ChatInfo", "SendChatMessage") or ns.Fn("SendChatMessage")
+  if not send then return false, "absent" end
+  for _, line in ipairs(lines) do
+    if not pcall(send, line, chatType) then return false, "refused" end
+  end
+  return true
+end
+
+-- What the player is told when an announcement wasn't made (they asked, so it is answered).
+local WHY_NOT = {
+  empty = N("There is nothing to announce yet."),
+  hidden = N("The game hides the numbers during a fight: announce when it is over."),
+  absent = N("The game wouldn't send that here."),
+  refused = N("The game wouldn't send that here."),
+}
+
 -- How many past fights the pick-list offers, newest first.
 M.MENU_FIGHTS = 10
 
@@ -522,6 +584,16 @@ function M.MenuRows(w)
     local text = length and string.format("%s · %s", name, length) or name
     rows[#rows + 1] = { text = text, chosen = key == "id" and pickedBy[w].id == f.id,
       pick = function() M.Choose("id", f.id, name, w) end }
+  end
+  rows[#rows + 1] = { divider = true }
+  rows[#rows + 1] = { title = L["Announce to"] }
+  for _, c in ipairs(M.CHANNELS) do
+    if c.when() then
+      rows[#rows + 1] = { text = L[c.label], button = true, pick = function()
+        local ok, why = M.Announce(c.type, w)
+        if not ok then ns.Print(L[WHY_NOT[why] or WHY_NOT.refused]) end
+      end }
+    end
   end
   -- Windows: another one while there is room, and closing this one when it isn't the first.
   local open = 0

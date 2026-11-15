@@ -1051,6 +1051,12 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
 - **In a fight** every amount, name and length is a secret value and goes from the game to its
   widget untouched; nothing is compared, added or kept. After the fight the same read is plain.
+- **Announce** ("what about an announce button for party or chat", the same evening): the pick-list
+  has "Announce to" with Party, Raid, Guild and Say (those that apply). A pick says that window's
+  view and tally and its top five rows in that channel (`C_ChatInfo.SendChatMessage`). Only on that
+  click; never in a fight, because the names and amounts are secret then and a secret can't be sent
+  or even put together (the player is told so, alone). **Unknown**: whether the client lets an addon
+  send chat inside a dungeon out of combat (`InChatMessagingLockdown`); a refusal is caught and said.
 - **When it reads**: twice a second in a fight, otherwise only when the game says a tally changed
   (`DAMAGE_METER_COMBAT_SESSION_UPDATED`, `..._CURRENT_SESSION_UPDATED`, `DAMAGE_METER_RESET`) or the
   view was changed.

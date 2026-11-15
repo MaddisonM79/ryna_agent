@@ -66,6 +66,18 @@ L["From"] = true
 L["This fight (or the last one)"] = true
 L["Overall"] = true
 L["Fight %d"] = true
+-- Announcing a window's rows in chat, from the pick-list: the heading and the channels.
+L["Announce to"] = true
+L["Party"] = true
+L["Raid"] = true
+L["Guild"] = true
+L["Say"] = true
+-- The first line said in chat. %s: the view ("DPS"); %s: which fight and its length ("last fight · 1:05").
+L["Meter by Ryna: %s, %s"] = true
+-- Told to the player alone when an announcement wasn't made.
+L["There is nothing to announce yet."] = true
+L["The game hides the numbers during a fight: announce when it is over."] = true
+L["The game wouldn't send that here."] = true
 -- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
 L["Open another window"] = true
 L["Close this window"] = true

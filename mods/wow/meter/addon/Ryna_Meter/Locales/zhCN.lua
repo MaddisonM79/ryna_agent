@@ -74,6 +74,18 @@ L["From"] = nil
 L["This fight (or the last one)"] = nil
 L["Overall"] = nil
 L["Fight %d"] = nil
+-- Announcing a window's rows in chat, from the pick-list: the heading and the channels.
+L["Announce to"] = nil
+L["Party"] = nil
+L["Raid"] = nil
+L["Guild"] = nil
+L["Say"] = nil
+-- The first line said in chat. %s: the view ("DPS"); %s: which fight and its length ("last fight · 1:05").
+L["Meter by Ryna: %s, %s"] = nil
+-- Told to the player alone when an announcement wasn't made.
+L["There is nothing to announce yet."] = nil
+L["The game hides the numbers during a fight: announce when it is over."] = nil
+L["The game wouldn't send that here."] = nil
 -- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
 L["Open another window"] = nil
 L["Close this window"] = nil

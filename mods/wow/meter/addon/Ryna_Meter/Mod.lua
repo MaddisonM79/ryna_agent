@@ -7,7 +7,8 @@
 -- Ryna app reads it; Meter needs nothing from the app.
 --
 -- It keeps two settings (meterBars, meterThreat) and, in RynaDB.meter, where the frames were dragged
--- and which view the meter shows. It sends nothing and never prints to chat unasked.
+-- and which view the meter shows. It sends nothing to Ryna and never prints to chat unasked;
+-- the one thing it says to others is a meter window's rows, when the player picks Announce.
 --
 -- Every file starts with `if ns.off then return end`: without the mod API (a core addon from before
 -- it), Meter loads nothing at all, and says nothing either.

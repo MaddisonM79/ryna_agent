@@ -13,7 +13,7 @@
 -- newest held fight when the current tally is empty; the pick-list's rows, a view and a past fight
 -- picked from it, and the client's menu opened on a click; a second window with the partner view, its own
 -- rows, view and place, up to four, closed from its list, all hidden by the setting; nothing in chat
--- unasked, no errors.
+-- unasked, no errors; an announcement's channels and lines, none in a fight, a refusal caught.
 -- luacheck: ignore 1
 
 local CORE = "cores/wow/addon/Ryna/"
@@ -278,7 +278,8 @@ local rows = M.MenuRows()
 local texts = {}
 for _, r in ipairs(rows) do texts[#texts + 1] = r.title and ("[" .. r.title .. "]") or r.text or "-" end
 eq(table.concat(texts, "|"), "[Show]|Damage|DPS|Healing|HPS|Damage taken|Absorbs|Interrupts|Dispels|-|[From]|"
-  .. "This fight (or the last one)|Overall|Captain Gull · 1:35|Quay Rat · 0:41|-|Open another window",
+  .. "This fight (or the last one)|Overall|Captain Gull · 1:35|Quay Rat · 0:41|-|[Announce to]|Say|-|"
+  .. "Open another window",
   "what the pick-list holds, newest fight first")
 check(rows[2].chosen and not rows[3].chosen, "the view shown is the chosen one")
 check(rows[12].chosen, "this fight is the chosen tally")
@@ -302,7 +303,7 @@ _G.MenuUtil = { CreateContextMenu = function(owner, build)
 end }
 F.Click(f.head, "LeftButton")
 check(opened and opened.owner == f.head and opened.n == 12, "a click opens the client's menu with every choice")
-check(opened.buttons == 1 and opened.button == "Open another window", "and the way to another window")
+check(opened.buttons == 2 and opened.button == "Open another window", "and Say and the way to another window")
 eq(f.title._text, "DPS", "and no longer goes to the next view")
 opened.last[3]()
 eq(f.holder._text, "Quay Rat · 0:41", "a choice in the client's menu is made")
@@ -339,7 +340,7 @@ eq(_G.RynaDB.meter.bars2.x, 300, "the second window's place is its own")
 -- Locked together: under the one before it, dragged as one
 local names = {}
 for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
-eq(table.concat(names, "|"), "Open another window|Lock under the window before it|"
+eq(table.concat(names, "|"), "Say|Open another window|Lock under the window before it|"
   .. "Lock beside the window before it|Close this window", "a free window's list offers both locks")
 M.SetLock(2, "below")
 local pt = f2._points[1]
@@ -348,7 +349,7 @@ check(#f2._points == 1 and pt[1] == "TOPLEFT" and pt[2] == f and pt[3] == "BOTTO
 eq(_G.RynaDB.meter.bars2.lock, "below", "the lock is kept")
 names = {}
 for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
-eq(table.concat(names, "|"), "Open another window|Unlock this window|Close this window",
+eq(table.concat(names, "|"), "Say|Open another window|Unlock this window|Close this window",
   "a locked one offers to unlock")
 f:ClearAllPoints()
 f:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 77, -11)
@@ -388,6 +389,56 @@ check(f:IsShown() and M.frames[2]:IsShown(), "and on brings back the ones that w
 M.Close(2)
 M.Pick("damage")
 world.sessions["1:1"] = world.sessions["1:0"]
+
+-- Announce --------------------------------------------------------------------------------------------
+
+local said = {}
+_G.C_ChatInfo = { SendChatMessage = function(text, kind)
+  if world.refuse then error("blocked") end
+  said[#said + 1] = kind .. ": " .. tostring(text)
+end }
+_G.IsInGroup = function() return world.grouped or false end
+_G.IsInGuild = function() return true end
+world.sessions["1:1"] = { max = 1200, duration = 65,
+  source("Ilse", "MAGE", 1200, 18.5), source("Brom", "WARRIOR", 800, 12.3), source("Dela", "PRIEST", 90, 1.4, true) }
+M.Pick("dps")
+local function channels(w)
+  local out, on = {}, false
+  for _, r in ipairs(M.MenuRows(w)) do
+    if r.title then on = r.title == "Announce to" elseif r.divider then on = false
+    elseif on then out[#out + 1] = r.text end
+  end
+  return table.concat(out, "|")
+end
+eq(channels(1), "Guild|Say", "alone: guild and say")
+world.grouped = true
+eq(channels(1), "Party|Guild|Say", "in a group: party too")
+local ok, why = M.Announce("PARTY", 1)
+check(ok, "an announcement out of a fight is made: " .. tostring(why))
+eq(table.concat(said, " / "), "PARTY: Meter by Ryna: DPS, last fight · 1:05 / PARTY: 1. Ilse 18.50 / "
+  .. "PARTY: 2. Brom 12.30 / PARTY: 3. Dela 1.40", "the view, the tally, then the rows as the window shows them")
+said = {}
+world.combat, world.secret = true, true
+ok, why = M.Announce("PARTY", 1)
+check(not ok and why == "hidden" and #said == 0, "in a fight nothing is sent: the amounts are hidden")
+for _, r in ipairs(M.MenuRows(1)) do if r.text == "Party" then r.pick() end end
+eq(#said, 0, "picked in a fight: still nothing sent")
+eq(F.chat[#F.chat], "|cff7fb2ffRyna|r: The game hides the numbers during a fight: announce when it is over.",
+  "and the player alone is told why")
+world.combat, world.secret = false, false
+world.refuse = true
+ok, why = M.Announce("PARTY", 1)
+check(not ok and why == "refused", "a refusal by the game is caught")
+world.refuse = nil
+world.sessions["1:1"] = nil
+world.fights = nil
+ok, why = M.Announce("SAY", 1)
+check(not ok and why == "empty", "nothing counted: nothing to say")
+eq(core.errors.count, 0, "no errors from announcing: " .. tostring(core.errors.last))
+for i = #F.chat, 1, -1 do F.chat[i] = nil end
+world.grouped = nil
+world.sessions["1:1"] = world.sessions["1:0"]
+M.Pick("damage")
 
 -- The setting, and /ryna meter ---------------------------------------------------------------
 
