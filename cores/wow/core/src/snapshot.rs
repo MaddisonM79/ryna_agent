@@ -1348,6 +1348,21 @@ mod tests {
     }
 
     #[test]
+    fn a_quests_log_header_reaches_the_wire() {
+        // Chronicle records the header row each quest sits under (docs/wow.md section 14).
+        let v = db(
+            r#"characters = { ["Player-1-00000001"] = { quests = { active = { { id = 7, title = "Q", header = "Elwynn Forest" }, { id = 8 } } } } }"#,
+        );
+        let c = &build(&v, &source("A")).unwrap().snapshot.characters[0];
+        let wire = serde_json::to_value(c).unwrap();
+        assert_eq!(
+            wire["quests"]["active"][0]["header"],
+            json!("Elwynn Forest")
+        );
+        assert!(wire["quests"]["active"][1].get("header").is_none());
+    }
+
+    #[test]
     fn a_wrong_type_names_the_character() {
         let v = db(r#"characters = { ["Player-1-00000009"] = { level = "high" } }"#);
         let e = build(&v, &source("A")).unwrap_err();

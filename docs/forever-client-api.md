@@ -216,6 +216,18 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   ids around 86000 and up (Doud `Core.lua:724`).
 - **Watch**: the NPC's GUID can be secret, so a quest-giver check by NPC id must fail safe
   (Questie, above). Native quest ids stay readable (Questie `Modules/QuestieCompat.lua:200-202`).
+- **The quest log's rows** (Blz, read 2026-11-15 at the `forever` head "1.60.1 (70938)"): Forever's
+  quest log is the mainline `QuestMapFrame` (`Blizzard_UIPanels_Game.toc:173-178` loads
+  `[Family]\QuestMapFrame.lua [AllowLoadGameType mainline]`, camelot being in that family, with
+  Camelot overrides). It walks `C_QuestLog.GetInfo(i)` for `i = 1, C_QuestLog.GetNumQuestLogEntries()`
+  (`Mainline/QuestMapFrame.lua:1669-1705`): the log is one flat list where a header row has
+  `isHeader = true` and its `title` is the heading (a zone or a category), and each quest after it
+  belongs to the last header before it (`info.header = lastHeader`). `QuestInfo` has `title`,
+  `questLogIndex`, `questID`, `level`, `isHeader`, `isCollapsed`, `headerSortKey` and more;
+  `GetInfo` may return nil (Docs `QuestLogDocumentation.lua:191-204, 1547-1578`). Collapsed headers
+  still list their quests there (Blizzard hides them by `info.header.isCollapsed`, line 1655).
+  Chronicle records that heading on each active quest (`Quests.lua`); **not yet checked in game**
+  (Still owed 14).
 
 ### `/who` and `C_FriendList`
 
@@ -487,6 +499,10 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
     `/dump C_XMLUtil.GetTemplateInfo("WowStyle1DropdownTemplate") ~= nil, C_XMLUtil.GetTemplateInfo("SearchBoxTemplate") ~= nil`
     (the character picker falls back to a list of its own, the search box to a plain one);
     `/dump RAID_CLASS_COLORS.MAGE, ITEM_QUALITY_COLORS[2], FACTION_BAR_COLORS and FACTION_BAR_COLORS[5], FACTION_STANDING_LABEL5, LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE.MAGE, HEADSLOT, RANGEDSLOT`
+14. The quest log's header rows as Chronicle reads them (Blizzard's source, not yet seen in game), with a few
+    quests in the log: `/run for i=1,C_QuestLog.GetNumQuestLogEntries() do local q=C_QuestLog.GetInfo(i) if q then print(i, q.isHeader, q.title, q.questID) end end`
+    (each header row should print `true` and the heading the quest log shows, its quests after it with `false`);
+    then `/dump issecretvalue(C_QuestLog.GetInfo(1).title)` (expect `false`)
 
 ## Links
 

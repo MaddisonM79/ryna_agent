@@ -1,6 +1,13 @@
 -- Quests: the active log (with objectives) and the completed set on the record, and
 -- `questAccept` / `questDone` journal events. Modern C_QuestLog first, the classic API after.
 -- Collapsed headers in the classic log hide their quests; the addon doesn't expand them.
+--
+-- Each active quest carries `header`: the title of the header row above it in the log, which is
+-- how the game's own quest log files it (a zone, or a category such as a class's quests). The log
+-- is a flat list of rows, header rows (`isHeader`) followed by their quests, and a quest's header
+-- is the last header row before it: that is how Blizzard's quest log on Forever groups them
+-- (docs/forever-client-api.md "Quests and gossip"). Nil when no header row came before it or its
+-- title can't be read (secret, empty); never guessed from the zone.
 
 local _, ns = ...
 if ns.off then return end
@@ -41,26 +48,36 @@ local function objectivesFor(questId, logIndex)
   return list
 end
 
--- Every quest in the log: { id, title, level, logIndex }.
+-- Every quest in the log: { id, title, level, logIndex, header }.
 local function readLog()
   local quests = {}
   local QL = modernLog()
   if QL then
     local n = ns.Try(QL.GetNumQuestLogEntries)
+    local header
     for i = 1, (type(n) == "number" and n or 0) do
       local info = ns.Try(QL.GetInfo, i)
-      if type(info) == "table" and not info.isHeader and info.questID and info.questID ~= 0 then
-        quests[#quests + 1] = { id = info.questID, title = NonEmpty(info.title), level = info.level, logIndex = i }
+      if type(info) == "table" then
+        if info.isHeader then
+          header = NonEmpty(info.title)
+        elseif info.questID and info.questID ~= 0 then
+          quests[#quests + 1] = {
+            id = info.questID, title = NonEmpty(info.title), level = info.level, logIndex = i, header = header,
+          }
+        end
       end
     end
     return quests
   end
   local n = ns.Try(ns.Fn("GetNumQuestLogEntries"))
   local title = ns.Fn("GetQuestLogTitle")
+  local header
   for i = 1, (type(n) == "number" and title and n or 0) do
     local name, level, _, isHeader, _, _, _, questId = ns.Try(title, i)
-    if name and not isHeader and questId and questId ~= 0 then
-      quests[#quests + 1] = { id = questId, title = NonEmpty(name), level = level, logIndex = i }
+    if isHeader then
+      header = NonEmpty(name)
+    elseif name and questId and questId ~= 0 then
+      quests[#quests + 1] = { id = questId, title = NonEmpty(name), level = level, logIndex = i, header = header }
     end
   end
   return quests
@@ -83,7 +100,7 @@ function Q.ScanLog()
   local active = {}
   for _, q in ipairs(readLog()) do
     active[#active + 1] = {
-      id = q.id, title = q.title, level = q.level, acceptedAt = accepted[q.id],
+      id = q.id, title = q.title, level = q.level, header = q.header, acceptedAt = accepted[q.id],
       objectives = objectivesFor(q.id, q.logIndex),
     }
   end
