@@ -284,6 +284,13 @@ L["Professions"] = true
 L["Last seen"] = true
 L["now"] = true
 L["%s %s"] = true
+-- All characters: the played column's text with the character's share of the account's time played,
+-- "1d 4h · 73%" (%% prints one %); the tiles' small lines: "highest level 17", "all on Maddiep" (all the
+-- gold is on that character; %s is its first name) and "across 3 characters" (time played).
+L["%s · %d%%"] = true
+L["highest level %d"] = true
+L["all on %s"] = true
+L["across %d characters"] = true
 -- One character's detail: the headings of its groups and the rows under "Character".
 L["Class"] = true
 L["Guild"] = true
