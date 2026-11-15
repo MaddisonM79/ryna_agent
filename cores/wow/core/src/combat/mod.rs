@@ -3,6 +3,7 @@
 //! each one's summary and digest (and, when asked, its raw lines).
 //!
 //! - [`parse`]: one line into an event, with Forever's field layouts.
+//! - [`maps`]: which map ids are instances (the client's `Map` table).
 //! - [`segment`]: lines into encounters (boss, trash, world).
 //! - [`summary`]: an encounter's numbers, from its digest events.
 //! - [`digest`]: the digest's NDJSON and gzip.
@@ -10,6 +11,7 @@
 //! - [`queue`]: the uploads, kept on disk until the API has them.
 
 pub mod digest;
+pub mod maps;
 pub mod parse;
 pub mod queue;
 pub mod segment;

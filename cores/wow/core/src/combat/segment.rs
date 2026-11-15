@@ -21,6 +21,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use serde::{Deserialize, Serialize};
 
 use super::digest::{bits, ActorMeta, DigestEvent, Header, SpellMeta};
+use super::maps;
 use super::parse::{self, flags, Event, Kind, Unit};
 use super::summary::{self, Extras, Totals};
 
@@ -36,17 +37,29 @@ pub const PREROLL_MS: i64 = 3000;
 /// A swing and its `_LANDED` twin are written this close together.
 pub const TWIN_WINDOW_MS: i64 = 50;
 /// The client writes the log in bursts: a fight is closed by the wall clock only this long after
-/// its gap has passed, so a late burst of its own lines still lands in it.
-pub const FLUSH_GRACE_MS: i64 = 15_000;
+/// its gap has passed, so a late burst of its own lines still lands in it. The bursts can be far
+/// apart: a `/reload` writes its header line at once, in front of lines still held, and in the
+/// logs on disk (2026-11-06 to 14) those held lines were up to 300 s older than the header, one
+/// time in the middle of a boss fight. With 15 s here, a boss whose next lines were still held
+/// was closed by the wall clock a few seconds after `ENCOUNTER_START`, dropped as too short, and
+/// the rest of it read as an ordinary pull. Each later line still closes what its gap has passed
+/// on the event clock at once; this only delays the close when the file goes quiet.
+pub const FLUSH_GRACE_MS: i64 = 6 * 60 * 1000;
 
 /// What the log has said about where the logger is, and who owns what.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Context {
     pub zone: Option<String>,
+    /// ZONE_CHANGE's first field: the map id (an instance's own map inside one).
     pub instance_id: Option<i64>,
-    /// ZONE_CHANGE's last field: nonzero inside an instance.
+    /// ZONE_CHANGE's last field, the difficulty. Forever writes 0 on entering a dungeon and the
+    /// real one only after a `/reload` inside, so it's a fallback ([`Context::in_instance`]);
+    /// an `ENCOUNTER_START` in this map fills it in when it's 0.
     pub difficulty: i64,
+    /// Maps an `ENCOUNTER_START` has named: instances, whatever the map table knows.
+    #[serde(default)]
+    pub instance_maps: BTreeSet<i64>,
     pub ui_map_id: Option<i64>,
     /// The logging character (the player flagged as the logger's own).
     pub logger: Option<String>,
@@ -62,8 +75,23 @@ pub struct Context {
 }
 
 impl Context {
+    /// Inside an instance: the map is one (the client's map table, or an `ENCOUNTER_START` named
+    /// it); for a map the table doesn't know, a nonzero difficulty.
     pub fn in_instance(&self) -> bool {
-        self.difficulty != 0
+        match self.instance_id {
+            Some(id) if self.instance_maps.contains(&id) => true,
+            Some(id) => match maps::instance_type(id) {
+                Some(t) => t != 0,
+                None => self.difficulty != 0,
+            },
+            None => self.difficulty != 0,
+        }
+    }
+
+    /// The difficulty to report for a fight here: none outside an instance or while the log
+    /// hasn't said (0).
+    fn fight_difficulty(&self) -> Option<i64> {
+        (self.in_instance() && self.difficulty != 0).then_some(self.difficulty)
     }
 
     /// The logger's realm, else the realm most players in the log are from.
@@ -206,7 +234,7 @@ impl Builder {
             kind,
             encounter_id: None,
             name: None,
-            difficulty: ctx.in_instance().then_some(ctx.difficulty),
+            difficulty: ctx.fight_difficulty(),
             ctx: ctx.clone(),
             first_ts: ts,
             last_ts: ts,
@@ -539,6 +567,12 @@ impl Segmenter {
         *self.subevents.entry(ev.subevent.clone()).or_default() += 1;
         self.last_event_at = Some(self.last_event_at.map_or(ev.ts, |t| t.max(ev.ts)));
         self.learn(&ev);
+        // A header line is written at once on a `/reload`, in front of lines the client still
+        // holds (up to minutes older), so its time isn't the log's clock: it closes nothing.
+        if let Kind::Header { advanced, .. } = ev.kind {
+            self.ctx.advanced = Some(advanced);
+            return;
+        }
         // The event clock closes what its gap has passed.
         if let Some(p) = &self.pull {
             let gap = if p.kind == FightKind::Boss {
@@ -564,8 +598,10 @@ impl Segmenter {
                 difficulty,
             } => {
                 let known = name != "UNKNOWN AREA" && !name.is_empty();
+                // A new zone or map. Not the difficulty alone: a `/reload` inside a dungeon writes
+                // the same map again with the real difficulty where entering wrote 0, and that
+                // closed a boss fight in the middle.
                 let moved = (known && self.ctx.zone.as_deref() != Some(name.as_str()))
-                    || self.ctx.difficulty != *difficulty
                     || self.ctx.instance_id.is_some_and(|i| i != *instance_id);
                 if moved {
                     self.finish();
@@ -582,17 +618,26 @@ impl Segmenter {
                     self.ctx.zone = Some(name.clone());
                 }
             }
-            Kind::Header { advanced, .. } => {
-                self.ctx.advanced = Some(*advanced);
-            }
             Kind::EncounterStart {
                 encounter_id,
                 name,
                 difficulty,
+                instance_id,
                 ..
             } => {
                 self.close_pull();
                 self.close_world();
+                // The map it names is an instance; a log that started inside one, or a ZONE_CHANGE
+                // that wrote difficulty 0, learns it here for the pulls after.
+                if let Some(map) = instance_id.filter(|m| *m > 0) {
+                    self.ctx.instance_maps.insert(map);
+                    if self.ctx.instance_id.is_none() {
+                        self.ctx.instance_id = Some(map);
+                    }
+                    if self.ctx.instance_id == Some(map) && self.ctx.difficulty == 0 {
+                        self.ctx.difficulty = *difficulty;
+                    }
+                }
                 let mut b = Builder::new(FightKind::Boss, &self.ctx, ev.ts, offset);
                 b.encounter_id = Some(*encounter_id);
                 b.name = Some(name.clone());

@@ -347,6 +347,193 @@ fn bosses_and_trash() {
     assert_eq!(seg.dropped, 1);
 }
 
+/// A synthetic dungeon log, shaped like Forever writes one (map 36, a Deadmines boss id), with
+/// made-up players and GUIDs.
+fn dungeon_line(t: &str, body: &str) -> String {
+    format!("11/12/2026 21:{t}-6  {body}\n")
+}
+
+fn dungeon_hit(t: &str) -> String {
+    dungeon_line(t, "SPELL_DAMAGE,Player-1-0F00A001,\"Aerin-Stormcall-Normal-US\",0x511,0x80000000,Creature-0-1-36-3-642-0F00B001,\"Shredder\",0xa48,0x80000000,403,\"Lightning Bolt\",0x8,Creature-0-1-36-3-642-0F00B001,0000000000000000,0,100,1,0,1,0,0,0,0,1,1,0,1.0,1.0,291,1.0,63,30,30,-1,8,0,0,0,nil,nil,nil,ST")
+}
+
+#[test]
+fn a_dungeon_entered_with_difficulty_0_is_trash_by_its_map() {
+    // Forever writes difficulty 0 on zoning in; the map (36) is a dungeon in the client's table.
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,36,\"The Deadmines\",0");
+    // Two pulls 30 s apart: two trash fights, not one world roll-up.
+    text += &dungeon_hit("00:01.000");
+    text += &dungeon_hit("00:04.000");
+    text += &dungeon_hit("00:34.000");
+    text += &dungeon_hit("00:37.000");
+    // A boss says the difficulty, and the trash after it carries it.
+    text += &dungeon_line("01:00.000", "ENCOUNTER_START,2742,\"Sneed\",1,5,36");
+    text += &dungeon_hit("01:01.000");
+    text += &dungeon_hit("01:20.000");
+    text += &dungeon_line("01:21.000", "ENCOUNTER_END,2742,\"Sneed\",1,5,1,21000");
+    text += &dungeon_hit("01:40.000");
+    text += &dungeon_hit("01:43.000");
+    // Out to the continent: the old difficulty comes along on the loading screen, then the zone.
+    text += &dungeon_line("02:00.000", "ZONE_CHANGE,0,\"The Deadmines\",1");
+    text += &dungeon_line("02:00.200", "ZONE_CHANGE,0,\"Westfall\",0");
+    text += &dungeon_hit("02:10.000");
+    text += &dungeon_hit("02:13.000");
+    let (fights, _) = segment_text(&text, false);
+    let kinds: Vec<_> = fights.iter().map(|f| f.kind).collect();
+    assert_eq!(
+        kinds,
+        vec![
+            FightKind::Trash,
+            FightKind::Trash,
+            FightKind::Boss,
+            FightKind::Trash,
+            FightKind::World
+        ]
+    );
+    assert_eq!(fights[0].instance.as_deref(), Some("The Deadmines"));
+    assert_eq!(fights[0].difficulty, None, "not said yet");
+    assert_eq!(fights[2].success, Some(true));
+    assert_eq!(fights[3].difficulty, Some(1), "learnt from the boss");
+    assert_eq!(fights[4].instance, None);
+    assert_eq!(fights[4].zone.as_deref(), Some("Westfall"));
+}
+
+#[test]
+fn a_reload_in_a_boss_fight_keeps_it_whole() {
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,36,\"The Deadmines\",0");
+    text += &dungeon_line(
+        "01:00.000",
+        "ENCOUNTER_START,2747,\"Edwin VanCleef\",1,5,36",
+    );
+    text += &dungeon_hit("01:01.000");
+    text += &dungeon_hit("01:20.000");
+    // The /reload: its header is written at once, in front of lines the client still held,
+    // 95 s older; then the same map again with the real difficulty.
+    text += &dungeon_line(
+        "02:55.000",
+        "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,1.60.1,PROJECT_ID,18",
+    );
+    text += &dungeon_hit("01:21.000");
+    text += &dungeon_hit("02:00.000");
+    text += &dungeon_hit("02:40.000");
+    text += &dungeon_line("02:55.000", "ZONE_CHANGE,36,\"The Deadmines\",1");
+    text += &dungeon_hit("02:56.000");
+    text += &dungeon_line(
+        "03:00.000",
+        "ENCOUNTER_END,2747,\"Edwin VanCleef\",1,5,1,120000",
+    );
+    let (fights, seg) = segment_text(&text, false);
+    assert_eq!(fights.len(), 1, "{fights:?}");
+    let boss = &fights[0];
+    assert_eq!(boss.kind, FightKind::Boss);
+    assert_eq!(boss.success, Some(true));
+    assert_eq!(boss.duration_ms(), 120_000);
+    assert_eq!(seg.dropped, 0);
+    // A reload in a trash pull before any boss: the same map with difficulty 1 where entering
+    // wrote 0 doesn't cut the pull in two.
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,36,\"The Deadmines\",0");
+    text += &dungeon_hit("00:01.000");
+    text += &dungeon_hit("00:04.000");
+    text += &dungeon_line("00:05.000", "ZONE_CHANGE,36,\"The Deadmines\",1");
+    text += &dungeon_hit("00:06.000");
+    text += &dungeon_hit("00:09.000");
+    let (fights, _) = segment_text(&text, false);
+    assert_eq!(fights.len(), 1, "{fights:?}");
+    assert_eq!(fights[0].kind, FightKind::Trash);
+    assert_eq!(fights[0].duration_ms(), 8_000);
+}
+
+#[test]
+fn a_map_the_table_lacks_is_an_instance_once_a_boss_names_it() {
+    // A map from a newer build, written with difficulty 0: pulls roll up as world until an
+    // ENCOUNTER_START names the map, then they're trash.
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,9999,\"New Dungeon\",0");
+    text += &dungeon_hit("00:01.000");
+    text += &dungeon_hit("00:04.000");
+    text += &dungeon_line("00:30.000", "ENCOUNTER_START,9001,\"New Boss\",1,5,9999");
+    text += &dungeon_hit("00:31.000");
+    text += &dungeon_line("00:40.000", "ENCOUNTER_END,9001,\"New Boss\",1,5,1,10000");
+    text += &dungeon_hit("01:00.000");
+    text += &dungeon_hit("01:03.000");
+    let (fights, _) = segment_text(&text, false);
+    let kinds: Vec<_> = fights.iter().map(|f| f.kind).collect();
+    assert_eq!(
+        kinds,
+        vec![FightKind::World, FightKind::Boss, FightKind::Trash]
+    );
+    // And a nonzero difficulty still counts for a map the table lacks.
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,9999,\"New Dungeon\",1");
+    text += &dungeon_hit("00:01.000");
+    text += &dungeon_hit("00:04.000");
+    let (fights, _) = segment_text(&text, false);
+    assert_eq!(fights[0].kind, FightKind::Trash);
+}
+
+#[test]
+fn the_wall_clock_waits_for_lines_the_client_still_holds() {
+    // The client flushed ENCOUNTER_START and held the rest for 80 s: the boss stays open.
+    let mut seg = Segmenter::new(false);
+    let mut off = 0u64;
+    let mut feed = |seg: &mut Segmenter, line: String| {
+        seg.feed(&line, off);
+        off += line.len() as u64;
+    };
+    feed(
+        &mut seg,
+        dungeon_line("00:00.000", "ZONE_CHANGE,36,\"The Deadmines\",0"),
+    );
+    feed(
+        &mut seg,
+        dungeon_line("01:00.000", "ENCOUNTER_START,2742,\"Sneed\",1,5,36"),
+    );
+    let start = seg.last_event_at.unwrap();
+    seg.tick(start + 80_000);
+    assert!(seg.take().is_empty());
+    assert_eq!(seg.open(), 1);
+    feed(&mut seg, dungeon_hit("01:03.000"));
+    feed(&mut seg, dungeon_hit("01:50.000"));
+    feed(&mut seg, dungeon_hit("02:30.000"));
+    feed(
+        &mut seg,
+        dungeon_line("02:31.000", "ENCOUNTER_END,2742,\"Sneed\",1,5,1,91000"),
+    );
+    let fights = seg.take();
+    assert_eq!(fights.len(), 1);
+    assert_eq!(fights[0].kind, FightKind::Boss);
+    assert_eq!(fights[0].success, Some(true));
+    // Once the file has been quiet past the gap and the grace, the wall clock does close it.
+    feed(&mut seg, dungeon_hit("03:00.000"));
+    feed(&mut seg, dungeon_hit("03:03.000"));
+    let last = seg.last_event_at.unwrap();
+    seg.tick(last + super::segment::PULL_GAP_MS + super::segment::FLUSH_GRACE_MS + 1);
+    assert_eq!(seg.take().len(), 1);
+}
+
+#[test]
+fn a_backlog_read_in_pieces_keeps_a_boss_across_the_cut() {
+    // An old log read in small pieces with the wall clock long past it: a piece that ends right
+    // after ENCOUNTER_START mustn't let the wall clock close the boss.
+    let dir = tempfile::tempdir().unwrap();
+    let mut text = dungeon_line("00:00.000", "ZONE_CHANGE,36,\"The Deadmines\",0");
+    text += &dungeon_line("01:00.000", "ENCOUNTER_START,2742,\"Sneed\",1,5,36");
+    // The first piece ends with ENCOUNTER_START (the next line doesn't fit whole).
+    let piece = (text.len() + dungeon_hit("01:03.000").len() - 1) as u64;
+    text += &dungeon_hit("01:03.000");
+    text += &dungeon_hit("01:30.000");
+    text += &dungeon_line("01:31.000", "ENCOUNTER_END,2742,\"Sneed\",1,5,1,31000");
+    let root = install_with_log(dir.path(), &text);
+    let found = discover(Some(&root));
+    let state = dir.path().join("state");
+    let mut tailer = Tailer::new(&state, CombatOptions::default()).with_chunk(piece);
+    for _ in 0..4 {
+        tailer.poll(&found, None, NOW, &mut |_| {});
+    }
+    let items = tailer.queue().items();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].summary.kind, "boss");
+    assert_eq!(items[0].summary.name.as_deref(), Some("Sneed"));
+}
+
 #[test]
 fn a_partial_line_waits_and_unknown_events_are_counted() {
     let mut seg = Segmenter::new(false);

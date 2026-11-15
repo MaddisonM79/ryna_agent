@@ -257,6 +257,8 @@ pub struct Tailer {
     digests_off: bool,
     retry_at: i64,
     announced: Vec<PathBuf>,
+    /// At most this much of one file per poll ([`READ_CHUNK`]; smaller in tests).
+    chunk: u64,
 }
 
 fn file_name(p: &Path) -> String {
@@ -276,7 +278,15 @@ impl Tailer {
             digests_off: false,
             retry_at: 0,
             announced: Vec::new(),
+            chunk: READ_CHUNK,
         }
+    }
+
+    /// Read at most `chunk` bytes of a file per poll (tests: a backlog without a 16 MiB file).
+    #[cfg(test)]
+    pub fn with_chunk(mut self, chunk: u64) -> Tailer {
+        self.chunk = chunk;
+        self
     }
 
     pub fn queue(&self) -> &Queue {
@@ -409,12 +419,18 @@ impl Tailer {
                 ..o
             };
         }
+        let chunk = self.chunk;
+        // Whether this read reached the end of what's on disk. A read cut at READ_CHUNK (a first
+        // run, or catching up a backlog) stops at an arbitrary line hours behind the wall clock,
+        // so the wall clock mustn't close what's open there: the next read carries on with it.
+        let mut caught_up = true;
         let result = (|| -> std::io::Result<()> {
             if size > o.offset {
                 let mut f = std::fs::File::open(path)?;
                 f.seek(SeekFrom::Start(o.offset))?;
                 let mut buf = Vec::new();
-                f.take(READ_CHUNK).read_to_end(&mut buf)?;
+                f.take(chunk).read_to_end(&mut buf)?;
+                caught_up = o.offset + (buf.len() as u64) >= size;
                 // Only whole lines: a partial last one waits for the rest.
                 let whole = buf.iter().rposition(|&b| b == b'\n').map_or(0, |i| i + 1);
                 let mut at = o.offset;
@@ -426,7 +442,9 @@ impl Tailer {
             }
             Ok(())
         })();
-        o.seg.tick(now_ms);
+        if caught_up {
+            o.seg.tick(now_ms);
+        }
         self.queue_fights(&mut o, discovery, now, report, on_event);
         if let Some(t) = o.seg.last_event_at {
             let secs = t.div_euclid(1000);
