@@ -14,6 +14,7 @@ if ns.off then return end
 
 local Q = {}
 ns.Quests = Q
+Q.version = 0 -- every read of the log (a character's Quests in the window)
 
 local NonEmpty = ns.NonEmpty
 
@@ -105,6 +106,8 @@ function Q.ScanLog()
     }
   end
   rec.quests.active = active
+  Q.version = Q.version + 1
+  if ns.Window and ns.Window.Changed then ns.Window.Changed() end
   -- QUEST_LOG_UPDATE comes with every objective tick, so an unchanged line isn't repeated.
   ns.DebugChanged("quest-log", "quests: log read, %d in the log, %d completed", #active, #rec.quests.completed)
   if Q.completedDirty then

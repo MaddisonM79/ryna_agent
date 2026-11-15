@@ -12,6 +12,17 @@
 -- talents), its gear by slot (the game's own item tooltip on hover), its professions and its
 -- reputations, each with a bar.
 --
+-- One character's Quests (the detail's picker: Character, Quests; 7.5, "The quest log by zone or
+-- heading"): its saved quest log, for any character on the account, so an alt's log reads without
+-- logging over. The column heading's line counts it ("14 active · 4 ready to turn in"); the quests sit
+-- under heading rows with a count ("Zephras Isle (6)"), by the heading the game's log filed each
+-- under (Quests.lua's `header`), the groups with the most quests first, then by name, and the quests
+-- in the log's own order within one. A quest's row: its title, its level and a bar of its objectives
+-- done ("1 / 3"; "ready" on a full bar when every one is done; no bar when none was saved). Quests
+-- saved before headings were recorded sit last, under "Picked up before this was recorded"; a
+-- heading is never guessed. What the record keeps per objective is its text and whether it is done,
+-- so the bar counts objectives, and the tooltip lists each one's text (the game's own "6/10").
+--
 -- The character you're on is live (its record is the one Chronicle keeps up to date); the others are
 -- as of their last logout, and the footer says so.
 
@@ -316,6 +327,180 @@ function Ch.DetailRows(ctx)
   return rows
 end
 
+-- One character's quests ----------------------------------------------------------------------------------
+
+local QUESTS = "quests"
+Ch.QUESTS = QUESTS
+
+-- The progress bars' colours, as the mockup's: a muted violet, and a muted green for ready.
+local QUEST_BAR = { 0.31, 0.29, 0.4 }
+local READY_BAR = { 0.24, 0.42, 0.24 }
+
+-- A number from the saved file, or nil when it isn't one (a string, NaN, a secret value).
+local function readable(v)
+  v = num(v)
+  if v == nil or ns.IsSecret(v) or v ~= v then return nil end
+  return v
+end
+
+-- A saved quest's objectives: how many are done and how many there are, or nil when none was saved
+-- (a quest with nothing to count: talk to someone, or an entry with no objectives list).
+function Ch.QuestProgress(q)
+  local list = type(q) == "table" and type(q.objectives) == "table" and q.objectives or {}
+  local done, total = 0, 0
+  for _, o in ipairs(list) do
+    if type(o) == "table" then
+      total = total + 1
+      if o.done == true then done = done + 1 end
+    end
+  end
+  if total == 0 then return nil end
+  return done, total
+end
+
+-- A quest row's progress: its text and its bar. "ready" on a full bar when every objective is done,
+-- "1 / 3" over a third of one, and nothing (no bar) when it has no objectives to count.
+function Ch.QuestBar(q)
+  local done, total = Ch.QuestProgress(q)
+  if not done then return "", nil, false end
+  if done == total then
+    return L["ready"], { value = total, max = total, r = READY_BAR[1], g = READY_BAR[2], b = READY_BAR[3] }, true
+  end
+  return string.format(L["%s / %s"], done, total),
+    { value = done, max = total, r = QUEST_BAR[1], g = QUEST_BAR[2], b = QUEST_BAR[3] }, false
+end
+
+local function questTitle(q)
+  local title = ns.NonEmpty(q.title)
+  if title then return plain(title) end
+  local id = readable(q.id)
+  if id then return string.format(L["quest %s"], tostring(id)) end
+  return L["Unknown quest"]
+end
+
+-- A character's saved quest log, grouped: { active, ready, groups = { { title, quests }, ... },
+-- unrecorded = { quests } }, each quest { q, title, level, header, text, bar, ready }. Groups with the
+-- most quests first, then by name; quests in the log's own order.
+function Ch.QuestLog(rec)
+  local log = { active = 0, ready = 0, groups = {}, unrecorded = {} }
+  local quests = type(rec) == "table" and type(rec.quests) == "table" and rec.quests.active
+  local byTitle = {}
+  for _, q in ipairs(type(quests) == "table" and quests or {}) do
+    if type(q) == "table" then
+      local text, bar, ready = Ch.QuestBar(q)
+      local level = readable(q.level)
+      local header = ns.NonEmpty(q.header)
+      local e = { q = q, title = questTitle(q), level = level and level > 0 and level or nil,
+        header = header and plain(header) or nil, text = text, bar = bar, ready = ready }
+      log.active = log.active + 1
+      if ready then log.ready = log.ready + 1 end
+      if e.header then
+        local g = byTitle[e.header]
+        if not g then
+          g = { title = e.header, quests = {} }
+          byTitle[e.header] = g
+          log.groups[#log.groups + 1] = g
+        end
+        g.quests[#g.quests + 1] = e
+      else
+        log.unrecorded[#log.unrecorded + 1] = e
+      end
+    end
+  end
+  table.sort(log.groups, function(a, b)
+    if #a.quests ~= #b.quests then return #a.quests > #b.quests end
+    local x, y = a.title:lower(), b.title:lower()
+    if x ~= y then return x < y end
+    return a.title < b.title
+  end)
+  return log
+end
+
+-- The column heading's line: "14 active · 4 ready to turn in".
+function Ch.QuestCounts(log)
+  return string.format(L["%d active · %d ready to turn in"], log.active, log.ready)
+end
+
+function Ch.QuestColumns(ctx)
+  local log = Ch.QuestLog(Wn.Record(ctx.character))
+  return {
+    { title = Ch.QuestCounts(log), width = 340, sort = false },
+    { title = L["Level"], width = 50, justify = "RIGHT", sort = false },
+    { title = L["Progress"], width = 170, kind = "bar", sort = false },
+  }
+end
+
+function Ch.QuestRows(ctx)
+  local rows = {}
+  local rec = Wn.Record(ctx.character)
+  if not rec then return rows end
+  local log = Ch.QuestLog(rec)
+  if log.active == 0 then
+    rows[1] = { cells = { "|cff999999" .. L["No quests in this character's log."] .. "|r" } }
+    return rows
+  end
+  local function add(title, list)
+    local matched = {}
+    for _, e in ipairs(list) do
+      if RW.Match(e.title, ctx.search) or RW.Match(title, ctx.search) then matched[#matched + 1] = e end
+    end
+    if #matched == 0 then return end
+    rows[#rows + 1] = { header = true, cells = { string.format(L["%s (%d)"], title, #matched) } }
+    for _, e in ipairs(matched) do
+      rows[#rows + 1] = { quest = e, cells = { e.title, e.level and tostring(e.level) or "", e.text },
+        bars = { [3] = e.bar } }
+    end
+  end
+  for _, g in ipairs(log.groups) do add(g.title, g.quests) end
+  add(L["Picked up before this was recorded"], log.unrecorded)
+  return rows
+end
+
+-- A quest row's tooltip: its title, level and heading, and each objective as saved, done ones dimmed.
+function Ch.QuestTooltip(row, tip)
+  local e = row.quest
+  tip:AddLine(e.title, 1, 0.82, 0)
+  if e.level then tip:AddLine(string.format(L["Level %s"], tostring(e.level)), 1, 1, 1) end
+  if e.header then tip:AddLine(e.header, 0.8, 0.8, 0.8) end
+  local any = false
+  for i, o in ipairs(type(e.q.objectives) == "table" and e.q.objectives or {}) do
+    if type(o) == "table" then
+      if not any then tip:AddLine(" ") end
+      any = true
+      local text = ns.NonEmpty(o.text) and plain(o.text) or string.format(L["Objective %d"], i)
+      if o.done == true then
+        tip:AddLine(string.format(L["%s (done)"], text), 0.5, 0.75, 0.5, true)
+      else
+        tip:AddLine(text, 1, 1, 1, true)
+      end
+    end
+  end
+  if e.ready then
+    tip:AddLine(" ")
+    tip:AddLine(L["Every objective is done: ready to turn in."], 0.6, 0.6, 0.6, true)
+  elseif not any then
+    tip:AddLine(" ")
+    tip:AddLine(L["No objectives to count were saved for this quest."], 0.6, 0.6, 0.6, true)
+  end
+end
+
+-- The quests' footer: where the log came from and how old it is.
+function Ch.QuestFooter(ctx)
+  local rec = Wn.Record(ctx.character)
+  if not rec then return "" end
+  if ctx.character == ctx.current then
+    return string.format(L["Counted in game for %s, the character you're on."], Wn.Name(rec))
+  end
+  return string.format(L["From your saved file, as %s last logged out, %s."], Wn.Name(rec),
+    ns.Status.Ago(num(rec.lastSeen)) or L["an unknown time ago"])
+end
+
+-- Whether the context is one character's Quests.
+local function onQuests(ctx)
+  return ctx.character ~= nil and ctx.filter == QUESTS
+end
+Ch.OnQuests = onQuests
+
 function Ch.DetailTiles(ctx)
   local rec = Wn.Record(ctx.character)
   if not rec then return nil end
@@ -365,24 +550,51 @@ end
 -- minute (time played and "last seen" move on).
 function Ch.Version()
   return tostring(ns.Session.version) .. ":" .. tostring(ns.Character.version or 0) .. ":"
-    .. math.floor(GetTime() / 60)
+    .. tostring(ns.Quests and ns.Quests.version or 0) .. ":" .. math.floor(GetTime() / 60)
 end
+
+-- One character's views (the section's picker, shown only with one character picked): Character
+-- (class, gear, professions, reputations) and Quests. A core before titles could follow the context
+-- would print a function as the title, so the picker comes with the strip's core, as History's does.
+local views = RW.STRIP_MAX ~= nil
 
 if RW.AddSection({
   key = "characters", group = "me", order = 20, label = L["Characters"], icons = true,
-  columns = function(ctx) return ctx.character == nil and ALL_COLUMNS or DETAIL_COLUMNS end,
+  title = views and function(ctx)
+    if onQuests(ctx) then
+      return string.format(L["%s › %s"], Wn.Name(Wn.Record(ctx.character)), L["Quests"])
+    end
+    return L["Characters"]
+  end or nil,
+  filter = views and function(ctx)
+    if ctx.character == nil then return {} end
+    return { { value = nil, label = L["Character"] }, { value = QUESTS, label = L["Quests"] } }
+  end or nil,
+  columns = function(ctx)
+    if ctx.character == nil then return ALL_COLUMNS end
+    if onQuests(ctx) then return Ch.QuestColumns(ctx) end
+    return DETAIL_COLUMNS
+  end,
   sortable = true,
   rows = function(ctx)
     if ctx.character == nil then return Ch.AllRows(ctx) end
+    if onQuests(ctx) then return Ch.QuestRows(ctx) end
     return Ch.DetailRows(ctx)
   end,
   tiles = function(ctx)
     if ctx.character == nil then return Ch.AllTiles(ctx) end
+    if onQuests(ctx) then return nil end
     return Ch.DetailTiles(ctx)
   end,
-  tooltip = Ch.Tooltip,
+  tooltip = function(row, tip, ctx)
+    if row.quest then return Ch.QuestTooltip(row, tip) end
+    return Ch.Tooltip(row, tip, ctx)
+  end,
   click = function(row) if row.ref and row.rec then RW.Choose(row.ref) end end,
-  footer = Ch.Footer,
+  footer = function(ctx)
+    if onQuests(ctx) then return Ch.QuestFooter(ctx) end
+    return Ch.Footer(ctx)
+  end,
   version = Ch.Version,
 }) then
   Wn.keys.characters = true
