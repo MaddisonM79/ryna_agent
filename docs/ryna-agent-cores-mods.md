@@ -552,7 +552,10 @@ and `Data/auctions.lua`: one plain global each (`RynaData_vendors`, `RynaData_au
 SavedVariables form the agent's own reader reads back), `{ version = 1, writtenAt, flavor, items }`,
 vendors as up to three rows `{ npcId, name, zone, price, stack, observers, currency }` per item
 (the API's order: confirmed first, then copper-only, then cheapest per piece) and auctions as one row `{ min, med, listings,
-snapshots, observers, asOf, weekMed, weekDays, weekSnapshots }` per item (0 for none). Names are
+snapshots, observers, asOf, weekMed, weekDays, weekSnapshots }` per item (0 for none), followed by
+`weekStartMin, weekStartDay` (the API's `weekStart`, 2026-11-15: the agreed low on the first of the last
+seven days that had one, and that unix day) only when the week had a low on two days or more; still
+version 1, since an addon from before reads the first nine places and never looks past them. Names are
 escaped and stripped of `|` and control characters whatever arrived. Each file is budgeted at 256 KB:
 over it, the vendor file first drops every item's third seller, then its second, then items from the
 end of the id order (the auction store's ids are dropped first, then loot, then what's held); the
@@ -576,7 +579,10 @@ mean listings per snapshot; the age of that day's newest snapshot, which is the 
 file's; "· unconfirmed" for one observer) or "AH (everyone): 1s 10c each this week · 5 snapshots" where
 only older days this week have data, in its own light-blue colour under this account's own white "AH:"
 line so the two never read as one, and away wherever the own line is (the auction house showing the
-item). A table from another version is ignored whole and `/ryna prices` says so ("pooled prices from
+item). Under it, same toggle and colour, the week line (2026-11-15, 7.5): "This week 1s 30c → 1s,
+down 23%", from `weekStartMin` to today's agreed low, "up 12%", or "unchanged" under 1%, left out (never
+"no data") when the row has no start, today has no low, the start is zero or unreadable, or its day is
+more than 8 days before the table's `writtenAt`. A table from another version is ignored whole and `/ryna prices` says so ("pooled prices from
 another version: update the companion app and the addon"); absent tables read "no pooled prices yet:
 sync the companion app, then /reload"; a core without `Ryna.Data` reads "too old". What shows is as
 fresh as the last login or `/reload`, which the mod's summary in the app says. Tests:
