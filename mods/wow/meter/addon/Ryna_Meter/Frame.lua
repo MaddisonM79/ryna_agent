@@ -4,7 +4,11 @@
 -- button and its place is kept in RynaDB.meter[<key>]. Nothing here reads the game.
 --
 --   F.Create{ name, key, rows, x, y, onClick, onEnter }   the frame, hidden; onClick(button) makes the
---                                                         first line a button (it still drags)
+--                                                         first line a button (it still drags);
+--                                                         onRowEnter(bar, i) and onRowLeave(bar, i)
+--                                                         make the rows answer the mouse; tip = true
+--                                                         makes a frame that floats over the rest
+--                                                         and takes no mouse (a row's detail)
 --   F.Place(f), F.Forget(f)    put it where it was left (or at its default); forget that and put it back
 --   f.mover                    set by the owner: a function naming the frame a drag of this one moves
 --   F.Edge(f, warn)            the edge in its usual colour, or the warning one
@@ -91,11 +95,11 @@ function F.Create(spec)
   local f = CreateFrame("Frame", spec.name, _G.UIParent)
   f.key, f.defaultX, f.defaultY = spec.key, spec.x or 0, spec.y or 0
   f:SetSize(F.WIDTH, F.HEAD + F.ROW + 2 * F.PAD)
-  f:SetFrameStrata("MEDIUM")
+  f:SetFrameStrata(spec.tip and "TOOLTIP" or "MEDIUM")
   f:SetClampedToScreen(true)
-  f:SetMovable(true)
-  f:EnableMouse(true)
-  f:RegisterForDrag("LeftButton")
+  f:SetMovable(not spec.tip)
+  f:EnableMouse(not spec.tip)
+  if not spec.tip then f:RegisterForDrag("LeftButton") end
   -- A drag moves this frame, or the one f.mover() names (a frame locked to another moves that one, and
   -- so the whole group); the place kept is the moved frame's.
   local moving
@@ -169,7 +173,21 @@ function F.Create(spec)
   end
 
   f.rows = {}
-  for i = 1, spec.rows do f.rows[i] = newRow(f, i) end
+  for i = 1, spec.rows do
+    local bar = newRow(f, i)
+    f.rows[i] = bar
+    if type(spec.onRowEnter) == "function" then
+      -- A row that answers the mouse takes it from the frame, so it carries the frame's drag itself.
+      bar:EnableMouse(true)
+      bar:RegisterForDrag("LeftButton")
+      bar:SetScript("OnDragStart", dragStart)
+      bar:SetScript("OnDragStop", dragStop)
+      bar:SetScript("OnEnter", function(self) ns.Run(spec.key .. " row", spec.onRowEnter, self, i) end)
+      bar:SetScript("OnLeave", function(self)
+        if type(spec.onRowLeave) == "function" then ns.Run(spec.key .. " row", spec.onRowLeave, self, i) end
+      end)
+    end
+  end
   F.Place(f)
   f:Hide()
   return f

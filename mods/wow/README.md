@@ -138,9 +138,11 @@ is the whole of it).
   line opens a pick-list of the views and of this fight, overall and the last ten fights the game
   holds, a right-click goes between this fight and overall; an empty current tally shows the newest
   held fight as "last fight"; the list also opens another window, up to four, each with its own view,
-  tally and place, closes one, and locks one under or beside the window before it so they drag as
+  tally and place, closes one, announces a window's top rows to party, raid, guild or say (only on
+  that pick, never in a fight), and locks one under or beside the window before it so they drag as
   one), eight rows in the game's
-  order with the player's marked and kept in the last row when further down. In a fight every amount
+  order with the player's marked and kept in the last row when further down. The mouse over a row shows that player's spells in a
+  small frame beside it. In a fight every amount
   is a secret value: it goes from the game to its bar and label untouched, through the game's
   formatter, and nothing is compared or kept. **The threat bar** (`Threat.lua`, `ThreatBar.lua`):
   while anyone in the group is fighting, a row per member on one enemy's list

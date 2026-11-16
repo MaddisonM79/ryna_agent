@@ -74,6 +74,12 @@ L["From"] = nil
 L["This fight (or the last one)"] = nil
 L["Overall"] = nil
 L["Fight %d"] = nil
+-- A row's detail, shown while the mouse is over it: a spell the game couldn't name, the lines under the
+-- spells, and the row's share of the whole tally. %s: a percentage to two decimals ("32.10").
+L["A spell"] = nil
+L["The game hides who this is during a fight."] = nil
+L["Nothing counted for this row."] = nil
+L["%s%% of everyone's"] = nil
 -- Announcing a window's rows in chat, from the pick-list: the heading and the channels.
 L["Announce to"] = nil
 L["Party"] = nil

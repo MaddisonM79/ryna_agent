@@ -158,13 +158,17 @@ function M.Read(view, sessionKey, w)
     if type(sources) ~= "table" or ns.IsSecret(sources) then return nil end
     local n = ns.Try(function() return #sources end)
     if type(n) ~= "number" or n == 0 then return nil end
-    return { sources = sources, count = n, max = session.maxAmount, duration = session.durationSeconds }
+    return { sources = sources, count = n, max = session.maxAmount, total = session.totalAmount,
+      duration = session.durationSeconds }
   end
   local byId = ns.Fn("C_DamageMeter", "GetCombatSessionFromID")
   local picked = pickedBy[w or 1]
   if sessionKey == "id" and picked and byId then
     local data = shaped(ns.Try(byId, picked.id, kind))
-    if data then return data end
+    if data then
+      data.id = picked.id
+      return data
+    end
     return nil, "empty"
   end
   local s = SESSIONS[sessionKey] or SESSIONS.current
@@ -176,7 +180,7 @@ function M.Read(view, sessionKey, w)
     local last = fights[#fights]
     data = last and shaped(ns.Try(byId, last.id, kind))
     if data then
-      data.last = true
+      data.last, data.id = true, last.id
       return data
     end
   end
@@ -284,6 +288,8 @@ local function build(w)
           M.Next(w)
         end
       end,
+      onRowEnter = function(bar) M.Hover(w, bar) end,
+      onRowLeave = function() M.Hover(nil) end,
       onEnter = function(owner)
         local tip = _G.GameTooltip
         if not tip or not tip.SetOwner then return end
@@ -397,11 +403,14 @@ function M.DrawOne(w)
       bar:SetValue(src.totalAmount)
       bar:SetStatusBarColor(BF.ClassRGB(src.classFilename))
       if src.isLocalPlayer == true then bar.mine:Show() else bar.mine:Hide() end
+      bar.src = src
       bar:Show()
     else
+      bar.src = nil
       bar:Hide()
     end
   end
+  f.data, f.view = data, view
 
   local foot
   if why == "absent" or why == "unavailable" then
@@ -412,6 +421,119 @@ function M.DrawOne(w)
   BF.Foot(f, foot)
   BF.Fit(f, #rows, foot)
   f:Show()
+  -- The row under the mouse keeps its detail current.
+  if M.hover and M.hover.w == (w or 1) then M.Tip(M.hover.w, M.hover.bar) end
+end
+
+-- A row's detail, shown while the mouse is over it: what that player used, as the game counted it.
+M.TIP_ROWS = 8
+
+-- The spells behind a row: { spells, max }, or nil and "hidden" (in a fight the game hides who a row
+-- is unless they are in your group, and a hidden id can't be asked about), "absent" or "empty".
+function M.Spells(w, src)
+  local f = M.frames[w or 1]
+  local data, view = f and f.data, f and f.view
+  if not data or not view or type(src) ~= "table" then return nil, "empty" end
+  local guid = src.sourceGUID
+  if ns.IsSecret(guid) then return nil, "hidden" end
+  local creature = src.sourceCreatureID
+  if ns.IsSecret(creature) then creature = nil end
+  local kind = enum("DamageMeterType", view.type, view.value)
+  local result
+  if data.id then
+    local byId = ns.Fn("C_DamageMeter", "GetCombatSessionSourceFromID")
+    if not byId then return nil, "absent" end
+    result = ns.Try(byId, data.id, kind, guid, creature)
+  else
+    local byType = ns.Fn("C_DamageMeter", "GetCombatSessionSourceFromType")
+    if not byType then return nil, "absent" end
+    local s = SESSIONS[M.SessionKey(w)] or SESSIONS.current
+    result = ns.Try(byType, enum("DamageMeterSessionType", s.name, s.value), kind, guid, creature)
+  end
+  local spells = type(result) == "table" and result.combatSpells
+  if type(spells) ~= "table" or ns.IsSecret(spells) then return nil, "empty" end
+  local n = ns.Try(function() return #spells end)
+  if type(n) ~= "number" or n == 0 then return nil, "empty" end
+  local list, plainAll = {}, true
+  for i = 1, n do
+    local sp = spells[i]
+    if type(sp) == "table" then
+      list[#list + 1] = sp
+      if ns.IsSecret(sp.totalAmount) or type(sp.totalAmount) ~= "number" then plainAll = false end
+    end
+  end
+  -- Out of a fight the amounts are plain and the biggest goes first; in one they stay as the game gave them.
+  if plainAll then table.sort(list, function(a, b) return a.totalAmount > b.totalAmount end) end
+  return { spells = list, max = result.maxAmount, plain = plainAll }
+end
+
+-- A spell's name for a label, with the pet or guardian that cast it when the game says so plainly.
+local function spellName(sp)
+  local name = ns.Try(ns.Fn("C_Spell", "GetSpellName"), sp.spellID)
+  if not ns.IsSecret(name) and (type(name) ~= "string" or name == "") then name = L["A spell"] end
+  local by = sp.creatureName
+  if not ns.IsSecret(by) and type(by) == "string" and by ~= "" and not ns.IsSecret(name) then
+    return string.format("%s (%s)", name, by)
+  end
+  return name
+end
+
+function M.Tip(w, bar)
+  local src = bar and bar.src
+  local f = M.frames[w or 1]
+  if not src or not f or not f.view then return M.Hover(nil) end
+  if not M.tip then
+    M.tip = BF.Create({ name = "RynaMeterTip", key = "tip", rows = M.TIP_ROWS, tip = true })
+  end
+  local tip, view = M.tip, f.view
+  tip:ClearAllPoints()
+  tip:SetPoint("TOPLEFT", bar, "TOPRIGHT", 8, 0)
+  tip.title:SetText(src.name)
+  tip.holder:SetText(L[view.label])
+  local found, why = M.Spells(w, src)
+  local shown = 0
+  local r, g, b = BF.ClassRGB(src.classFilename)
+  for i, row in ipairs(tip.rows) do
+    local sp = found and found.spells[i]
+    if sp then
+      row.left:SetText(spellName(sp))
+      row.right:SetText(M.Short(view.rate and sp.amountPerSecond or sp.totalAmount))
+      row:SetMinMaxValues(0, found.max)
+      row:SetValue(sp.totalAmount)
+      row:SetStatusBarColor(r, g, b)
+      row.mine:Hide()
+      row:Show()
+      shown = shown + 1
+    else
+      row:Hide()
+    end
+  end
+  local foot
+  if why == "hidden" then
+    foot = L["The game hides who this is during a fight."]
+  elseif not found then
+    foot = L["Nothing counted for this row."]
+  else
+    local total, all = src.totalAmount, f.data and f.data.total
+    if not ns.IsSecret(total) and not ns.IsSecret(all) and type(total) == "number" and type(all) == "number"
+      and all > 0 then
+      foot = string.format(L["%s%% of everyone's"], string.format("%.2f", total / all * 100))
+    end
+  end
+  BF.Foot(tip, foot)
+  BF.Fit(tip, shown, foot)
+  tip:Show()
+end
+
+-- The row the mouse is over (a window's number and its bar), or none.
+function M.Hover(w, bar)
+  if w and bar and bar.src then
+    M.hover = { w = w, bar = bar }
+    M.Tip(w, bar)
+  else
+    M.hover = nil
+    if M.tip then M.tip:Hide() end
+  end
 end
 
 -- Draws every open window, and puts away any that was closed.
@@ -428,6 +550,7 @@ end
 
 function M.Hide()
   for _, f in pairs(M.frames) do f:Hide() end
+  M.Hover(nil)
 end
 
 -- The driver's read: every time while anyone in the group is fighting or the game said a tally

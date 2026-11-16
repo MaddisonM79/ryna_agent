@@ -13,7 +13,9 @@
 -- newest held fight when the current tally is empty; the pick-list's rows, a view and a past fight
 -- picked from it, and the client's menu opened on a click; a second window with the partner view, its own
 -- rows, view and place, up to four, closed from its list, all hidden by the setting; nothing in chat
--- unasked, no errors; an announcement's channels and lines, none in a fight, a refusal caught.
+-- unasked, no errors; a row's detail on hover (the spells, biggest first out of a fight, the game's order
+-- and secret amounts in one, none for someone the game won't identify, a past fight by its number); an
+-- announcement's channels and lines, none in a fight, a refusal caught.
 -- luacheck: ignore 1
 
 local CORE = "cores/wow/addon/Ryna/"
@@ -43,7 +45,7 @@ SECRET.__sub, SECRET.__mul, SECRET.__div, SECRET.__unm = SECRET.__add, SECRET.__
 local world = { combat = false, secret = false, available = true, sessions = {}, asked = {} }
 local function source(name, class, total, rate, me)
   return { name = name, classFilename = class, totalAmount = total, amountPerSecond = rate,
-    isLocalPlayer = me or false }
+    isLocalPlayer = me or false, sourceGUID = "Player-1-" .. name }
 end
 local function hide(v) return world.secret and secret(v) or v end
 
@@ -80,6 +82,22 @@ _G.CreateAbbreviateConfig = function(data) return { data = data } end
 _G.C_DamageMeter = {
   IsDamageMeterAvailable = function() return world.available, "" end,
   GetAvailableCombatSessions = function() return world.fights or {} end,
+  GetCombatSessionSourceFromType = function(session, kind, guid)
+    world.spellAsk = { "type", session, kind, guid }
+    local sp = world.spells and world.spells[guid]
+    if not sp then return { combatSpells = {}, maxAmount = 0, totalAmount = 0 } end
+    local out = { combatSpells = {}, maxAmount = hide(sp.max), totalAmount = hide(sp.max) }
+    for i, x in ipairs(sp) do
+      out.combatSpells[i] = { spellID = x.id, totalAmount = hide(x.total), amountPerSecond = hide(x.rate),
+        creatureName = x.by or "" }
+    end
+    return out
+  end,
+  GetCombatSessionSourceFromID = function(id, kind, guid)
+    world.spellAsk = { "id", id, kind, guid }
+    return { combatSpells = { { spellID = 1, totalAmount = 50, amountPerSecond = 1.2, creatureName = "" } },
+      maxAmount = 50, totalAmount = 50 }
+  end,
   GetCombatSessionFromID = function(id, kind)
     world.asked[#world.asked + 1] = { "id", id, kind }
     local s = world.sessions["id" .. id .. ":" .. kind]
@@ -92,16 +110,21 @@ _G.C_DamageMeter = {
     world.asked[#world.asked + 1] = { session, kind }
     local s = world.sessions[session .. ":" .. kind]
     if not s then return { combatSources = {}, maxAmount = 0, totalAmount = 0 } end
-    local out = { combatSources = {}, maxAmount = hide(s.max), totalAmount = hide(s.max),
+    local sum = 0
+    for _, src in ipairs(s) do sum = sum + src.totalAmount end
+    local out = { combatSources = {}, maxAmount = hide(s.max), totalAmount = hide(sum),
       durationSeconds = hide(s.duration) }
     for i, src in ipairs(s) do
       out.combatSources[i] = { name = hide(src.name), classFilename = src.classFilename,
         totalAmount = hide(src.totalAmount), amountPerSecond = hide(src.amountPerSecond),
-        isLocalPlayer = src.isLocalPlayer }
+        isLocalPlayer = src.isLocalPlayer,
+        sourceGUID = world.strangers and secret(src.sourceGUID) or src.sourceGUID }
     end
     return out
   end,
 }
+local SPELL_NAMES = { "Smite", "Frostbolt", "Fire Blast", "Bite" }
+_G.C_Spell = { GetSpellName = function(id) return SPELL_NAMES[id] end }
 _G.C_AddOns = { GetAddOnMetadata = function() return "0.0.0" end }
 _G.RAID_CLASS_COLORS.MAGE = { r = 0.25, g = 0.78, b = 0.92 }
 _G.RAID_CLASS_COLORS.PRIEST = { r = 1, g = 1, b = 1 }
@@ -389,6 +412,65 @@ check(f:IsShown() and M.frames[2]:IsShown(), "and on brings back the ones that w
 M.Close(2)
 M.Pick("damage")
 world.sessions["1:1"] = world.sessions["1:0"]
+
+-- Hovering a row: what that player used ---------------------------------------------------------------
+
+world.sessions["1:1"] = { max = 1200, duration = 65,
+  source("Ilse", "MAGE", 1200, 18.5), source("Brom", "WARRIOR", 800, 12.3), source("Dela", "PRIEST", 90, 1.4, true) }
+world.spells = { ["Player-1-Ilse"] = { max = 700, { id = 3, total = 300, rate = 4.6 },
+  { id = 2, total = 700, rate = 10.8 }, { id = 4, total = 200, rate = 3.1, by = "Wolf" } } }
+M.Pick("dps")
+local row1 = f.rows[1]
+check(row1._scripts.OnEnter ~= nil and row1._scripts.OnDragStop ~= nil,
+  "a row answers the mouse and still drags the window")
+row1._scripts.OnEnter(row1)
+local tip = M.tip
+check(tip ~= nil and tip:IsShown(), "hovering a row shows its detail")
+eq(tip.title._text, "Ilse", "under the player's name")
+eq(tip.holder._text, "DPS", "and the view")
+check(world.spellAsk[1] == "type" and world.spellAsk[2] == 1 and world.spellAsk[3] == 1
+  and world.spellAsk[4] == "Player-1-Ilse", "the game was asked for that player's spells in this view and tally")
+eq(tip.rows[1].left._text, "Frostbolt", "out of a fight the biggest spell is first")
+eq(tip.rows[1].right._text, "10.80", "with its amount, as the view counts it")
+eq(tip.rows[1]._max, 700, "its bar against the biggest")
+eq(tip.rows[2].left._text, "Fire Blast", "then the next")
+eq(tip.rows[3].left._text, "Bite (Wolf)", "a pet's spell names the pet")
+check(not tip.rows[4]:IsShown(), "and no more rows than spells")
+eq(tip.foot._text, "57.42% of everyone's", "the row's share of the whole tally")
+check(tip._points[1][2] == row1 and tip._points[1][3] == "TOPRIGHT", "it sits beside the row")
+row1._scripts.OnLeave(row1)
+check(not tip:IsShown() and M.hover == nil, "leaving the row puts it away")
+-- In a fight: amounts stay secret and in the game's order
+row1._scripts.OnEnter(row1)
+world.combat, world.secret = true, true
+M.Tick()
+eq(core.errors.count, 0, "no error from the detail in a fight: " .. tostring(core.errors.last))
+eq(tip.rows[1].left._text, "Fire Blast", "in a fight the spells keep the game's order: nothing is compared")
+check(_G.issecretvalue(tip.rows[1]._value) and _G.issecretvalue(tip.rows[1].right._text),
+  "and their amounts stay secret")
+check(not tip.foot:IsShown(), "with no share worked out")
+world.strangers = true
+M.Tick()
+check(not tip.rows[1]:IsShown(), "someone the game won't identify: no spells asked for")
+eq(tip.foot._text, "The game hides who this is during a fight.", "and it says why")
+world.combat, world.secret, world.strangers = false, false, nil
+M.dirty = true
+M.Tick()
+eq(tip.rows[1].left._text, "Frostbolt", "the detail follows the window when the fight ends")
+f.rows[2]._scripts.OnEnter(f.rows[2])
+eq(tip.title._text, "Brom", "another row, another player")
+eq(tip.foot._text, "Nothing counted for this row.", "one with no spells says so")
+M.Hover(nil)
+-- A past fight asks by its number
+world.fights = { { sessionID = 9, name = "Old Fight", durationSeconds = 30 } }
+world.sessions["id9:1"] = { max = 50, duration = 30, source("Dela", "PRIEST", 50, 1.2, true) }
+M.Choose("id", 9, "Old Fight")
+f.rows[1]._scripts.OnEnter(f.rows[1])
+check(world.spellAsk[1] == "id" and world.spellAsk[2] == 9, "a past fight's detail is asked for by that fight's number")
+eq(tip.rows[1].left._text, "Smite", "and shown")
+M.Hover(nil)
+M.Choose("current")
+world.fights, world.spells = nil, nil
 
 -- Announce --------------------------------------------------------------------------------------------
 

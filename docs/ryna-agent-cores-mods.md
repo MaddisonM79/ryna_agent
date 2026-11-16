@@ -1051,6 +1051,13 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
 - **In a fight** every amount, name and length is a secret value and goes from the game to its
   widget untouched; nothing is compared, added or kept. After the fight the same read is plain.
+- **A row's detail** ("can I get a hover over a row for context... DPS shows what was used", the same
+  evening): the mouse over a row opens a small frame beside it with that player's spells in the view
+  shown (`GetCombatSessionSourceFromType` / `FromID`), up to eight, each a bar against the biggest,
+  and the row's share of the whole tally. Out of a fight the biggest spell is first; in one the
+  spells keep the game's order and their amounts stay secret, drawn and not compared. It is a bar
+  frame, not the game's tooltip, because a label and a bar take a secret. Someone the game won't
+  identify in a fight (a hidden id can't be asked about) gets a line saying so.
 - **Announce** ("what about an announce button for party or chat", the same evening): the pick-list
   has "Announce to" with Party, Raid, Guild and Say (those that apply). A pick says that window's
   view and tally and its top five rows in that channel (`C_ChatInfo.SendChatMessage`). Only on that

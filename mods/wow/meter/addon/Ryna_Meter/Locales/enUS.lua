@@ -66,6 +66,12 @@ L["From"] = true
 L["This fight (or the last one)"] = true
 L["Overall"] = true
 L["Fight %d"] = true
+-- A row's detail, shown while the mouse is over it: a spell the game couldn't name, the lines under the
+-- spells, and the row's share of the whole tally. %s: a percentage to two decimals ("32.10").
+L["A spell"] = true
+L["The game hides who this is during a fight."] = true
+L["Nothing counted for this row."] = true
+L["%s%% of everyone's"] = true
 -- Announcing a window's rows in chat, from the pick-list: the heading and the channels.
 L["Announce to"] = true
 L["Party"] = true
