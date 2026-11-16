@@ -73,6 +73,7 @@ local pickedBy = {}
 
 -- The key a window's state is kept under in RynaDB.meter: "bars", "bars2", ...
 local function keyOf(w)
+  if w == "threat" then return "threatBar" end
   return (w or 1) == 1 and "bars" or ("bars" .. w)
 end
 
@@ -312,14 +313,15 @@ function M.Before(w)
   return nil
 end
 
--- Locking: a window can be held under or beside any other open meter window, or the threat bar. What
--- it is locked to is kept as that window's number, or "threat".
+-- Locking: a window can be held under or beside any other one on screen. The windows are the meter's
+-- (their numbers) and the threat bar ("threat"), which locks like any of them; what one is locked to
+-- is kept as that number or "threat".
 local function frameOf(id)
   if id == "threat" then
     local bar = ns.ThreatBar
     return bar and bar.On() and bar.frame or nil
   end
-  if type(id) == "number" and M.IsOpen(id) then return M.frames[id] end
+  if type(id) == "number" and M.On() and M.IsOpen(id) then return M.frames[id] end
   return nil
 end
 
@@ -328,13 +330,14 @@ local function keptTarget(w)
   local k = kept(w)
   if k.lock ~= "below" and k.lock ~= "beside" then return nil end
   if k.lockTo == "threat" or type(k.lockTo) == "number" then return k.lockTo end
+  if w == "threat" then return nil end
   return M.Before(w)
 end
 
 -- Whether locking `w` to `id` would close a ring (a window locked, through others, to itself).
 local function rings(w, id)
   local seen = 0
-  while type(id) == "number" and seen <= M.MAX_WINDOWS do
+  while id ~= nil and seen <= M.MAX_WINDOWS + 1 do
     if id == w then return true end
     id = keptTarget(id)
     seen = seen + 1
@@ -355,17 +358,16 @@ end
 local function head(w)
   local id = w
   for _ = 1, M.MAX_WINDOWS + 1 do
-    if type(id) ~= "number" then break end
     local _, to = M.Lock(id)
     if not to then break end
     id = to
   end
-  return frameOf(id) or M.frames[w]
+  return frameOf(id) or frameOf(w)
 end
 
 -- Puts a window where its lock says: under or beside its target, moving with it and following its
 -- height. A window just unlocked stays where it was drawn.
-local function position(w, f)
+function M.Position(w, f)
   local how, to = M.Lock(w)
   local anchor = how and frameOf(to)
   f.mover = anchor and function() return head(w) end or nil
@@ -401,7 +403,8 @@ function M.SetLock(w, how, to)
     M.Draw()
     return true
   end
-  to = to or M.Before(w)
+  if w ~= "threat" and type(w) ~= "number" then return false end
+  if to == nil and w ~= "threat" then to = M.Before(w) end
   if to == nil or to == w or rings(w, to) or not frameOf(to) then return false end
   k.lock, k.lockTo = how, to
   M.Draw()
@@ -427,10 +430,54 @@ function M.Targets(w)
   w = w or 1
   local out = {}
   for i = 1, M.MAX_WINDOWS do
-    if i ~= w and M.IsOpen(i) and M.frames[i] and not rings(w, i) then out[#out + 1] = i end
+    if i ~= w and frameOf(i) and not rings(w, i) then out[#out + 1] = i end
   end
-  if frameOf("threat") then out[#out + 1] = "threat" end
+  if w ~= "threat" and frameOf("threat") and not rings(w, "threat") then out[#out + 1] = "threat" end
   return out
+end
+
+-- The locking rows of a window's list (the meter's windows and the threat bar share them): free from
+-- what it is locked to, or under or beside anything else on screen, by name.
+function M.LockRows(w)
+  local rows = {}
+  local how, to = M.Lock(w)
+  if how then
+    rows[#rows + 1] = { text = string.format(L["Unlock from %s"], M.Name(to)), button = true,
+      pick = function() M.SetLock(w, nil) end }
+    return rows
+  end
+  local targets = M.Targets(w)
+  if #targets > 0 then rows[#rows + 1] = { title = L["Lock this window"] } end
+  for _, id in ipairs(targets) do
+    local name = M.Name(id)
+    rows[#rows + 1] = { text = string.format(L["Under %s"], name), button = true,
+      pick = function() M.SetLock(w, "below", id) end }
+    rows[#rows + 1] = { text = string.format(L["Beside %s"], name), button = true,
+      pick = function() M.SetLock(w, "beside", id) end }
+  end
+  return rows
+end
+
+-- Opens a list of rows ({ title }, { divider }, { text, button, pick } or { text, chosen, pick }) at
+-- `owner` with the client's own menu; `list` gives the rows. Returns false on a client without it.
+function M.OpenRows(owner, list)
+  local open = ns.Fn("MenuUtil", "CreateContextMenu")
+  if not open then return false end
+  return (pcall(open, owner, function(_, root)
+    for _, row in ipairs(list()) do
+      if row.title then
+        root:CreateTitle(row.title)
+      elseif row.divider then
+        root:CreateDivider()
+      elseif row.button then
+        root:CreateButton(row.text, function() ns.Run("meter window", row.pick) end)
+      else
+        root:CreateRadio(row.text, function() return row.chosen end, function()
+          ns.Run("meter pick", row.pick)
+        end)
+      end
+    end
+  end))
 end
 
 -- Which tally a window is showing, in words, with the fight's length when the game says it plainly:
@@ -453,7 +500,7 @@ end
 -- Draws one window.
 function M.DrawOne(w)
   local f = build(w)
-  position(w or 1, f)
+  M.Position(w or 1, f)
   local view = M.View(w)
   local sessionKey = M.SessionKey(w)
   f.title:SetText(L[view.label])
@@ -615,6 +662,9 @@ function M.Draw()
       M.frames[w]:Hide()
     end
   end
+  -- The threat bar may hang from one of these windows, or have just been freed from one.
+  local bar = ns.ThreatBar
+  if bar and bar.frame then M.Position("threat", bar.frame) end
   M.dirty = false
 end
 
@@ -800,50 +850,16 @@ function M.MenuRows(w)
   if w > 1 then
     rows[#rows + 1] = { text = L["Close this window"], button = true, pick = function() M.Close(w) end }
   end
-  -- Locking: free from what it is locked to, or under or beside anything else on screen, by name.
-  local how, to = M.Lock(w)
-  if how then
-    rows[#rows + 1] = { divider = true }
-    rows[#rows + 1] = { text = string.format(L["Unlock from %s"], M.Name(to)), button = true,
-      pick = function() M.SetLock(w, nil) end }
-  else
-    local targets = M.Targets(w)
-    if #targets > 0 then
-      rows[#rows + 1] = { divider = true }
-      rows[#rows + 1] = { title = L["Lock this window"] }
-    end
-    for _, id in ipairs(targets) do
-      local name = M.Name(id)
-      rows[#rows + 1] = { text = string.format(L["Under %s"], name), button = true,
-        pick = function() M.SetLock(w, "below", id) end }
-      rows[#rows + 1] = { text = string.format(L["Beside %s"], name), button = true,
-        pick = function() M.SetLock(w, "beside", id) end }
-    end
-  end
+  local lock = M.LockRows(w)
+  if #lock > 0 then rows[#rows + 1] = { divider = true } end
+  for _, row in ipairs(lock) do rows[#rows + 1] = row end
   return rows
 end
 
 -- Opens the pick-list at `owner` with the client's own menu. Returns false on a client without it
 -- (the click then goes to the next view).
 function M.Menu(owner, w)
-  local open = ns.Fn("MenuUtil", "CreateContextMenu")
-  if not open then return false end
-  local ok = pcall(open, owner, function(_, root)
-    for _, row in ipairs(M.MenuRows(w)) do
-      if row.title then
-        root:CreateTitle(row.title)
-      elseif row.divider then
-        root:CreateDivider()
-      elseif row.button then
-        root:CreateButton(row.text, function() ns.Run("meter window", row.pick) end)
-      else
-        root:CreateRadio(row.text, function() return row.chosen end, function()
-          ns.Run("meter pick", row.pick)
-        end)
-      end
-    end
-  end)
-  return ok
+  return M.OpenRows(owner, function() return M.MenuRows(w) end)
 end
 
 function M.ResetPlace()

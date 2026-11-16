@@ -151,7 +151,8 @@ is the whole of it).
   friend is highest on, never `targettarget` (secret there); where the client hides the numbers the
   bar is still filled and the words come from the threat state; between fights it stays on screen,
   empty, unless `meterThreatStay` is off. Settings `meterBars`, `meterThreat` and `meterThreatStay`
-  on a Meter tab; `/ryna meter` turns the meter on or off and `/ryna meter threat`
+  on a Meter tab; a click on the threat bar's first line locks it under or beside a meter window;
+  `/ryna meter` turns the meter on or off and `/ryna meter threat`
   shows the threat bar with an example to place it; the places and the meter's view are kept in
   `RynaDB.meter`. It sends nothing and prints nothing unasked. `test/bars_test.lua` and
   `test/threat_test.lua` run both against a fake client whose secrets raise when compared.

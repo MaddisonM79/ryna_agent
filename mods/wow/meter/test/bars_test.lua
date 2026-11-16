@@ -415,6 +415,37 @@ check(M.Lock(1) == nil and f._points[1][2] == _G.UIParent, "the threat bar turne
 _G.Ryna.Settings.Set("meterThreat", true)
 M.SetLock(1, nil)
 M.SetLock(2, nil)
+-- The threat bar locks to a meter window too, from its own list
+local B = mod.ThreatBar
+local function threatButtons()
+  local out = {}
+  for _, r in ipairs(B.MenuRows()) do out[#out + 1] = r.title and ("[" .. r.title .. "]") or r.text end
+  return table.concat(out, "|")
+end
+B.Tick()
+eq(threatButtons(), "[Lock this window]|Under DPS|Beside DPS|Under Healing|Beside Healing",
+  "the threat bar's list names the meter windows")
+check(tf.head ~= nil and tf.head._scripts.OnClick ~= nil, "its first line answers a click")
+B.MenuRows()[2].pick()
+check(tf._points[1][2] == f and tf._points[1][3] == "BOTTOMLEFT", "the threat bar under the DPS window")
+eq(_G.RynaDB.meter.threatBar.lock, "below", "its lock is kept with its place")
+eq(_G.RynaDB.meter.threatBar.lockTo, 1, "and what to")
+check(tf.mover() == f, "dragging the threat bar moves the window it hangs from")
+eq(threatButtons(), "Unlock from DPS", "locked, its list frees it by name")
+check(not buttons(1):find("Threat", 1, true), "the window it hangs from can't lock back to it")
+check(buttons(2):find("Under Threat", 1, true) ~= nil, "another window still can, making a chain")
+B.Tick()
+check(tf._points[1][2] == f, "it stays put through its own redraw")
+_G.Ryna.Settings.Set("meterBars", false)
+M.Tick()
+B.Tick()
+check(tf._points[1][2] == _G.UIParent, "the meter turned off: the threat bar is free again")
+eq(threatButtons(), "[Open the meter to lock this to it.]", "and its list says what to do")
+_G.Ryna.Settings.Set("meterBars", true)
+M.dirty = true
+M.Tick()
+B.MenuRows()[1].pick()
+check(_G.RynaDB.meter.threatBar.lock == nil and tf.mover == nil, "unlocked: on its own")
 -- Two windows showing the same thing are told apart by number
 M.Pick("healing", 1)
 check(buttons(1):find("Under Healing (2)", 1, true) ~= nil, "the same view twice: named with its number")

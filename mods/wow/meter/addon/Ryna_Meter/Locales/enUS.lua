@@ -111,6 +111,9 @@ L["The game hides the numbers here."] = true
 -- Under the rows: the player's highest threat on another enemy. %s: that enemy; %d: percent.
 L["Your highest: %s, %d%%"] = true
 L["Your highest elsewhere: %d%%"] = true
+-- The hint on the bar's first line, and its list when there is no meter window to lock to.
+L["Click: lock this to another window. Drag to move."] = true
+L["Open the meter to lock this to it."] = true
 -- The bar between fights, when it is set to stay: its name, and the line under it.
 L["Threat"] = true
 L["Nobody is fighting."] = true

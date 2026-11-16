@@ -1049,7 +1049,9 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   two show the same; "instead of lock to window above or below, can we just reference the window,
   threat, dps or whatever is open on screen?"): any other open meter window, and the threat bar when
   it is on screen. A lock that would close a ring isn't offered; one whose target is closed or turned
-  off leaves the window free where it stands.
+  off leaves the window free where it stands. The threat bar locks the same way ("let the threat bar
+  lock to other windows too"): a click on its first line opens the same list, and its lock is kept
+  with its place (`RynaDB.meter.threatBar`).
 - **Seen working in game** (Maddison, 2026-11-15, The Deadmines: "it all works"): the meter and its
   windows, two decimals during a fight, Announce to party from inside the dungeon, and the hover's
   spells for other group members as well as her own. So `C_DamageMeter`, the two-decimal rule given

@@ -34,9 +34,25 @@ end
 
 local function build()
   if not B.frame then
-    B.frame = BF.Create({ name = "RynaThreatBar", key = "threatBar", rows = T.MAX_ROWS, x = 280, y = -60 })
+    B.frame = BF.Create({
+      name = "RynaThreatBar", key = "threatBar", rows = T.MAX_ROWS, x = 280, y = -60,
+      -- A click on its first line: the list that locks it to a meter window, or frees it.
+      onClick = function() B.Menu() end,
+      onEnter = function(owner)
+        local tip = _G.GameTooltip
+        if not tip or not tip.SetOwner then return end
+        tip:SetOwner(owner, "ANCHOR_TOP")
+        tip:AddLine(L["Click: lock this to another window. Drag to move."], 1, 1, 1, true)
+        tip:Show()
+      end,
+    })
   end
   return B.frame
+end
+
+-- Where the frame goes: under or beside the meter window it is locked to (Bars.lua keeps every lock).
+local function settle(f)
+  if ns.Bars then ns.Bars.Position("threat", f) end
 end
 
 -- What a row says on the right: "has it", a percentage, or (numbers hidden) "close" or nothing.
@@ -101,12 +117,25 @@ function B.Draw(snap)
   end
   BF.Foot(f, foot)
   BF.Edge(f, snap.warn)
+  settle(f)
   BF.Fit(f, #snap.rows, foot)
   f:Show()
 end
 
 function B.Hide()
   if B.frame then B.frame:Hide() end
+end
+
+-- The threat bar's own list: lock it to a meter window on screen, or free it.
+function B.MenuRows()
+  local rows = ns.Bars and ns.Bars.LockRows("threat") or {}
+  if #rows == 0 then rows[1] = { title = L["Open the meter to lock this to it."] } end
+  return rows
+end
+
+function B.Menu()
+  if not (ns.Bars and B.frame and B.frame.head) then return false end
+  return ns.Bars.OpenRows(B.frame.head, B.MenuRows)
 end
 
 -- The frame with nothing to show: its name and one line, so it keeps its place on screen between fights.
@@ -117,6 +146,7 @@ function B.DrawIdle()
   for _, bar in ipairs(f.rows) do bar:Hide() end
   BF.Foot(f, L["Nobody is fighting."])
   BF.Edge(f, false)
+  settle(f)
   BF.Fit(f, 0, true)
   f:Show()
 end
