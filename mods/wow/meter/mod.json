@@ -2,7 +2,7 @@
   "id": "meter",
   "core": "wow",
   "name": "Meter",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "summary": "What is happening in a fight, live, read from the game itself: a meter of the game's own tallies (damage, DPS, healing, HPS, damage taken, absorbs, interrupts, dispels) for this fight or overall, and a threat bar while your group is fighting that shows how close each member is to pulling the enemy you have targeted. It needs nothing from the Ryna app, keeps nothing but where you put its frames, and sends nothing to Ryna. Nothing in chat unless you pick Announce from the meter's list, which says that window's top rows to your party, raid, guild or say; nothing else is done for you.",
   "kind": "addon",
   "actsInGame": false,
