@@ -172,6 +172,24 @@ L["Unknown character"] = true
 L["Nothing matches."] = true
 L["Nothing recorded yet."] = true
 
+-- News.lua: what's new, once after an update. %s: the version ("0.5.0").
+L["What's new in Ryna %s"] = true
+-- The button that closes it, and the line beside it.
+L["Got it"] = true
+L["/ryna news shows this again"] = true
+-- A group's heading: a mod's name (%s: "Meter"), or the core's own changes.
+L["%s by Ryna"] = true
+L["Everywhere"] = true
+-- Beside a mod's heading: it is new in this version; and when it isn't turned on yet.
+L["new"] = true
+L["new mod: turn it on in the Ryna app"] = true
+-- /ryna's help line for the command, and its answer when the version has no note.
+L["/ryna news: what's new in this version"] = true
+L["There is no note for this version."] = true
+-- Panel.lua, Advanced: the checkbox for it and its help.
+L["Show what's new after an update"] = true
+L["Once after each update, a small window at login says what changed. Off, /ryna news still shows it."] = true
+
 -- Notice.lua
 -- The notice at login when this version is no longer supported, and its button.
 L["Ryna needs updating"] = true

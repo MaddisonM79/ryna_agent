@@ -28,6 +28,10 @@ The core's addon and its mods' addons are installed side by side by the companio
   bar while the group is fighting, each a small frame of its own, with a Meter tab and `/ryna meter`
   (`mods/wow/README.md`).
 
+After an update the core says what's new, once: a small frame at the first login on the new version
+(`News.lua`; the note is `WhatsNew.lua`, made from `whats-new.json`), with a switch under Advanced and
+`/ryna news` to see it again.
+
 Together they have a small settings panel (in tabs), one window for what they record (below, "Ryna's
 window") and a minimap button. Nothing is printed to chat
 unless you ask: the login line and the combat-logging notices are a setting under Advanced, off by

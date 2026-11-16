@@ -1523,6 +1523,40 @@ is the manifest, the setting and one row, with no change to the judgment.
   everyone's census and prices is paused until you update."; unsupported, "This version of Ryna is no
   longer supported, so nothing syncs to ryna.io. Update to carry on."
 
+### 9.2 What's new (asked and mocked up 2026-11-15, artifact "Ryna What's New"; built the same day)
+
+Maddison: "we also need a 'what's new' release too, should show a popup in game and for the app too."
+A release says what changed, once, in plain words, in both places.
+
+- **One source.** `whats-new.json` at the repository root: a list of notes, newest first, each
+  `{ version, headline, items: [{ where, text, new? }] }`. `where` is whose change it is (`core`, a
+  WoW mod's id, `app`, or another core's id); `new` marks the item that introduces a mod. A note is
+  written by hand for a player (GitHub's generated notes are commit subjects, written for us), and
+  drafted by whoever does the work as it merges, under the version `"next"`. `scripts/whats-new.mjs`
+  makes the two copies: `cores/wow/addon/Ryna/WhatsNew.lua` (what the game shows) and
+  `agent/app/src/whatsNewData.ts` (everything). CI checks the copies are current
+  (`scripts/whats-new.test.mjs`); the release workflow refuses a tag with no note for its version,
+  or with one still marked `"next"`.
+- **In the game** (`News.lua`, in the core): at the first login on a version that has a note, a
+  small frame (the unsupported notice's style) with the headline and, grouped, the changes to the
+  mods that are on, any mod the note introduces that isn't on ("new mod: turn it on in the Ryna
+  app"), and the core's own under "Everywhere". Changes to a mod that is off and not new are left
+  out. "Got it" or Escape closes it and marks the version seen (`RynaDB.newsSeen`). It waits out a
+  fight, never shows on a new install (nothing saved: nothing is new), is never chat, and stands
+  aside for the unsupported notice. `newsPopup` (on; Advanced) turns it off; `/ryna news` shows this
+  version's note, or the newest, whenever asked.
+- **In the app** (`whatsNew.ts`, `WhatsNewDialog.vue`): the same note in a dialog the first time the
+  app opens on that version, with the app's own changes and, for someone who has them, the other
+  cores'. "Got it" marks it seen (`ryna.newsSeen` in the window's store). A first launch ever shows
+  nothing. About has "What's new" beside the app's version, which reopens it.
+- **On the rule that Ryna is silent** (her answer when I raised it: "gotta be smart yo, rules aren't
+  absolute always"): the rule is against chat nobody asked for. A note once per release, with a
+  switch, is what people expect of an update.
+- **Not built**: a button in the app's dialog that turns a new mod on; the release's headline in the
+  app's update banner before updating (it needs the note published with the release); earlier
+  releases listed in About; translated notes (the frame's own words are translated, the note is
+  English).
+
 ## 10. Security
 
 - Sources are allow-listed in the agent (today: this repository and ryna.io, the same list the About
