@@ -6,7 +6,7 @@ local _, ns = ...
 
 ns.NEWS = {
   {
-    version = "next",
+    version = "0.4.4",
     headline = "Ryna's menu, from the minimap button.",
     items = {
       { where = "core", text = "Click the minimap button for a menu: every section of Ryna's window, what's new, and Settings." },

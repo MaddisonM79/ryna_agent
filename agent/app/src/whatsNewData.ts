@@ -15,7 +15,7 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
-    "version": "next",
+    "version": "0.4.4",
     "headline": "Ryna's menu, from the minimap button.",
     "items": [
       {
