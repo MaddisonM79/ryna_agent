@@ -188,7 +188,12 @@ names match the JSON the agent uploads one for one.
 
 ## The panel
 
-`/ryna`, or a click on the minimap button, opens **Settings → AddOns → Ryna** (on older clients,
+A click on the minimap button opens Ryna's menu: every section of Ryna's window, what the mods that
+are on add (Meter: the meter and the threat bar as tick boxes, and another meter window), What's new,
+and Settings last. A mod adds an entry with `Ryna.Minimap.Add{ label, order, run, checked }`. On a
+client without the game's own menus the click opens Settings, as it did before 0.4.4.
+
+`/ryna`, or Settings in that menu, opens **Settings → AddOns → Ryna** (on older clients,
 Interface Options → AddOns → Ryna). Under its title is a row of tabs (Status, Recording, Census,
 Automation, Prices, Meter, Messages, Mods, Advanced; Recording and Census are Chronicle's, Automation is
 Automation's, Prices is Prices' and Meter is Meter's, and each goes when its mod is off); a click on one shows that

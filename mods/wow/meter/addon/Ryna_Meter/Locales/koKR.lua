@@ -32,6 +32,10 @@ L["The meter is off."] = nil
 L["The threat bar is off: turn it on in /ryna, under Meter."] = nil
 L["The threat bar is showing an example: drag it where you want it, then type /ryna meter threat again."] = nil
 
+-- The minimap button's menu.
+L["Threat bar"] = nil
+L["Another meter window"] = nil
+
 -- Tab.lua: the Meter tab of /ryna.
 L["Meter"] = nil
 L["Meter shows a fight as it happens: a meter of what the game itself counts, and a threat bar while your "

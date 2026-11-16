@@ -15,6 +15,20 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "next",
+    "headline": "Ryna's menu, from the minimap button.",
+    "items": [
+      {
+        "where": "core",
+        "text": "Click the minimap button for a menu: every section of Ryna's window, what's new, and Settings."
+      },
+      {
+        "where": "meter",
+        "text": "The minimap menu turns the meter and the threat bar on and off, and opens another meter window."
+      }
+    ]
+  },
+  {
     "version": "0.4.3",
     "headline": "Live meters and a threat bar, read from the game itself.",
     "items": [

@@ -599,6 +599,27 @@ check(not f:IsShown(), "it stays away while off")
 _G.SlashCmdList.RYNA("meter")
 check(f:IsShown(), "and on again")
 
+-- The minimap button's menu -----------------------------------------------------------------------
+
+local items = {}
+for _, it in ipairs(core.Minimap.items) do items[#items + 1] = it.label end
+eq(table.concat(items, "|"), "Meter|Threat bar|Another meter window", "Meter adds itself to the minimap button's menu")
+local meterItem, threatItem, anotherItem = core.Minimap.items[1], core.Minimap.items[2], core.Minimap.items[3]
+eq(meterItem.checked(), true, "the meter's tick box is on while it is")
+meterItem.run()
+check(meterItem.checked() == false and not f:IsShown(), "unticking it puts the meter away")
+anotherItem.run()
+eq(M.IsOpen(2), false, "with the meter off, no other window is opened")
+meterItem.run()
+check(f:IsShown(), "ticking it brings the meter back")
+local before = threatItem.checked()
+threatItem.run()
+eq(threatItem.checked(), not before, "the threat bar's tick box turns it on and off")
+threatItem.run()
+anotherItem.run()
+eq(M.IsOpen(2), true, "and another window opens from the menu")
+M.Close(2)
+
 eq(core.errors.count, 0, "no errors caught: " .. tostring(core.errors.last))
 print(string.format("bars: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)
