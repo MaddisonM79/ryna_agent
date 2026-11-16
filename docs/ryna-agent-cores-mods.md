@@ -1021,6 +1021,10 @@ secret. So the Meter mod draws them live (`Threat.lua`, `ThreatBar.lua`):
   readings keep "was attacking".
 - **Unseen in game** as of the build: the checklist is in its pull request.
 
+**Both frames grow downwards** ("windows should grow down", the same evening): each is held by its top
+left corner (`Frame.lua`, `F.Pin`), at its default place and again after every drag, since the client
+leaves a dragged frame on whichever corner was nearest and a frame held by a bottom corner grows up.
+
 **The meter (asked 2026-11-15, "build dps/hps/etc too"; built the same day, in the threat bar's frame, with no mockup of its own).**
 The live half of Fights "in the manner of Details". `Bars.lua` draws the game's own tallies
 (`C_DamageMeter.GetCombatSessionFromType`) in a second small frame beside the threat bar's

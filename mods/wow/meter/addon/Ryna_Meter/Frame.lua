@@ -10,6 +10,7 @@
 --                                                         makes a frame that floats over the rest
 --                                                         and takes no mouse (a row's detail)
 --   F.Place(f), F.Forget(f)    put it where it was left (or at its default); forget that and put it back
+--   F.Pin(f)                   hold it by its top left corner where it stands, so it grows downwards
 --   f.mover                    set by the owner: a function naming the frame a drag of this one moves
 --   F.Edge(f, warn)            the edge in its usual colour, or the warning one
 --   F.Fit(f, rows, foot)       its height for that many rows, with or without the line under them
@@ -47,6 +48,18 @@ local function colour(tex, c, a)
   tex:SetColorTexture(c[1], c[2], c[3], a or 1)
 end
 
+-- Pins a frame by its top left corner, where it stands, so that more rows make it grow downwards: a
+-- frame held by its centre grows both ways, and one the client re-anchored to a bottom corner after a
+-- drag grows upwards. Returns the corner (from the screen's bottom left), or nil on a client that
+-- can't say where the frame is, which leaves it as it was.
+function F.Pin(f)
+  local left, top = ns.Try(f.GetLeft, f), ns.Try(f.GetTop, f)
+  if type(left) ~= "number" or type(top) ~= "number" then return nil end
+  f:ClearAllPoints()
+  f:SetPoint("TOPLEFT", _G.UIParent, "BOTTOMLEFT", left, top)
+  return left, top
+end
+
 function F.Place(f)
   local saved = F.Saved()
   local at = saved and saved[f.key]
@@ -56,6 +69,7 @@ function F.Place(f)
   else
     f:SetPoint("CENTER", _G.UIParent, "CENTER", f.defaultX, f.defaultY)
   end
+  f.pinned = F.Pin(f) ~= nil
 end
 
 -- Forgets where it was dragged, keeping whatever else is kept under the key.
@@ -94,6 +108,7 @@ end
 function F.Create(spec)
   local f = CreateFrame("Frame", spec.name, _G.UIParent)
   f.key, f.defaultX, f.defaultY = spec.key, spec.x or 0, spec.y or 0
+  f.floats = spec.tip and true or false
   f:SetSize(F.WIDTH, F.HEAD + F.ROW + 2 * F.PAD)
   f:SetFrameStrata(spec.tip and "TOOLTIP" or "MEDIUM")
   f:SetClampedToScreen(true)
@@ -112,6 +127,8 @@ function F.Create(spec)
     moving = nil
     m:StopMovingOrSizing()
     ns.Run(spec.key .. " place", function()
+      -- The client leaves a dragged frame on whichever corner was nearest: back to its top left.
+      F.Pin(m)
       local point, _, rel, x, y = m:GetPoint(1)
       local saved = F.Saved()
       if not saved or type(point) ~= "string" then return end
@@ -210,6 +227,9 @@ function F.Foot(f, text)
 end
 
 function F.Fit(f, rows, foot)
+  -- A frame the client couldn't place yet when it was made (no size, no corner) is pinned on its first
+  -- fit instead; one locked to another frame, or floating beside a row, is held by that already.
+  if not f.pinned and not f.locked and not f.floats then f.pinned = F.Pin(f) ~= nil end
   f:SetHeight(F.HEAD + rows * F.ROW + 2 * F.PAD + (foot and 14 or 0))
 end
 

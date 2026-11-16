@@ -270,6 +270,23 @@ B.ResetPlace()
 eq(_G.RynaDB.meter.threatBar.point, nil, "Defaults forgets the place")
 eq((f:GetPoint(1)), "CENTER", "and puts it back")
 
+-- Growing downwards: held by its top left corner -----------------------------------------------------
+
+-- A client that can say where a frame is (the fake can't, unless told): after a drag the client has
+-- re-anchored it to a bottom corner, which would make more rows grow it upwards.
+f.GetLeft, f.GetTop = function() return 120 end, function() return 640 end
+f:ClearAllPoints()
+f:SetPoint("BOTTOMLEFT", _G.UIParent, "BOTTOMLEFT", 120, 580)
+f._scripts.OnDragStop(f)
+local pin = _G.RynaDB.meter.threatBar
+check(pin.point == "TOPLEFT" and pin.rel == "BOTTOMLEFT" and pin.x == 120 and pin.y == 640,
+  "after a drag it is kept by its top left corner")
+check(f._points[1][1] == "TOPLEFT" and #f._points == 1, "and held there, so it grows downwards")
+B.ResetPlace()
+check(f._points[1][1] == "TOPLEFT" and f._points[1][3] == "BOTTOMLEFT", "its default place is pinned by the top too")
+f.GetLeft, f.GetTop = nil, nil
+B.ResetPlace()
+
 -- /ryna meter threat -------------------------------------------------------------------------------
 
 check(#F.chat == 0, "nothing in chat unasked: " .. table.concat(F.chat, " / "))
