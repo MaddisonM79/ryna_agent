@@ -51,7 +51,8 @@ when tests ran on it instead of 5.1.
 
 Agent (`.github/workflows/agent.yml`): `cargo fmt --all --check`, `cargo clippy --all-targets
 --locked -- -D warnings`, `cargo test --locked`, `node --test scripts/release.test.mjs` and
-`node scripts/check-versions.mjs`. In `agent/app`: `pnpm typecheck` and `pnpm test`.
+`node scripts/check-versions.mjs`, and `node --test scripts/whats-new.test.mjs`. In `agent/app`:
+`pnpm typecheck` and `pnpm test`.
 
 Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm install --frozen-lockfile`,
 `pnpm typecheck`, `pnpm test`, `pnpm build`.
@@ -77,6 +78,9 @@ Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm ins
   sellers or bidders, and per-listing auction rows never leave the client.
 - **A new translatable string** goes in its addon's `Locales/enUS.lua`. The strings check fails
   otherwise.
+- **What's new is written once**, in `whats-new.json` at the root (docs 9.2): a change a player
+  would notice adds a line to the note marked `"next"`, and `node scripts/whats-new.mjs` remakes the
+  game's and the app's copies. Never edit `WhatsNew.lua` or `whatsNewData.ts` by hand.
 - **Versions must agree** across the TOCs, `mod.json` files, `core.json`, the app's
   `package.json`, Cargo and the tag. A release is a `v*` tag; see `release.yml` and
   `agent/README.md` ("Releasing").

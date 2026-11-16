@@ -11,6 +11,8 @@ import ActivityLog from "./components/ActivityLog.vue";
 import SettingsSection from "./components/SettingsSection.vue";
 import AboutTab from "./components/AboutTab.vue";
 import UpdateBanner from "./components/UpdateBanner.vue";
+import WhatsNewDialog from "./components/WhatsNewDialog.vue";
+import { checkNews } from "./whatsNew";
 
 /** The cores the agent has, as the sidebar needs them (none until the status has loaded). */
 const cores = computed(() => status.value?.cores.map((c) => ({ id: c.id, name: c.name })) ?? []);
@@ -31,6 +33,15 @@ function panelId(id: PageId): string {
   return `panel-${id}`;
 }
 
+// What's new, once the app's version is known: a dialog on the first launch after an update.
+watch(
+  () => status.value?.appVersion,
+  (version) => {
+    if (version) checkNews(version, windowStorage());
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   void start();
 });
@@ -39,6 +50,7 @@ onMounted(() => {
 <template>
   <AppHeader />
   <UpdateBanner />
+  <WhatsNewDialog />
   <main>
     <p v-if="loadError" class="banner error">Couldn't read the app's status: {{ loadError }}</p>
     <div v-if="status" class="shell">

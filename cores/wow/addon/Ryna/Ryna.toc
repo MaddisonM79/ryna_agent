@@ -26,6 +26,8 @@ Minimap.lua
 Slash.lua
 Window.lua
 Notice.lua
+WhatsNew.lua
+News.lua
 Data.lua
 Mods.lua
 Init.lua

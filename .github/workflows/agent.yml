@@ -45,6 +45,9 @@ jobs:
       # The release scripts' tests, and that the versions agree (the tag is checked at release).
       - if: runner.os == 'Linux'
         run: node --test scripts/release.test.mjs
+      # What's new: the note file is well formed and the game's and the app's copies are what it makes.
+      - if: runner.os == 'Linux'
+        run: node --test scripts/whats-new.test.mjs
       - if: runner.os == 'Linux'
         run: node scripts/check-versions.mjs
 
