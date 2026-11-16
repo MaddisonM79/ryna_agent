@@ -2,7 +2,7 @@
   "id": "fights",
   "core": "wow",
   "name": "Fights",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "summary": "A Fights section in Ryna's window, in the manner of a damage meter: your recent fights, and for each one who struck first and who died when, every player's damage done and taken over the fight, and whom each enemy was attacking. Built from your own combat log as the Ryna app reads it (Data/fights.lua, which the game reads at login or /reload); it names the players who were in those fights and stays on this computer. Nothing in chat, nothing done for you.",
   "kind": "addon",
   "actsInGame": false,

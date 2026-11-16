@@ -21,6 +21,25 @@ ns.API.RegisterMod({
   end,
 })
 
+-- The minimap button's menu: the meter and the threat bar as tick boxes, and another meter window.
+local Mini = ns.API.Minimap
+if type(Mini) == "table" and type(Mini.Add) == "function" then
+  Mini.Add({ label = L["Meter"], order = 20, checked = function() return ns.Bars.On() end, run = function()
+    ns.API.Settings.Set(ns.Bars.KEY, not ns.Bars.On())
+    ns.Bars.dirty = true
+    ns.Bars.Tick()
+  end })
+  Mini.Add({ label = L["Threat bar"], order = 21, checked = function() return ns.ThreatBar.On() end,
+    run = function()
+      ns.API.Settings.Set(ns.ThreatBar.KEY, not ns.ThreatBar.On())
+      ns.ThreatBar.Tick()
+      ns.Bars.dirty = true
+    end })
+  Mini.Add({ label = L["Another meter window"], order = 22, run = function()
+    if ns.Bars.On() then ns.Bars.Open() end
+  end })
+end
+
 local Slash = ns.API.Slash
 if type(Slash) == "table" and type(Slash.Add) == "function" then
   Slash.Add({

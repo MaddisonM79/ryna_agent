@@ -123,7 +123,11 @@ L["Other settings"] = true
 
 -- Minimap.lua
 L["Update available"] = true
-L["Click: open Ryna. Drag: move this button."] = true
+L["Click: Ryna's menu. Drag: move this button."] = true
+-- The button's menu: the heading over the window's sections, and its last two rows.
+L["Open Ryna's window on"] = true
+L["What's new"] = true
+L["Settings"] = true
 
 -- Slash.lua
 -- Setting states in /ryna status and /ryna debug ("debug messages are on").

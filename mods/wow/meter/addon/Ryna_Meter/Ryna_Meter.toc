@@ -2,7 +2,7 @@
 ## Title: Meter by Ryna
 ## Notes: Live in a fight, from the game itself: a meter (damage, DPS, healing, HPS and more) and a threat bar while your group is fighting. A mod of Ryna; /ryna meter.
 ## Author: Ryna contributors
-## Version: 0.4.3
+## Version: 0.4.4
 ## Dependencies: Ryna
 ## LoadOnDemand: 0
 

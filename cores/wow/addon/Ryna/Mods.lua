@@ -45,6 +45,9 @@
 --   Ryna.Data.Get(name, version)      a data-layer table the companion app wrote (Data.lua): the
 --                                     table, or nil and "absent" or "version"; .WrittenAt(t), .Count(t)
 --                                     (cores after 0.3.9; a mod checks `Ryna.Data` before using it)
+--   Ryna.Minimap.Add{ label, order, run, checked }   an entry in the minimap button's menu: run() on
+--                                     a click; `checked`, a function, makes it a tick box (cores
+--                                     after 0.4.3; a mod checks `Ryna.Minimap` before using it)
 --   Ryna.L                            the core's strings (a mod's own L falls back to it)
 --   Ryna.Try, .Fn, .IsSecret, .NonEmpty, .Now, .Locale, .Print, .PrintRaw, .Debug, .DebugChanged,
 --   .Debugging, .Plural, .N, .Run, .After, .Debounce, .ReportError, .CanonicalName, .MoneyText,
@@ -202,6 +205,10 @@ R.Window = {
   Money = Wn.Money, ItemIcon = Wn.ItemIcon,
   STRIP_MAX = Wn.STRIP_MAX, StripShare = Wn.StripShare,
   STRIP_MARKS = Wn.STRIP_MARKS, MAX_SAY = Wn.MAX_SAY, MAX_BUTTONS = Wn.MAX_BUTTONS,
+}
+
+R.Minimap = {
+  Add = function(spec) return ns.Minimap.Add(spec) end,
 }
 
 R.Tooltip = {
