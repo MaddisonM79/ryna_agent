@@ -1,5 +1,5 @@
--- German (deDE) strings for Ryna Automation. Loaded on every client, applied only when the game runs
--- in deDE: GetLocale() is "deDE".
+-- German (deDE) strings for Automation by Ryna. Loaded on every client, applied only when the game
+-- runs in deDE: GetLocale() is "deDE".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

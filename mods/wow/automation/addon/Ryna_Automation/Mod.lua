@@ -18,7 +18,7 @@ if type(R) ~= "table" or type(R.API) ~= "number" or R.API < 1 or type(R.Register
   ns.off = true
   local frame = _G.DEFAULT_CHAT_FRAME
   if frame and frame.AddMessage then
-    frame:AddMessage("|cff7fb2ffRyna Automation|r: the Ryna addon here is too old for it, so it is off. "
+    frame:AddMessage("|cff7fb2ffAutomation by Ryna|r: the Ryna addon here is too old for it, so it is off. "
       .. "Update the addon from the Ryna companion app.")
   end
   return
@@ -48,7 +48,7 @@ ns.L = setmetatable({}, {
 
 -- A chat line of Automation's own, when the report setting is on.
 function ns.Report(msg)
-  if ns.Setting("autoReport") then ns.PrintRaw("|cff7fb2ffRyna Automation|r: " .. tostring(msg)) end
+  if ns.Setting("autoReport") then ns.PrintRaw("|cff7fb2ffAutomation by Ryna|r: " .. tostring(msg)) end
 end
 
 -- A client function, called under pcall when this client has it; nil when it doesn't or it errors.

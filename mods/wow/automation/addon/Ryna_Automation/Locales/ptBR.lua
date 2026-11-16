@@ -1,5 +1,5 @@
--- Portuguese (Brazil) (ptBR) strings for Ryna Automation. Loaded on every client, applied only when the game runs
--- in ptBR: GetLocale() is "ptBR".
+-- Portuguese (Brazil) (ptBR) strings for Automation by Ryna. Loaded on every client, applied only when the game
+-- runs in ptBR: GetLocale() is "ptBR".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

@@ -1,5 +1,5 @@
--- Korean (koKR) strings for Ryna. Loaded on every client, applied only when the game runs
--- in koKR: GetLocale() is "koKR".
+-- Korean (koKR) strings for Ryna. Loaded on every client, applied only when the game
+-- runs in koKR: GetLocale() is "koKR".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:
@@ -180,6 +180,24 @@ L["Unknown character"] = nil
 -- A list with nothing in it: the search matched nothing, or nothing is recorded yet.
 L["Nothing matches."] = nil
 L["Nothing recorded yet."] = nil
+
+-- News.lua: what's new, once after an update. %s: the version ("0.5.0").
+L["What's new in Ryna %s"] = nil
+-- The button that closes it, and the line beside it.
+L["Got it"] = nil
+L["/ryna news shows this again"] = nil
+-- A group's heading: a mod's name (%s: "Meter"), or the core's own changes.
+L["%s by Ryna"] = nil
+L["Everywhere"] = nil
+-- Beside a mod's heading: it is new in this version; and when it isn't turned on yet.
+L["new"] = nil
+L["new mod: turn it on in the Ryna app"] = nil
+-- /ryna's help line for the command, and its answer when the version has no note.
+L["/ryna news: what's new in this version"] = nil
+L["There is no note for this version."] = nil
+-- Panel.lua, Advanced: the checkbox for it and its help.
+L["Show what's new after an update"] = nil
+L["Once after each update, a small window at login says what changed. Off, /ryna news still shows it."] = nil
 
 -- Notice.lua
 -- The notice at login when this version is no longer supported, and its button.

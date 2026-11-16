@@ -179,6 +179,8 @@ pub struct Fight {
     pub realm_id: Option<i64>,
     /// The byte offset its first line started at.
     pub start_offset: u64,
+    /// The logging character's GUID while it was fought, when the log had said.
+    pub logger: Option<String>,
 }
 
 impl Fight {
@@ -375,6 +377,7 @@ impl Builder {
             raw: self.raw,
             realm_id: ctx.realm_id(),
             start_offset: self.start_offset,
+            logger: self.ctx.logger.clone().or_else(|| ctx.logger.clone()),
         };
         if fight.totals().participants.is_empty() {
             return None;

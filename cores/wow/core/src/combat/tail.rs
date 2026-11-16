@@ -8,7 +8,7 @@
 //! buffered writes); a world encounter when 5 minutes pass without another pull in its zone; a
 //! boss at `ENCOUNTER_END`. Then its summary and digest are queued ([`super::queue`]).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -20,6 +20,7 @@ use super::queue::{Queue, Round, Uploaded};
 use super::segment::{Context, Fight, Segmenter};
 use super::{describe, summarize, CombatOptions};
 use crate::discovery::Discovery;
+use crate::fights_data;
 use crate::fix::Fix;
 use crate::push::{Api, CombatLog};
 use crate::snapshot::account_key;
@@ -177,29 +178,25 @@ struct Open {
     last_started_at: Option<i64>,
 }
 
-/// Per install: the account files' mtimes when read, each character's account key, and the newest
-/// account's key.
-type InstallAccounts = (
-    Vec<(PathBuf, i128)>,
-    HashMap<String, String>,
-    Option<String>,
-);
+/// Per install, from the addon's files: the account files' mtimes when read, each character's
+/// account key and class, and the newest account's key.
+#[derive(Default)]
+struct InstallAccounts {
+    stamp: Vec<(PathBuf, i128)>,
+    keys: HashMap<String, String>,
+    classes: HashMap<String, String>,
+    newest: Option<String>,
+}
 
-/// The account (its key) each character GUID belongs to, per install, from the addon's files.
+/// The account (its key) and class of each character GUID, per install, from the addon's files.
 #[derive(Default)]
 struct Accounts {
     by_install: HashMap<PathBuf, InstallAccounts>,
 }
 
 impl Accounts {
-    /// The logger's account key: the account whose `Ryna.lua` lists one of the fight's players
-    /// (the logger first), else the install's most recently saved account, else none.
-    fn key_for(
-        &mut self,
-        discovery: &Discovery,
-        install: &Path,
-        players: &[&str],
-    ) -> Option<String> {
+    /// What the install's account files say, read again when one of them changed.
+    fn load(&mut self, discovery: &Discovery, install: &Path) -> &InstallAccounts {
         let files: Vec<(PathBuf, i128, String)> = discovery
             .accounts
             .iter()
@@ -213,13 +210,17 @@ impl Accounts {
         let fresh = self
             .by_install
             .get(install)
-            .is_some_and(|(s, _, _)| *s == stamp);
+            .is_some_and(|a| a.stamp == stamp);
         if !fresh {
-            let mut map = HashMap::new();
+            let mut keys = HashMap::new();
+            let mut classes = HashMap::new();
             for (path, _, folder) in &files {
                 if let Ok(built) = crate::snapshot::read_file(path, folder, None, None) {
                     for c in built.snapshot.characters {
-                        map.insert(c.guid, account_key(folder));
+                        if let Some(class) = c.class.clone().filter(|c| !c.is_empty()) {
+                            classes.insert(c.guid.clone(), class);
+                        }
+                        keys.insert(c.guid, account_key(folder));
                     }
                 }
             }
@@ -227,14 +228,37 @@ impl Accounts {
                 .iter()
                 .max_by_key(|(_, m, _)| *m)
                 .map(|(_, _, folder)| account_key(folder));
-            self.by_install
-                .insert(install.to_path_buf(), (stamp, map, newest));
+            self.by_install.insert(
+                install.to_path_buf(),
+                InstallAccounts {
+                    stamp,
+                    keys,
+                    classes,
+                    newest,
+                },
+            );
         }
-        let (_, map, newest) = &self.by_install[install];
+        &self.by_install[install]
+    }
+
+    /// The logger's account key: the account whose `Ryna.lua` lists one of the fight's players
+    /// (the logger first), else the install's most recently saved account, else none.
+    fn key_for(
+        &mut self,
+        discovery: &Discovery,
+        install: &Path,
+        players: &[&str],
+    ) -> Option<String> {
+        let a = self.load(discovery, install);
         players
             .iter()
-            .find_map(|g| map.get(*g).cloned())
-            .or_else(|| newest.clone())
+            .find_map(|g| a.keys.get(*g).cloned())
+            .or_else(|| a.newest.clone())
+    }
+
+    /// The class of each character the install's accounts hold, by GUID.
+    fn classes(&mut self, discovery: &Discovery, install: &Path) -> HashMap<String, String> {
+        self.load(discovery, install).classes.clone()
     }
 }
 
@@ -259,6 +283,11 @@ pub struct Tailer {
     announced: Vec<PathBuf>,
     /// At most this much of one file per poll ([`READ_CHUNK`]; smaller in tests).
     chunk: u64,
+    /// The Fights view's kept fights per install ([`fights_data`]), the installs whose
+    /// `Data/fights.lua` is due a rewrite, and whether this run's first write (start-up) was done.
+    fights: fights_data::Store,
+    fights_due: BTreeSet<PathBuf>,
+    fights_started: bool,
 }
 
 fn file_name(p: &Path) -> String {
@@ -279,6 +308,9 @@ impl Tailer {
             retry_at: 0,
             announced: Vec::new(),
             chunk: READ_CHUNK,
+            fights: fights_data::Store::load(state_dir),
+            fights_due: BTreeSet::new(),
+            fights_started: false,
         }
     }
 
@@ -308,6 +340,9 @@ impl Tailer {
         }
         let wall = SystemTime::now();
         let now_ms = now * 1000;
+        if !self.fights_started {
+            self.start_fights(discovery, wall);
+        }
         let mut seen: Vec<PathBuf> = Vec::new();
         let mut newest: Option<(SystemTime, PathBuf)> = None;
         for install in &discovery.installs {
@@ -366,8 +401,55 @@ impl Tailer {
                 self.after_round(round, now, &mut report, on_event);
             }
         }
+        self.write_fights(discovery, now);
         let _ = self.state.save(&self.state_dir);
         report
+    }
+
+    /// At start-up: every install's `Data/fights.lua` is due, and an install the store has nothing
+    /// from (the first run with the file, after its logs were already read) gets the newest fights
+    /// still on disk, once.
+    fn start_fights(&mut self, discovery: &Discovery, wall: SystemTime) {
+        self.fights_started = true;
+        for install in &discovery.installs {
+            if !crate::addon_install::addon_dir(install).is_dir() {
+                continue;
+            }
+            if !self.fights.get(&install.path).is_some_and(|f| f.backfilled) {
+                let classes = self.accounts.classes(discovery, &install.path);
+                let views = fights_data::backfill(&install.path, &classes, wall);
+                self.fights.backfilled(&install.path, views);
+            }
+            self.fights_due.insert(install.path.clone());
+        }
+    }
+
+    /// Rewrite the `Data/fights.lua` of every install with a new fight (and every install, at
+    /// start-up), and keep the store. A failure is the state's `last_error`, never the poll's.
+    fn write_fights(&mut self, discovery: &Discovery, now: i64) {
+        if self.fights_due.is_empty() {
+            return;
+        }
+        for install in &discovery.installs {
+            if !self.fights_due.contains(&install.path) {
+                continue;
+            }
+            let kept = self
+                .fights
+                .get(&install.path)
+                .map(|f| f.fights.clone())
+                .unwrap_or_default();
+            if let Err(e) = fights_data::write(install, &kept, now) {
+                self.state.last_error = Some(format!(
+                    "couldn't write the Fights file in {}: {e}",
+                    install.path.display()
+                ));
+            }
+        }
+        self.fights_due.clear();
+        if let Err(e) = self.fights.save(&self.state_dir) {
+            self.state.last_error = Some(format!("couldn't keep the Fights view's fights: {e}"));
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -475,10 +557,19 @@ impl Tailer {
         report: &mut Poll,
         on_event: &mut dyn FnMut(WatchEvent),
     ) {
-        for fight in o.seg.take() {
+        let fights = o.seg.take();
+        let classes = if fights.is_empty() {
+            HashMap::new()
+        } else {
+            self.accounts.classes(discovery, &o.install)
+        };
+        for fight in fights {
             if o.last_started_at.is_some_and(|t| fight.started_at <= t) {
                 continue; // queued before a restart
             }
+            self.fights
+                .add(&o.install, fights_data::view(&fight, &classes));
+            self.fights_due.insert(o.install.clone());
             let participants = fight.totals().participants;
             let mut players: Vec<&str> = o.seg.ctx.logger.as_deref().into_iter().collect();
             players.extend(participants.iter().map(String::as_str));
@@ -651,6 +742,7 @@ impl Tailer {
             );
         }
         self.state.open = 0;
+        self.write_fights(discovery, now);
         let _ = self.state.save(&self.state_dir);
     }
 }

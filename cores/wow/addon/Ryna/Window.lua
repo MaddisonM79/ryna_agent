@@ -56,13 +56,23 @@
 --   footer     optional function(ctx) -> the footer line, every draw
 --   version    optional function() -> anything comparable with ==: rows(ctx) runs when the section
 --              is first shown and again only when this or the context changes
---   empty      optional text for a list with nothing in it (default "Nothing recorded yet.")
+--   empty      optional text for a list with nothing in it (default "Nothing recorded yet."), or
+--              function(ctx) -> that text, every draw (why a data file reads as absent)
 --   filter     optional function(ctx) -> { { value, label }, ... }: a second picker, left of the
 --              character picker, on this section only (Chronicle's zones). The first choice is the
 --              default and has value nil; the others' values are strings. Fewer than two choices
 --              hide the picker (Characters offers its views only with one character picked).
 --              Ryna.Window.SetFilter(key, value) picks one from outside (a Zones row opening Kills on
 --              its zone)
+--   say        optional function(ctx) -> up to 3 lines of text, each a string or { text, dim = true }
+--              (a dimmer line), every draw: sentences under the tiles and above the column headings,
+--              one line each (a fight's story); the list moves down to make room. Nothing (or an empty
+--              list) leaves no gap
+--   buttons    optional function(ctx) -> up to 4 { label, click = function(ctx), disabled, width },
+--              every draw: the game's own push buttons at the header's right, in place of the
+--              character picker, the section's filter and the search box (a fight's "Earlier" and
+--              "Later"); an entry with no click is plain text there ("0:36 · 5 players"). Nothing (or an
+--              empty list) brings the picker and the search box back
 --
 -- ctx = { section, character (a GUID, or nil for all characters), current (the GUID you're on),
 -- all (character == nil), search (lowercased, trimmed; "" for none), filter (the section's filter
@@ -90,6 +100,8 @@
 --   count      the run's length when it isn't #values (an axis row with labels only), at most 48
 --   labels     { [i] = "text" }: a small text at block i's left edge instead of blocks, for the row
 --              under a set of strips ("12 AM" under the first hour); blocks past `count` aren't labelled
+--   marks      { i, ... }: up to 4 blocks marked with the game's skull (its raid target icon) over the
+--              strip, centred on block i (clamped into the run): a death on a fight's strip
 --
 -- The blocks are the game's plain colour texture, made the first time a row frame needs them and
 -- reused after, like the bars: 20 row frames whatever the list's length, so 2,000 rows with strips
@@ -122,7 +134,15 @@ local STRIP_H = ROW_H - 6
 local STRIP_BLUE = { 0.26, 0.52, 0.9 }
 local STRIP_RED = { 0.75, 0.25, 0.22 }
 local PLAIN_TEXTURE = "Interface\\Buttons\\WHITE8X8"
+local SKULL_TEXTURE = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8"
+local STRIP_MARKS = 4
+local MAX_SAY = 3
+local SAY_H = 16
+local MAX_BUTTONS = 4
 Wn.STRIP_MAX = STRIP_MAX
+Wn.STRIP_MARKS = STRIP_MARKS
+Wn.MAX_SAY = MAX_SAY
+Wn.MAX_BUTTONS = MAX_BUTTONS
 
 Wn.GROUPS = {
   { key = "me", label = L["Me"] },
@@ -327,7 +347,7 @@ function Wn.AddSection(spec)
     if v ~= nil and type(v) ~= "function" then return false end
     return true
   end
-  for _, name in ipairs({ "fill", "tiles", "tooltip", "click", "footer", "version", "filter" }) do
+  for _, name in ipairs({ "fill", "tiles", "tooltip", "click", "footer", "version", "filter", "say", "buttons" }) do
     if not optional(name) then return false end
   end
   local mode = spec.characters or "all"
@@ -339,8 +359,9 @@ function Wn.AddSection(spec)
     characters = mode, search = spec.search ~= false, sortable = spec.sortable ~= false,
     icons = spec.icons and true or false, columns = spec.columns, rows = spec.rows, fill = spec.fill,
     tiles = spec.tiles, tooltip = spec.tooltip, click = spec.click, footer = spec.footer,
-    version = spec.version, empty = type(spec.empty) == "string" and spec.empty or nil,
-    filter = spec.filter, seq = #sections + 1,
+    version = spec.version,
+    empty = (type(spec.empty) == "string" or type(spec.empty) == "function") and spec.empty or nil,
+    filter = spec.filter, say = spec.say, buttons = spec.buttons, seq = #sections + 1,
   }
   sections[#sections + 1] = s
   byKey[s.key] = s
@@ -830,7 +851,7 @@ local function stripFrame(row, c)
   track:SetAllPoints()
   pcall(track.SetColorTexture, track, 1, 1, 1, 0.05)
   st.track = track
-  st.top, st.below, st.labels = {}, {}, {}
+  st.top, st.below, st.labels, st.marks = {}, {}, {}, {}
   st:Hide()
   row.strips[c] = st
   local x, w = row.colX and row.colX[c], row.colW and row.colW[c]
@@ -931,6 +952,30 @@ local function drawStrip(st, sp)
     if not used[i] then fs:Hide() end
   end
   if labels then st.track:Hide() else st.track:Show() end
+  -- Marks: the game's skull over a block (a death), at most STRIP_MARKS.
+  local marks = not labels and type(sp.marks) == "table" and sp.marks or nil
+  st.marks = st.marks or {}
+  local m = 0
+  if marks and n > 0 then
+    for _, i in ipairs(marks) do
+      i = tonumber(i)
+      if m < STRIP_MARKS and i and i == i then
+        i = math.max(1, math.min(n, math.floor(i)))
+        m = m + 1
+        local t = st.marks[m]
+        if not t then
+          t = st:CreateTexture(nil, "OVERLAY")
+          pcall(t.SetTexture, t, SKULL_TEXTURE)
+          st.marks[m] = t
+        end
+        t:ClearAllPoints()
+        t:SetSize(STRIP_H, STRIP_H)
+        t:SetPoint("CENTER", st, "LEFT", (i - 0.5) * step, 0)
+        t:Show()
+      end
+    end
+  end
+  for k = m + 1, #st.marks do st.marks[k]:Hide() end
   st:Show()
   return drawn
 end
@@ -1096,6 +1141,95 @@ local function drawTiles(f, section, ctx)
   return n
 end
 
+-- The section's sentences (spec.say) from `top` down. Returns how many lines it drew.
+local function drawSay(f, section, ctx, top)
+  local list = section.say and section.say(ctx) or nil
+  local lines = {}
+  if type(list) == "table" then
+    for _, item in ipairs(list) do
+      local text, dim = item, false
+      if type(item) == "table" then text, dim = item.text, item.dim and true or false end
+      if type(text) == "string" and text ~= "" and #lines < MAX_SAY then
+        lines[#lines + 1] = { text = text, dim = dim }
+      end
+    end
+  end
+  for i = 1, MAX_SAY do
+    local fs = f.say[i]
+    local line = lines[i]
+    if line then
+      fs:ClearAllPoints()
+      fs:SetPoint("TOPLEFT", f, "TOPLEFT", BODY_X + 2, top - 2 - (i - 1) * SAY_H)
+      fs:SetText(line.text)
+      if line.dim then fs:SetTextColor(0.62, 0.62, 0.62) else fs:SetTextColor(1, 1, 1) end
+      fs:Show()
+    else
+      fs:SetText("")
+      fs:Hide()
+    end
+  end
+  return #lines
+end
+
+-- The section's header buttons (spec.buttons), laid out from the header's right edge leftwards.
+-- Returns whether there are any (they take the place of the pickers and the search box).
+local function drawButtons(f, section, ctx)
+  local list = section.buttons and section.buttons(ctx) or nil
+  local specs = {}
+  if type(list) == "table" then
+    for _, b in ipairs(list) do
+      if #specs < MAX_BUTTONS and type(b) == "table" and type(b.label) == "string" then specs[#specs + 1] = b end
+    end
+  end
+  local x, nb, nt = -34, 0, 0
+  for i = #specs, 1, -1 do
+    local b = specs[i]
+    if type(b.click) == "function" then
+      nb = nb + 1
+      local btn = f.navButtons[nb]
+      if not btn then
+        btn = pushButton(f, "", 84, 22)
+        btn:SetScript("OnClick", function(self)
+          local spec = self.spec
+          if spec and not spec.disabled and type(spec.click) == "function" then
+            ns.Run("ryna window button", spec.click, Wn.ctx)
+          end
+        end)
+        f.navButtons[nb] = btn
+      end
+      local w = math.max(40, math.floor(tonumber(b.width) or 84))
+      btn.spec = b
+      btn:SetSize(w, 22)
+      btn:SetText(b.label)
+      btn:ClearAllPoints()
+      btn:SetPoint("TOPRIGHT", f, "TOPRIGHT", x, -13)
+      if b.disabled then btn:Disable() else btn:Enable() end
+      btn:Show()
+      x = x - w - 6
+    else
+      nt = nt + 1
+      local fs = f.navTexts[nt]
+      if not fs then
+        fs = fontString(f, "GameFontHighlightSmall")
+        f.navTexts[nt] = fs
+      end
+      fs:SetText(b.label)
+      fs:ClearAllPoints()
+      fs:SetPoint("TOPRIGHT", f, "TOPRIGHT", x, -18)
+      fs:Show()
+      local w = tonumber(fs:GetStringWidth()) or 0
+      if w <= 0 then w = #b.label * 6 end
+      x = x - w - 10
+    end
+  end
+  for i = nb + 1, #f.navButtons do
+    f.navButtons[i].spec = nil
+    f.navButtons[i]:Hide()
+  end
+  for i = nt + 1, #f.navTexts do f.navTexts[i]:Hide() end
+  return #specs > 0
+end
+
 local function sortArrow(section, col)
   local sort = section.sortable and Wn.state.sort[section.key] or nil
   if not sort or sort.col ~= col then return "" end
@@ -1115,38 +1249,62 @@ function Wn.Draw()
   local title = section.title
   if type(title) == "function" then title = title(ctx) end
   f.title:SetText(type(title) == "string" and title or section.label)
-  -- The picker and the search box follow the section and the choice, not every redraw: a kill
-  -- redraws the window, and must neither close the picker's list nor undo what is being typed.
-  local pickerFor = section.key .. ":" .. tostring(ctx.character)
-  if f.picker and f.picker.sync and f.pickerFor ~= pickerFor then
-    f.picker.sync(section, ctx)
-    f.pickerFor = pickerFor
-  end
-  local filterFor = section.filter and (pickerFor .. ":" .. tostring(ctx.filter)) or false
-  if f.filter and f.filterFor ~= filterFor then
-    -- (its choices are counted only when the section or the choice changed, not every redraw)
-    if filterFor and #Wn.FilterChoices(section, ctx) > 1 then
-      f.filter:Show()
-      if f.filter.sync then f.filter.sync(section, ctx) end
-    else
-      f.filter:Hide()
-      if f.filter.list then f.filter.list:Hide() end
+  if drawButtons(f, section, ctx) then
+    -- The section's buttons stand where the pickers and the search box were.
+    if not f.buttonsOn then
+      f.buttonsOn = true
+      for _, name in ipairs({ "picker", "filter" }) do
+        local p = f[name]
+        if p then
+          p:Hide()
+          if p.list then p.list:Hide() end
+        end
+      end
+      f.search:Hide()
+      if f.search.ClearFocus then f.search:ClearFocus() end
     end
-    f.filterFor = filterFor
-  end
-  if f.searchFor ~= section.key then
-    local box = f.search
-    box.filling = true
-    box:SetText(section.search and (Wn.state.search[section.key] or "") or "")
-    box.filling = false
-    if box.SetEnabled then pcall(box.SetEnabled, box, section.search) end
-    box:SetAlpha(section.search and 1 or 0.4)
-    if not section.search and box.ClearFocus then box:ClearFocus() end
-    f.searchFor = section.key
+    f.pickerFor, f.filterFor, f.searchFor = nil, nil, nil
+  else
+    if f.buttonsOn then
+      f.buttonsOn = false
+      if f.picker then f.picker:Show() end
+      f.search:Show()
+    end
+    -- The picker and the search box follow the section and the choice, not every redraw: a kill
+    -- redraws the window, and must neither close the picker's list nor undo what is being typed.
+    local pickerFor = section.key .. ":" .. tostring(ctx.character)
+    if f.picker and f.picker.sync and f.pickerFor ~= pickerFor then
+      f.picker.sync(section, ctx)
+      f.pickerFor = pickerFor
+    end
+    local filterFor = section.filter and (pickerFor .. ":" .. tostring(ctx.filter)) or false
+    if f.filter and f.filterFor ~= filterFor then
+      -- (its choices are counted only when the section or the choice changed, not every redraw)
+      if filterFor and #Wn.FilterChoices(section, ctx) > 1 then
+        f.filter:Show()
+        if f.filter.sync then f.filter.sync(section, ctx) end
+      else
+        f.filter:Hide()
+        if f.filter.list then f.filter.list:Hide() end
+      end
+      f.filterFor = filterFor
+    end
+    if f.searchFor ~= section.key then
+      local box = f.search
+      box.filling = true
+      box:SetText(section.search and (Wn.state.search[section.key] or "") or "")
+      box.filling = false
+      if box.SetEnabled then pcall(box.SetEnabled, box, section.search) end
+      box:SetAlpha(section.search and 1 or 0.4)
+      if not section.search and box.ClearFocus then box:ClearFocus() end
+      f.searchFor = section.key
+    end
   end
 
   local nTiles = drawTiles(f, section, ctx)
   local top = TOP - (nTiles > 0 and TILES_H or 0)
+  local nSay = drawSay(f, section, ctx, top)
+  if nSay > 0 then top = top - nSay * SAY_H - 6 end
   local visible = math.min(MAX_ROWS, math.floor((HEIGHT + top - COLHEAD_H - BOTTOM) / ROW_H))
   if f.listTop ~= top then
     f.head:ClearAllPoints()
@@ -1200,8 +1358,11 @@ function Wn.Draw()
       row:Hide()
     end
   end
+  local empty = section.empty
+  if type(empty) == "function" then empty = empty(ctx) end
+  if type(empty) ~= "string" or empty == "" then empty = nil end
   f.empty:SetText(count == 0 and (ctx.search ~= "" and L["Nothing matches."]
-    or section.empty or L["Nothing recorded yet."]) or "")
+    or empty or L["Nothing recorded yet."]) or "")
   f.footer:SetText(section.footer and tostring(section.footer(ctx) or "") or "")
 
   local bar = f.bar
@@ -1344,6 +1505,17 @@ function Wn.Create()
     tile:Hide()
     f.tiles[i] = tile
   end
+
+  -- The section's sentences (spec.say) and header buttons (spec.buttons, made when first needed).
+  f.say = {}
+  for i = 1, MAX_SAY do
+    local fs = fontString(f, "GameFontHighlight")
+    fs:SetWidth(BODY_W - 4)
+    fs:SetJustifyH("LEFT")
+    fs:Hide()
+    f.say[i] = fs
+  end
+  f.navButtons, f.navTexts = {}, {}
 
   -- Column headings (click to sort), the rows and the scroll bar.
   local head = CreateFrame("Frame", nil, f)

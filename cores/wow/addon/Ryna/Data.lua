@@ -4,6 +4,9 @@
 --
 --   { version = 1, writtenAt = 1762464000, flavor = "wowf", items = { [itemId] = ... } }
 --
+-- (`items` is whatever the table holds: rows by item id for the Prices mod's two, a list of fights,
+-- newest first, for Data/fights.lua)
+--
 -- and a mod reads one through Ryna.Data.Get(name, version): the table when it is there and carries
 -- exactly the version the mod knows, else nil and why ("absent": no file or no table; "version":
 -- another version, so the mod or the app is behind). The files ship as stubs (the global nil), so a

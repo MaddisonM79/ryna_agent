@@ -11,18 +11,26 @@ The core's addon and its mods' addons are installed side by side by the companio
   combat log (`CombatLog.lua`: turning it on where the mode wants it, and Advanced combat logging),
   which is how the app gets fights whatever mods are on. On its own it records nothing about a
   character.
-- **Ryna Chronicle** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna`), the first
+- **Chronicle by Ryna** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna`), the first
   mod and on by default: everything recorded about a character (below), the tooltips, and the
   panel's Recording and Census tabs. It builds on the core only through the mod API (below) and
   writes exactly the `RynaDB` the single addon wrote before the split (docs/wow.md section 2).
-- **Ryna Automation** (`mods/wow/automation/addon/Ryna_Automation`), off by default: chores at
+- **Automation by Ryna** (`mods/wow/automation/addon/Ryna_Automation`), off by default: chores at
   quest givers, vendors, trainers and the mailbox and around the world, each its own setting that
   starts off, with its own Automation tab and `/ryna auto` (`mods/wow/README.md`). Holding Shift
   pauses it.
-- **Ryna Prices** (`mods/wow/prices/addon/Ryna_Prices`), off by default: what a vendor pays for an
+- **Prices by Ryna** (`mods/wow/prices/addon/Ryna_Prices`), off by default: what a vendor pays for an
   item and its stack on every item tooltip, and an auction price from one snapshot of the auction
   house per visit (per-item totals, nothing about a seller), with its own Prices tab and
   `/ryna prices` (`mods/wow/README.md`).
+- **Meter by Ryna** (`mods/wow/meter/addon/Ryna_Meter`), off by default: a fight as it happens, from the
+  game itself: a live meter of the game's own tallies (damage, DPS, healing, HPS and more) and a threat
+  bar while the group is fighting, each a small frame of its own, with a Meter tab and `/ryna meter`
+  (`mods/wow/README.md`).
+
+After an update the core says what's new, once: a small frame at the first login on the new version
+(`News.lua`; the note is `WhatsNew.lua`, made from `whats-new.json`), with a switch under Advanced and
+`/ryna news` to see it again.
 
 Together they have a small settings panel (in tabs), one window for what they record (below, "Ryna's
 window") and a minimap button. Nothing is printed to chat
@@ -182,8 +190,8 @@ names match the JSON the agent uploads one for one.
 
 `/ryna`, or a click on the minimap button, opens **Settings → AddOns → Ryna** (on older clients,
 Interface Options → AddOns → Ryna). Under its title is a row of tabs (Status, Recording, Census,
-Automation, Prices, Messages, Mods, Advanced; Recording and Census are Chronicle's, Automation is
-Automation's and Prices is Prices', and each goes when its mod is off); a click on one shows that
+Automation, Prices, Meter, Messages, Mods, Advanced; Recording and Census are Chronicle's, Automation is
+Automation's, Prices is Prices' and Meter is Meter's, and each goes when its mod is off); a click on one shows that
 tab (the content scrolls when it's taller than the window), and the panel opens on the tab you last
 had (`RynaDB.settings.panelTab`). The tabs use the game's own tab style where the client has it, and
 plain buttons with the selected one lit where it doesn't.
@@ -302,8 +310,8 @@ It uses the game's own fonts, tooltip backdrop, close button, search box, dropdo
 no art of its own, so it sits in the default UI and in a dark one like ElvUI's.
 
 - **The rail**, down the left, lists the sections in three groups: **Me**, **World** and **Combat and
-  gold**. Only sections that exist are listed; a group with none isn't drawn. Today all of them are
-  Chronicle's, under Me.
+  gold**. Only sections that exist are listed; a group with none isn't drawn. Chronicle's are under
+  Me; the Fights mod's Fights is under Combat and gold.
 - **The header** is the same on every section: its title, the **character picker** ("All characters"
   and each character on the account) and the **search box**. A section about one character (Kills,
   Loot, History) reads All characters as the one you're on; Session is always the one you're on, so
@@ -434,6 +442,29 @@ reused after, so 2,000 rows with strips cost what 20 do. A section's `title` may
 `function(ctx)`, for a title that follows its picker ("History › Play"). Both are in cores after
 0.4.2: a mod checks `Ryna.Window.STRIP_MAX` first.
 
+Three more pieces, built for the Fights mod's fight detail (also in cores after 0.4.2; a mod checks
+`Ryna.Window.MAX_SAY` first, and an older core ignores them: no sentences, no buttons, no skulls):
+
+```lua
+say = function(ctx)        -- up to 3 lines under the tiles, above the column headings; the list moves down
+  return { "Aster Vale opened with Flame Lash on Harbor Brute at 0:08.",
+    { text = "Dela died at 0:26, Aster at 0:29.", dim = true } }
+end,
+buttons = function(ctx)    -- up to 4, at the header's right, in place of the pickers and the search box
+  return { { label = "0:36 · 5 players" },                         -- no click: plain text
+    { label = "‹ Earlier", click = function(ctx) end, disabled = false, width = 84 },
+    { label = "Later ›", click = function(ctx) end, disabled = true } }
+end,
+strips = { [4] = { form = "height", values = done, below = taken, marks = { 26 } } },   -- a skull at block 26
+```
+
+A section's `empty` may also be `function(ctx)` (the reason a data file reads as absent). `say` and
+`buttons` run every draw; nothing (or an empty list) leaves no gap and brings the character
+picker and the search box back. A button is the game's own push button (`UIPanelButtonTemplate`) and
+its click runs under the core's error guard with the section's context. A strip's `marks` (at most 4,
+`Ryna.Window.STRIP_MARKS`) are the game's raid-target skull centred on those blocks, clamped into the
+run; an axis row (`labels`) draws none.
+
 `Ryna.Window` also has `Open(key)`, `Toggle(key)`, `Hide()`, `IsShown()`, `Selected()`,
 `Refresh(key)` (redraw if that section is on screen; rows rebuild only when its version moved),
 `Choose(guid)`, `SetFilter(key, value)` (a section's filter from outside, nil for its default),
@@ -485,7 +516,8 @@ line: "Ryna: the companion app hasn't synced recently."
 The same trick, generalised (docs/ryna-agent-cores-mods.md section 7): the app writes versioned
 tables under `Interface/AddOns/Ryna/Data/`, one file each, loaded at login and `/reload`, each
 one global `RynaData_<name>` shaped `{ version, writtenAt, flavor, items = { [itemId] = ... } }`.
-Today there are two, both for the Prices mod and both pooled from everyone's uploads, about no one:
+Two are for the Prices mod, both pooled from everyone's uploads, about no one; the third is the
+Fights mod's, from this computer's own combat log:
 
 - `Data/vendors.lua` (`RynaData_vendors`): which vendors sell an item. Per item id, up to three
   rows of `{ npcId, name, zone, price, stack, observers, currency }`: `price` is copper for `stack`
@@ -495,8 +527,13 @@ Today there are two, both for the Prices mod and both pooled from everyone's upl
   `{ min, med, listings, snapshots, observers, asOf, weekMed, weekDays, weekSnapshots }`: today's
   agreed lowest unit buyout and median, the mean listings per snapshot, how many snapshots and
   people, when (unix); then the last 7 days' median, days with data and snapshots. 0 means none.
+- `Data/fights.lua` (`RynaData_fights`): your most recent fights, newest first (`items` is a list),
+  as the app read them from the combat log: each one's story, its players' and enemies' totals and
+  40 steps of done and taken (the whole shape is in `cores/wow/core/src/fights_data.rs`). It names
+  the players who were in those fights, like a damage meter's saved data, and stays on this
+  computer: nothing in it is fetched or sent. The app rewrites it when a fight ends and at start-up.
 
-The addon ships both as stubs (the global `nil`) and a mod reads them through `Ryna.Data.Get(name,
+The addon ships all three as stubs (the global `nil`) and a mod reads them through `Ryna.Data.Get(name,
 version)`, which gives the table only when it carries the version the mod knows, else nil and why
 ("absent" or "version"), so a file from another release is ignored rather than misread. What shows
 in game is as fresh as the last login or `/reload`; the app rewrites the files after a sync only
@@ -538,8 +575,8 @@ Copy the `cores/wow/addon/Ryna` folder and the `mods/wow/chronicle/addon/Ryna_Ch
 (the release's `Ryna-<version>.zip` holds both at its top level) into the Forever install's
 `Interface/AddOns`, so you have `.../_forever_/Interface/AddOns/Ryna/Ryna.toc` and
 `.../Interface/AddOns/Ryna_Chronicle/Ryna_Chronicle.toc`, then restart the game or `/reload`. Without
-Ryna Chronicle nothing about your characters is recorded. The agent's `install-addon` command does
-the same (it installs the core and every mod that is on by default). Ryna Chronicle needs this Ryna
+Chronicle by Ryna nothing about your characters is recorded. The agent's `install-addon` command does
+the same (it installs the core and every mod that is on by default). Chronicle by Ryna needs this Ryna
 or newer: beside an older Ryna (0.2.6 and before, which carried Chronicle inside itself) it says so
 once and loads nothing, so nothing is ever recorded twice.
 

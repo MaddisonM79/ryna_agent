@@ -341,6 +341,11 @@ without a key.
    A mod's `requires.core` should name the release that brought the mod API it needs.
    Run `cargo check` so `Cargo.lock` follows, then `node scripts/check-versions.mjs`, which fails
    and names each file when they disagree (CI runs it on every push too).
+   In the same change, say what's new: in `whats-new.json` (repository root) give the release its
+   note, renaming the one marked `"next"` to the version (a headline and a few plain lines, written
+   for a player), then run `node scripts/whats-new.mjs`, which writes the game's copy
+   (`cores/wow/addon/Ryna/WhatsNew.lua`) and the app's (`agent/app/src/whatsNewData.ts`). The
+   release workflow refuses a tag with no note, or with one still marked `"next"`.
 2. Commit, then tag and push the tag: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/release.yml` checks the tag against the files (a mismatch stops it before
    anything builds), then builds and attaches to one GitHub Release, with generated notes:

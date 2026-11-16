@@ -1,5 +1,5 @@
--- Chinese (Simplified) (zhCN) strings for Ryna Prices. Loaded on every client, applied only when the game runs
--- in zhCN: GetLocale() is "zhCN".
+-- Chinese (Simplified) (zhCN) strings for Prices by Ryna. Loaded on every client, applied only when the game
+-- runs in zhCN: GetLocale() is "zhCN".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

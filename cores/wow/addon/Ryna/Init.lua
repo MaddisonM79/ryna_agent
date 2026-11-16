@@ -42,6 +42,8 @@ ns.On("PLAYER_LOGIN", function()
   ns.Run("minimap", ns.Minimap.Create)
   -- A frame, never chat, and only when the API said this version is no longer supported.
   ns.Run("version notice", ns.Notice.ShowAtLogin)
+  -- What's new, once after an update: a frame too, and not on top of the notice above.
+  if not ns.Notice.shown then ns.Run("news", ns.News.ShowAtLogin) end
 end)
 
 ns.On("PLAYER_LOGOUT", function()

@@ -111,6 +111,51 @@ is the whole of it).
   `minPrice` is per unit for stackable goods, and that `AUCTION_HOUSE_BROWSE_RESULTS_UPDATED` is the
   event a search fires. `test/prices_test.lua` runs the vendor line against a fake client,
   `test/auction_test.lua` the auction side.
+- `fights/`: **Fights**, off by default (`defaultOn: false`, `actsInGame: false`;
+  docs/ryna-agent-cores-mods.md 7.5, "Fights as built"): the Fights section of Ryna's window, under
+  Combat and gold (`/ryna fights` opens it). Forever refuses the combat log to addons, so it reads
+  `Data/fights.lua` (`RynaData_fights`, version 1), which the app writes from its own reading of the
+  log file (`cores/wow/core/src/fights_data.rs` has the shape; the core ships the stub), loaded at
+  login and `/reload`. **The list**: the fights newest first, when (the window's age wording), what
+  (the boss, else the zone and "trash" or "open world"), the length, a boss's result, and your own
+  damage done and taken; tiles for the fights, the bosses killed and your deaths; the character picker
+  narrows it to one character's fights. **A fight** (a click on its row; "‹ Earlier", "Later ›" and
+  "All fights" in the header): its story in sentences (who struck first, with what, on whom, when, and
+  the enemy's answer when the group opened; the deaths in order), a row per player (and per pet that
+  took damage) with done, taken and a two-line strip of 40 steps over the fight (done above in the
+  class colour, taken below in the game's red, a skull at a death), then a row per enemy with whom it
+  was attacking, in order, with seconds (three shown, a row opens the rest). The footer says it is
+  the combat log as the app read it, as of the file's time, and that newer fights appear after
+  `/reload`. A file of another version is ignored and said so; an absent one says fights appear once
+  the app has read the log and the game is reloaded. It writes nothing, not even settings, and prints
+  nothing unasked. `test/fights_test.lua` runs it against the app's own output
+  (`test/fixtures/fights.lua`, written by `fights_data`'s test).
+- `meter/`: **Meter**, off by default (`defaultOn: false`, `actsInGame: false`;
+  docs/ryna-agent-cores-mods.md 7.5, "The Meter mod"): a fight as it happens, read from the game
+  itself, in two small frames of their own (`Frame.lua`), each dragged into place. It needs nothing
+  from the app. **The meter** (`Bars.lua`): the game's own tallies (`C_DamageMeter`), one view at a
+  time (Damage, DPS, Healing, HPS, Damage taken, Absorbs, Interrupts, Dispels; a click on the first
+  line opens a pick-list of the views and of this fight, overall and the last ten fights the game
+  holds, a right-click goes between this fight and overall; an empty current tally shows the newest
+  held fight as "last fight"; the list also opens another window, up to four, each with its own view,
+  tally and place, closes one, announces a window's top rows to party, raid, guild or say (only on
+  that pick, never in a fight), and locks one under or beside any other window on screen, or the threat bar, named by what
+  it shows ("Under DPS", "Beside Threat"), so they drag as one), eight rows in the game's
+  order with the player's marked and kept in the last row when further down. The mouse over a row shows that player's spells in a
+  small frame beside it. In a fight every amount
+  is a secret value: it goes from the game to its bar and label untouched, through the game's
+  formatter, and nothing is compared or kept. **The threat bar** (`Threat.lua`, `ThreatBar.lua`):
+  while anyone in the group is fighting, a row per member on one enemy's list
+  (`UnitDetailedThreatSituation`), whoever holds it on top, a full bar meaning "pulls", orange past
+  80%, silent; the enemy is the player's target, or with a friend targeted the enemy nameplate that
+  friend is highest on, never `targettarget` (secret there); where the client hides the numbers the
+  bar is still filled and the words come from the threat state; between fights it stays on screen,
+  empty, unless `meterThreatStay` is off. Settings `meterBars`, `meterThreat` and `meterThreatStay`
+  on a Meter tab; a click on the threat bar's first line locks it under or beside a meter window;
+  `/ryna meter` turns the meter on or off and `/ryna meter threat`
+  shows the threat bar with an example to place it; the places and the meter's view are kept in
+  `RynaDB.meter`. It sends nothing and prints nothing unasked. `test/bars_test.lua` and
+  `test/threat_test.lua` run both against a fake client whose secrets raise when compared.
 - `settings/`: **Settings**, off by default (`kind: "agent"`, `defaultOn: false`, `actsInGame:
   false`; docs/ryna-agent-cores-mods.md 7.2): addon settings copied between characters and backed
   up to ryna.io, encrypted on this machine (the API's docs/wow.md section 15). All of it is the core's
