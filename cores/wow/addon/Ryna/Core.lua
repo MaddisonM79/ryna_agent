@@ -289,7 +289,7 @@ end)
 --                   "status", and Defaults keeps it
 ns.SETTING_DEFAULTS = {
   chatSightings = true, census = true, groupMembers = true, nearbyPlayers = true, advancedCombatLog = true,
-  chronicle = true, tooltips = true, chatNotices = false, debug = false,
+  chronicle = true, tooltips = true, chatNotices = false, debug = false, newsPopup = true,
 }
 -- Settings that are gone, removed from RynaDB.settings on load. censusSweep switched the automated
 -- /who sweep, which was deleted: Ryna never sends /who itself (the player's own /who is still read).
@@ -331,6 +331,8 @@ end
 -- Chronicle, which writes `characters`, `guilds` and `client`).
 function ns.InitDB()
   local db = _G.RynaDB
+  -- Nothing saved at all: a new install (News.lua shows no "what's new" to someone for whom all of it is).
+  if ns.dbFresh == nil then ns.dbFresh = type(db) ~= "table" end
   if type(db) ~= "table" or db.schema ~= ns.SCHEMA then
     local settings = type(db) == "table" and type(db.settings) == "table" and db.settings or nil
     db = { settings = settings }

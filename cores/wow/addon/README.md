@@ -11,18 +11,26 @@ The core's addon and its mods' addons are installed side by side by the companio
   combat log (`CombatLog.lua`: turning it on where the mode wants it, and Advanced combat logging),
   which is how the app gets fights whatever mods are on. On its own it records nothing about a
   character.
-- **Ryna Chronicle** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna`), the first
+- **Chronicle by Ryna** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna`), the first
   mod and on by default: everything recorded about a character (below), the tooltips, and the
   panel's Recording and Census tabs. It builds on the core only through the mod API (below) and
   writes exactly the `RynaDB` the single addon wrote before the split (docs/wow.md section 2).
-- **Ryna Automation** (`mods/wow/automation/addon/Ryna_Automation`), off by default: chores at
+- **Automation by Ryna** (`mods/wow/automation/addon/Ryna_Automation`), off by default: chores at
   quest givers, vendors, trainers and the mailbox and around the world, each its own setting that
   starts off, with its own Automation tab and `/ryna auto` (`mods/wow/README.md`). Holding Shift
   pauses it.
-- **Ryna Prices** (`mods/wow/prices/addon/Ryna_Prices`), off by default: what a vendor pays for an
+- **Prices by Ryna** (`mods/wow/prices/addon/Ryna_Prices`), off by default: what a vendor pays for an
   item and its stack on every item tooltip, and an auction price from one snapshot of the auction
   house per visit (per-item totals, nothing about a seller), with its own Prices tab and
   `/ryna prices` (`mods/wow/README.md`).
+- **Meter by Ryna** (`mods/wow/meter/addon/Ryna_Meter`), off by default: a fight as it happens, from the
+  game itself: a live meter of the game's own tallies (damage, DPS, healing, HPS and more) and a threat
+  bar while the group is fighting, each a small frame of its own, with a Meter tab and `/ryna meter`
+  (`mods/wow/README.md`).
+
+After an update the core says what's new, once: a small frame at the first login on the new version
+(`News.lua`; the note is `WhatsNew.lua`, made from `whats-new.json`), with a switch under Advanced and
+`/ryna news` to see it again.
 
 Together they have a small settings panel (in tabs), one window for what they record (below, "Ryna's
 window") and a minimap button. Nothing is printed to chat
@@ -182,8 +190,8 @@ names match the JSON the agent uploads one for one.
 
 `/ryna`, or a click on the minimap button, opens **Settings → AddOns → Ryna** (on older clients,
 Interface Options → AddOns → Ryna). Under its title is a row of tabs (Status, Recording, Census,
-Automation, Prices, Messages, Mods, Advanced; Recording and Census are Chronicle's, Automation is
-Automation's and Prices is Prices', and each goes when its mod is off); a click on one shows that
+Automation, Prices, Meter, Messages, Mods, Advanced; Recording and Census are Chronicle's, Automation is
+Automation's, Prices is Prices' and Meter is Meter's, and each goes when its mod is off); a click on one shows that
 tab (the content scrolls when it's taller than the window), and the panel opens on the tab you last
 had (`RynaDB.settings.panelTab`). The tabs use the game's own tab style where the client has it, and
 plain buttons with the selected one lit where it doesn't.
@@ -567,8 +575,8 @@ Copy the `cores/wow/addon/Ryna` folder and the `mods/wow/chronicle/addon/Ryna_Ch
 (the release's `Ryna-<version>.zip` holds both at its top level) into the Forever install's
 `Interface/AddOns`, so you have `.../_forever_/Interface/AddOns/Ryna/Ryna.toc` and
 `.../Interface/AddOns/Ryna_Chronicle/Ryna_Chronicle.toc`, then restart the game or `/reload`. Without
-Ryna Chronicle nothing about your characters is recorded. The agent's `install-addon` command does
-the same (it installs the core and every mod that is on by default). Ryna Chronicle needs this Ryna
+Chronicle by Ryna nothing about your characters is recorded. The agent's `install-addon` command does
+the same (it installs the core and every mod that is on by default). Chronicle by Ryna needs this Ryna
 or newer: beside an older Ryna (0.2.6 and before, which carried Chronicle inside itself) it says so
 once and loads nothing, so nothing is ever recorded twice.
 

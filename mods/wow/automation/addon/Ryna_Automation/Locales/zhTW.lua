@@ -1,5 +1,5 @@
--- Chinese (Traditional) (zhTW) strings for Ryna Automation. Loaded on every client, applied only when the game runs
--- in zhTW: GetLocale() is "zhTW".
+-- Chinese (Traditional) (zhTW) strings for Automation by Ryna. Loaded on every client, applied only when the game
+-- runs in zhTW: GetLocale() is "zhTW".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

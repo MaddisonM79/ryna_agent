@@ -568,7 +568,7 @@ fire("MERCHANT_SHOW"); settle()
 check(called("UseContainerItem") <= 1, "selling is throttled")
 advance(2)
 check(called("UseContainerItem") == 2, "only the two greys with a price are sold")
-check(chat[#chat] == "|cff7fb2ffRyna Automation|r: Sold 2 grey items for 1s 50c.",
+check(chat[#chat] == "|cff7fb2ffAutomation by Ryna|r: Sold 2 grey items for 1s 50c.",
   "the line: " .. tostring(chat[#chat]))
 fresh(); set({ autoSellGreys = true })
 W.prices = { [1] = 10 }
@@ -982,7 +982,7 @@ fresh(); set({ autoSellGreys = true, autoSellJunk = true }); junkBags()
 db.automation = { junk = { [10] = true, [11] = true, [12] = true, [13] = true } }
 _G.MerchantFrame.shown = true; fire("MERCHANT_SHOW"); advance(2)
 check(called("UseContainerItem") == 2, "the grey and the marked item; never the quest items or the priceless one")
-check(chat[#chat] == "|cff7fb2ffRyna Automation|r: Sold 1 grey and 1 marked junk items for 2s 10c.",
+check(chat[#chat] == "|cff7fb2ffAutomation by Ryna|r: Sold 1 grey and 1 marked junk items for 2s 10c.",
   "the line counts them apart: " .. tostring(chat[#chat]))
 fresh(); set({ autoSellJunk = true }); junkBags()
 db.automation = { junk = { [10] = true } }

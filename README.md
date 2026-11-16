@@ -94,6 +94,14 @@ the mods that are on. Each mod is listed under the install with a switch; there 
   combat log, so the app writes what it read from the log file into the addon's folder, and the game
   shows it after a login or `/reload`. The file names the players who were in your fights and stays
   on your computer. Off by default.
+- **Meter**: a fight as it happens, read from the game itself, with nothing needed from the app. A
+  live meter in a small frame: damage, DPS, healing, HPS, damage taken, absorbs, interrupts and
+  dispels for everyone in the fight, as the game counts them; click its first line to choose
+  what to show and which fight, right-click for this fight or overall, and open a second window
+  from the same list to watch DPS beside HPS. And a threat bar while your group is fighting: how
+  close each member is to pulling the enemy you have targeted (or, with a friend targeted, the enemy
+  that friend is on). Past 80% a bar turns orange; it makes no sound and says nothing in chat. Drag
+  either to move it (`/ryna meter`, `/ryna meter threat`). Off by default.
 - **Settings**: your addons' settings (ElvUI and every other addon's, found from their own files),
   copied from one character to another and backed up to ryna.io, stored encrypted for you. It
   works in the app with the game closed and puts nothing in the game, so there's no addon folder for
@@ -171,7 +179,8 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
   Chronicle (`mods/wow/chronicle`), everything recorded about a character, Automation
   (`mods/wow/automation`), the chores (quests, vendors, trainers, mail, rolls, invites and the like),
   each off until ticked, Prices (`mods/wow/prices`), vendor prices on item tooltips, Fights
-  (`mods/wow/fights`), the Fights section from the app's reading of the combat log, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
+  (`mods/wow/fights`), the Fights section from the app's reading of the combat log, Meter
+  (`mods/wow/meter`), the live meter and threat bar read from the game, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
   core's `settings` module), addon settings copied between characters and backed up encrypted.
   `cores/palworld` is the Palworld core (Node, macOS): it reads the Mac App Store build's saves
   and pushes them, run by the agent as a sidecar and fetched as a signed core package only for

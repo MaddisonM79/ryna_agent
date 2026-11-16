@@ -883,7 +883,7 @@ one agent behind it:
 | Dungeon journal | Doud's Dungeon Journal | Chronicle's journal (7.4) |
 | Alts, their bags and bank | Altoholic, BagSync | Chronicle: Characters and Items |
 | Who is playing | CensusPlus | Chronicle: Census |
-| Damage and healing meters | Details | Fights |
+| Damage and healing meters, threat | Details and its Tiny Threat | Meter, live; Fights for the finished fight |
 | Logs and their analysis | Warcraft Logs and its uploader | The agent, and the portal's Logs |
 | Settings backup and copy | Hand-copying WTF folders | The Settings mod |
 
@@ -900,6 +900,12 @@ for damage, healing, absorbs, interrupts, dispels, damage taken and deaths, with
 `DAMAGE_METER_COMBAT_SESSION_UPDATED` when one changes. The session reads are marked
 `SecretWhenInCombat`: during a fight the numbers are secret values (they can be shown, not compared
 or summed), and after it they are plain.
+
+(Corrected 2026-11-15: an addon *can* draw its own live bars, because a status bar and a label take a
+secret value; Details' Forever build does. docs/forever-client-api.md, "A secret can be drawn". The
+Meter mod draws them, below. A finished fight could also be harvested in game the moment it ends, with
+no file from the app, which isn't built. The split in the next paragraph is how Fights was first
+designed, not a limit of the client.)
 
 So the split is: *during* the fight the live bars are the game's own meter, which Ryna doesn't
 redraw; *the moment it ends*, the Fights section has it: the fight list for the session, each
@@ -970,6 +976,120 @@ for it (`Window.lua`): a section's `say` (sentences above the column headings), 
 of the pickers and the search box) and a strip's `marks` (the game's skull at a death), and `empty` may be a
 function. Owed in game: that the TOC loads `Data\fights.lua`, the look of the strips, skulls and buttons in the
 default UI and ElvUI, and that the raid-target skull texture draws on Forever.
+
+**The Meter mod (Maddison, 2026-11-15: "threat, healing, all that stuff goes into a meter; the logs
+and the deep analysis from the combat log can be Fights").** Two mods, split by where the data comes
+from. **Meter** (`mods/wow/meter`, `Ryna_Meter`) is a fight as it happens, read from the game itself:
+the live meter and the threat bar, below. It needs nothing from the app. **Fights**
+(`mods/wow/fights`) is the finished fight in depth, from the combat log as the app reads it: the
+list, the story, the timeline, and the portal's Logs page as its robust form. Both were first built
+inside Fights the same day and moved out before anything was released.
+
+**The threat bar (asked 2026-11-13, "can we see threat?"; probed and mocked up 2026-11-15, artifact "Ryna Threat View"; built the same day).**
+The combat log has no threat, so the fight timeline says whom an enemy "was attacking" and never
+"threat". The game does answer an addon directly, though (docs/forever-client-api.md, "Threat";
+Maddison's probes in The Deadmines): `UnitDetailedThreatSituation(unit, mob)` gives plain numbers for
+the player and for a party member, on trash and on a dungeon boss, when the enemy is named by the
+player's target or by a nameplate. Through a compound unit (`targettarget`) the same values come back
+secret. So the Meter mod draws them live (`Threat.lua`, `ThreatBar.lua`):
+
+- **What**: a small frame of its own (not a section: a bar in a window you have to open isn't used),
+  shown while anyone in the group is fighting and hidden otherwise, and when alone. One row per group
+  member on one enemy's list, whoever holds the enemy on top ("has it"), then by percentage; a full
+  bar is "pulls". The player's row carries a gold mark. Eight rows at most, always the player's.
+- **Which enemy**: the player's target when it is an enemy; with a friend targeted (a healer), the
+  enemy nameplate that friend is highest on; with nothing targeted, the one the player is highest on,
+  and failing that the group's. Enemies are found by walking the nameplates, never `targettarget`. A
+  line under the rows says the player's highest on another enemy on screen when it is above their
+  place on this one.
+- **The warning**: past 80% a bar turns orange and the frame's edge with it. Silent: no chat line, no
+  sound (her pick of the mockup's choices, 2026-11-15).
+- **Where the numbers are hidden** (a raid may; unprobed): each read asks
+  `C_Secrets.ShouldUnitThreatValuesBeSecret` and checks every value. A hidden value is handed to the
+  status bar untouched (the client fills a bar from a secret) and is never compared: rows keep the
+  group's order with the player first, the percentage is left out, and the words come from the threat
+  state (`UnitThreatSituation`: 2 or 3 "has it", 1 "close"), which the docs say stays readable.
+- **Settings**: one switch (`meterThreat`, on with the mod) on the Meter tab of `/ryna`; the frame
+  is dragged with the left button and its place kept in `RynaDB.meter.threatBar`;
+  `/ryna meter threat` shows it with example rows to place it outside a fight.
+- **Between fights** ("and threat window stay open too", the same evening): it stays on screen,
+  empty, under the name "Threat" with "Nobody is fighting.", so it keeps its place; `meterThreatStay`
+  (on) turns that off, and then it only appears while the group is fighting, as first built.
+- **Left out for now**: pets as rows, and a sound. **Next step, not built**: keeping a reading a
+  second during the fight (only where it isn't hidden) for a Threat view of a finished fight in the
+  Fights section and, uploaded with the fight, real threat on the portal's timeline; fights without
+  readings keep "was attacking".
+- **Unseen in game** as of the build: the checklist is in its pull request.
+
+**Both frames grow downwards** ("windows should grow down", the same evening): each is held by its top
+left corner (`Frame.lua`, `F.Pin`), at its default place and again after every drag, since the client
+leaves a dragged frame on whichever corner was nearest and a frame held by a bottom corner grows up.
+
+**The meter (asked 2026-11-15, "build dps/hps/etc too"; built the same day, in the threat bar's frame, with no mockup of its own).**
+The live half of Fights "in the manner of Details". `Bars.lua` draws the game's own tallies
+(`C_DamageMeter.GetCombatSessionFromType`) in a second small frame beside the threat bar's
+(`Frame.lua` is the frame both share):
+
+- **Views**, one at a time: Damage, DPS, Healing, HPS, Damage taken, Absorbs, Interrupts, Dispels. A
+  click on the first line opens a pick-list (the client's own menu) of the views and of the tallies:
+  this fight, overall (everything since the game's meter was last reset) and the last ten fights the
+  game still holds, by name and length. A right-click switches between this fight and overall. Her
+  first try in game (2026-11-15): cycling by clicks was "no way to just select what I want to see",
+  and the meter "didn't load the current fight": it now reads every two seconds when idle and every
+  time while anyone in the group is fighting (a healer who hasn't cast isn't in combat herself), and
+  when the game's current tally is empty it shows the newest fight the game holds, as "last fight".
+- **Several windows** ("can I have two windows open? want to see dps/hps", the same evening): the
+  pick-list's last rows open another window, up to four, and close one that isn't the first. A new
+  window shows the partner of the first's view (DPS beside HPS, damage beside healing) when no open
+  window has it, else the first view none shows. Each has its own view, tally and place
+  (`RynaDB.meter.bars`, `bars2`, ...); the one setting hides them all. A window can be **locked**
+  under or beside another ("can I lock windows together?"): it sits against it, follows its height,
+  and a drag of any window in the group moves the head of it; unlocking leaves it where it is. The
+  list names what it can lock to by what each shows ("Under DPS", "Beside Threat", "Healing (2)" when
+  two show the same; "instead of lock to window above or below, can we just reference the window,
+  threat, dps or whatever is open on screen?"): any other open meter window, and the threat bar when
+  it is on screen. A lock that would close a ring isn't offered; one whose target is closed or turned
+  off leaves the window free where it stands. The threat bar locks the same way ("let the threat bar
+  lock to other windows too"): a click on its first line opens the same list, and its lock is kept
+  with its place (`RynaDB.meter.threatBar`).
+- **Seen working in game** (Maddison, 2026-11-15, The Deadmines: "it all works"): the meter and its
+  windows, two decimals during a fight, Announce to party from inside the dungeon, and the hover's
+  spells for other group members as well as her own. So `C_DamageMeter`, the two-decimal rule given
+  to `AbbreviateNumbers` and an addon's `SendChatMessage` out of combat in a dungeon all work on the
+  client. A raid is still unseen. The first line names the view, the tally and,
+  when the game says it plainly, the fight's length.
+- **Rows**: the game's order, rank and name, the amount to two decimals ("18.57", "1.23K"; "decimals
+  too please... two points", the same evening), a bar of the total against the highest. A plain
+  number is formatted by the mod; a secret one only the game can format, so its formatter
+  (`AbbreviateNumbers`) is given the same rule as options, after it has shown at first use, on plain
+  numbers, that it follows them (with or without the step for numbers under a thousand). Eight rows, the player's marked and
+  kept in the last row with its own rank when it is further down (`isLocalPlayer` is never secret).
+- **In a fight** every amount, name and length is a secret value and goes from the game to its
+  widget untouched; nothing is compared, added or kept. After the fight the same read is plain.
+- **A row's detail** ("can I get a hover over a row for context... DPS shows what was used", the same
+  evening): the mouse over a row opens a small frame beside it with that player's spells in the view
+  shown (`GetCombatSessionSourceFromType` / `FromID`), up to eight, each a bar against the biggest,
+  and the row's share of the whole tally. Out of a fight the biggest spell is first; in one the
+  spells keep the game's order and their amounts stay secret, drawn and not compared. It is a bar
+  frame, not the game's tooltip, because a label and a bar take a secret. Someone the game won't
+  identify in a fight (a hidden id can't be asked about) gets a line saying so.
+- **Announce** ("what about an announce button for party or chat", the same evening): the pick-list
+  has "Announce to" with Party, Raid, Guild and Say (those that apply). A pick says that window's
+  view and tally and its top five rows in that channel (`C_ChatInfo.SendChatMessage`). Only on that
+  click; never in a fight, because the names and amounts are secret then and a secret can't be sent
+  or even put together (the player is told so, alone). **Unknown**: whether the client lets an addon
+  send chat inside a dungeon out of combat (`InChatMessagingLockdown`); a refusal is caught and said.
+- **When it reads**: twice a second in a fight, otherwise only when the game says a tally changed
+  (`DAMAGE_METER_COMBAT_SESSION_UPDATED`, `..._CURRENT_SESSION_UPDATED`, `DAMAGE_METER_RESET`) or the
+  view was changed.
+- **Settings**: one switch (`meterBars`, on with the mod) on the Meter tab; `/ryna meter`
+  turns it on or off; dragged by its first line, its view, tally and place kept in
+  `RynaDB.meter.bars`. The game's own meter window is left as the player set it.
+- **Not in the game's tallies**, so not here: overhealing, healing taken, friendly fire, resources,
+  cooldowns, buff uptime. **Not built**: a player's spells on a click, a death's recap, and copying
+  the finished fight into the Fights section without the app's file.
+- **Unseen in game**, and the calls themselves were never run on our client (probes 10 to 12 and 16
+  of docs/forever-client-api.md are still owed; Details' Forever build is the evidence they answer).
 
 ### 7.6 Chronicle by zone (asked 2026-11-10)
 
@@ -1402,6 +1522,40 @@ is the manifest, the setting and one row, with no change to the judgment.
   reduced, "This version of Ryna is getting old. Your characters still sync, but what you add to
   everyone's census and prices is paused until you update."; unsupported, "This version of Ryna is no
   longer supported, so nothing syncs to ryna.io. Update to carry on."
+
+### 9.2 What's new (asked and mocked up 2026-11-15, artifact "Ryna What's New"; built the same day)
+
+Maddison: "we also need a 'what's new' release too, should show a popup in game and for the app too."
+A release says what changed, once, in plain words, in both places.
+
+- **One source.** `whats-new.json` at the repository root: a list of notes, newest first, each
+  `{ version, headline, items: [{ where, text, new? }] }`. `where` is whose change it is (`core`, a
+  WoW mod's id, `app`, or another core's id); `new` marks the item that introduces a mod. A note is
+  written by hand for a player (GitHub's generated notes are commit subjects, written for us), and
+  drafted by whoever does the work as it merges, under the version `"next"`. `scripts/whats-new.mjs`
+  makes the two copies: `cores/wow/addon/Ryna/WhatsNew.lua` (what the game shows) and
+  `agent/app/src/whatsNewData.ts` (everything). CI checks the copies are current
+  (`scripts/whats-new.test.mjs`); the release workflow refuses a tag with no note for its version,
+  or with one still marked `"next"`.
+- **In the game** (`News.lua`, in the core): at the first login on a version that has a note, a
+  small frame (the unsupported notice's style) with the headline and, grouped, the changes to the
+  mods that are on, any mod the note introduces that isn't on ("new mod: turn it on in the Ryna
+  app"), and the core's own under "Everywhere". Changes to a mod that is off and not new are left
+  out. "Got it" or Escape closes it and marks the version seen (`RynaDB.newsSeen`). It waits out a
+  fight, never shows on a new install (nothing saved: nothing is new), is never chat, and stands
+  aside for the unsupported notice. `newsPopup` (on; Advanced) turns it off; `/ryna news` shows this
+  version's note, or the newest, whenever asked.
+- **In the app** (`whatsNew.ts`, `WhatsNewDialog.vue`): the same note in a dialog the first time the
+  app opens on that version, with the app's own changes and, for someone who has them, the other
+  cores'. "Got it" marks it seen (`ryna.newsSeen` in the window's store). A first launch ever shows
+  nothing. About has "What's new" beside the app's version, which reopens it.
+- **On the rule that Ryna is silent** (her answer when I raised it: "gotta be smart yo, rules aren't
+  absolute always"): the rule is against chat nobody asked for. A note once per release, with a
+  switch, is what people expect of an update.
+- **Not built**: a button in the app's dialog that turns a new mod on; the release's headline in the
+  app's update banner before updating (it needs the note published with the release); earlier
+  releases listed in About; translated notes (the frame's own words are translated, the note is
+  English).
 
 ## 10. Security
 

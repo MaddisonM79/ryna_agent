@@ -335,6 +335,9 @@ function build.advanced(f)
     L["A line in chat when you log in, when the companion app hasn't synced, and when Ryna turns "
     .. "combat logging on or off. Off, Ryna only answers /ryna."])
   toggle(P.notices, "chatNotices")
+  P.news = checkbox(f, L["Show what's new after an update"],
+    L["Once after each update, a small window at login says what changed. Off, /ryna news still shows it."])
+  toggle(P.news, "newsPopup")
   P.debug = checkbox(f, L["Debug messages"],
     L["Prints what Ryna is doing to the chat window: scans, journal events, sightings. "
     .. "For checking that it works."])
@@ -377,6 +380,8 @@ function layout.advanced(s, settings)
   P.debug:SetChecked(settings.debug)
   P.minimap:SetChecked(settings.minimap.shown)
   P.notices.place(s, 4)
+  P.news:SetChecked(settings.newsPopup)
+  P.news.place(s, 4)
   P.debug.place(s, 4)
   P.minimap.place(s, 4)
   if P.defaults then s.add(P.defaults, 22, 8, 16) end

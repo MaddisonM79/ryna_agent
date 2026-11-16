@@ -46,6 +46,7 @@ jobs:
         with:
           node-version: "24"
       - run: node --test scripts/release.test.mjs
+      - run: node --test scripts/whats-new.test.mjs
       # Only a signed, annotated tag on a commit that is on main releases anything. The tag
       # rulesets keep anyone but an admin from creating a v* tag and everyone from moving one.
       - name: The tag is signed and on main
@@ -77,6 +78,8 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             out="$(node scripts/check-versions.mjs --tag "$GITHUB_REF_NAME")"
             tag="$GITHUB_REF_NAME"
+            # A release says what's new: its note must exist, and none may still be marked "next".
+            node scripts/whats-new.mjs --require "${GITHUB_REF_NAME#v}"
             if [ "$EVENT" = push ] || [ "$DRY_RUN" = false ]; then publish=true; else publish=false; fi
           else
             out="$(node scripts/check-versions.mjs)"
@@ -346,7 +349,7 @@ jobs:
           path: dist
           merge-multiple: true
       # One zip with every folder at its top level, Ryna (the core's) and each bundled mod's
-      # (Ryna_Chronicle, on by default; Ryna_Automation, Ryna_Prices and Ryna_Fights, off until turned on), as the app carries them
+      # (Ryna_Chronicle, on by default; Ryna_Automation, Ryna_Prices, Ryna_Fights and Ryna_Meter, off until turned on), as the app carries them
       # in addon/: unzipped into Interface/AddOns it is a working install, and `ryna install-addon
       # --from` finds the mods beside Ryna. One zip per addon would let someone install the core
       # alone, which records nothing. A folder that's there is still only loaded if the game's AddOns

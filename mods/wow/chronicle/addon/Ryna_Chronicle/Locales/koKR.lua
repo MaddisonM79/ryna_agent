@@ -1,5 +1,5 @@
--- Korean (koKR) strings for Ryna Chronicle. Loaded on every client, applied only when the game runs
--- in koKR: GetLocale() is "koKR".
+-- Korean (koKR) strings for Chronicle by Ryna. Loaded on every client, applied only when the game
+-- runs in koKR: GetLocale() is "koKR".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:

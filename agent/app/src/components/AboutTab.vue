@@ -5,6 +5,7 @@ import { api, errorText } from "../api";
 import { copyText } from "../clipboard";
 import { aboutAddon } from "../describe";
 import { status } from "../store";
+import { latestNote, showNews } from "../whatsNew";
 import UpdateControl from "./UpdateControl.vue";
 import credits from "../../../../credits.json";
 
@@ -69,7 +70,17 @@ async function copy(url: string): Promise<void> {
     <dl class="glance">
       <div>
         <dt>App</dt>
-        <dd>Ryna {{ status.appVersion }}</dd>
+        <dd>
+          Ryna {{ status.appVersion }}
+          <button
+            v-if="latestNote(status.appVersion)"
+            class="link"
+            type="button"
+            @click="showNews(status.appVersion)"
+          >
+            What's new
+          </button>
+        </dd>
       </div>
       <div>
         <dt>Agent</dt>
