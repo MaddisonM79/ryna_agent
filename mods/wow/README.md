@@ -139,8 +139,8 @@ is the whole of it).
   holds, a right-click goes between this fight and overall; an empty current tally shows the newest
   held fight as "last fight"; the list also opens another window, up to four, each with its own view,
   tally and place, closes one, announces a window's top rows to party, raid, guild or say (only on
-  that pick, never in a fight), and locks one under or beside the window before it so they drag as
-  one), eight rows in the game's
+  that pick, never in a fight), and locks one under or beside any other window on screen, or the threat bar, named by what
+  it shows ("Under DPS", "Beside Threat"), so they drag as one), eight rows in the game's
   order with the player's marked and kept in the last row when further down. The mouse over a row shows that player's spells in a
   small frame beside it. In a fight every amount
   is a secret value: it goes from the game to its bar and label untouched, through the game's

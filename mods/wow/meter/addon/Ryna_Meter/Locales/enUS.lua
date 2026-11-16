@@ -87,10 +87,12 @@ L["The game wouldn't send that here."] = true
 -- The pick-list's last rows: a second (third, fourth) meter window, and closing one.
 L["Open another window"] = true
 L["Close this window"] = true
--- Locking a window to the one before it, so they sit together and drag as one, and freeing it.
-L["Lock under the window before it"] = true
-L["Lock beside the window before it"] = true
-L["Unlock this window"] = true
+-- Locking a window to another on screen, so they sit together and drag as one, and freeing it. %s: the
+-- other window by what it shows ("DPS", "Healing (2)", "Threat").
+L["Lock this window"] = true
+L["Under %s"] = true
+L["Beside %s"] = true
+L["Unlock from %s"] = true
 -- Under the rows when there is nothing to show.
 L["The game's meter isn't available here."] = true
 L["Nothing yet."] = true

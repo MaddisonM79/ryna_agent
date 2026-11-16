@@ -353,27 +353,37 @@ check(_G.RynaDB.meter.bars2.open == true and _G.RynaDB.meter.bars2.view == "hps"
 M.Pick("healing", 2)
 eq(f2.title._text, "Healing", "a view picked in the second window changes the second")
 eq(f.title._text, "DPS", "and leaves the first")
-local list2 = M.MenuRows(2)
-eq(list2[#list2].text, "Close this window", "the second window's list can close it")
-eq(M.MenuRows(1)[#M.MenuRows(1)].text, "Open another window", "the first can't be closed, only joined")
+-- The buttons of a window's list, by their words; and one of them picked.
+local function buttons(w)
+  local out = {}
+  for _, r in ipairs(M.MenuRows(w)) do if r.button then out[#out + 1] = r.text end end
+  return table.concat(out, "|")
+end
+local function press(w, text)
+  for _, r in ipairs(M.MenuRows(w)) do
+    if r.button and r.text == text then return r.pick() or true end
+  end
+  error("no button " .. text)
+end
+check(buttons(2):find("Close this window", 1, true) ~= nil, "the second window's list can close it")
+check(not buttons(1):find("Close this window", 1, true), "the first can't be closed, only joined")
 f2:ClearAllPoints()
 f2:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 300, -90)
 f2.head._scripts.OnDragStop(f2.head)
 eq(_G.RynaDB.meter.bars2.x, 300, "the second window's place is its own")
 -- Locked together: under the one before it, dragged as one
-local names = {}
-for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
-eq(table.concat(names, "|"), "Say|Open another window|Lock under the window before it|"
-  .. "Lock beside the window before it|Close this window", "a free window's list offers both locks")
-M.SetLock(2, "below")
+eq(buttons(2), "Say|Open another window|Close this window|Under DPS|Beside DPS",
+  "a free window's list offers to lock to the other window, by what it shows")
+eq(buttons(1), "Say|Open another window|Under Healing|Beside Healing", "and the first window can lock to the second")
+press(2, "Under DPS")
 local pt = f2._points[1]
 check(#f2._points == 1 and pt[1] == "TOPLEFT" and pt[2] == f and pt[3] == "BOTTOMLEFT" and pt[5] == -2,
   "locked below: its top on the first window's bottom")
 eq(_G.RynaDB.meter.bars2.lock, "below", "the lock is kept")
-names = {}
-for _, r in ipairs(M.MenuRows(2)) do if r.button then names[#names + 1] = r.text end end
-eq(table.concat(names, "|"), "Say|Open another window|Unlock this window|Close this window",
-  "a locked one offers to unlock")
+eq(_G.RynaDB.meter.bars2.lockTo, 1, "and what it is locked to")
+eq(buttons(2), "Say|Open another window|Close this window|Unlock from DPS", "a locked one offers to unlock, by name")
+eq(buttons(1), "Say|Open another window", "the window it hangs from can't lock back to it: that would be a ring")
+eq(M.SetLock(1, "below", 2), false, "and asking anyway is refused")
 f:ClearAllPoints()
 f:SetPoint("TOPLEFT", _G.UIParent, "TOPLEFT", 77, -11)
 f2.head._scripts.OnDragStart(f2.head)
@@ -385,7 +395,32 @@ pt = f2._points[1]
 check(pt[2] == f and pt[3] == "TOPRIGHT" and pt[4] == 2, "locked beside: its left on the first window's right")
 M.SetLock(2, nil)
 check(f2._points[1][2] == _G.UIParent and f2.mover == nil, "unlocked: on its own again")
-eq(M.SetLock(1, "below"), false, "the first window has nothing to lock to")
+eq(M.SetLock(1, "below"), false, "the first window has no window before it to default to")
+-- The threat bar is something to lock to, once it is on screen
+check(not buttons(2):find("Threat", 1, true), "no threat bar on screen: not offered")
+mod.ThreatBar.Tick()
+local tf = mod.ThreatBar.frame
+check(tf ~= nil and tf:IsShown(), "the threat bar is on screen")
+check(buttons(2):find("Under Threat|Beside Threat", 1, true) ~= nil, "now it is offered, by name")
+press(1, "Under Threat")
+check(f._points[1][2] == tf and f._points[1][3] == "BOTTOMLEFT", "the first window under the threat bar")
+eq(_G.RynaDB.meter.bars.lockTo, "threat", "kept as the threat bar")
+check(f.mover() == tf, "and dragging it moves the threat bar")
+press(2, "Beside DPS")
+check(f2.mover() == tf, "a window locked to that one moves the threat bar too")
+eq(buttons(1), "Say|Open another window|Unlock from Threat", "unlocking names the threat bar")
+_G.Ryna.Settings.Set("meterThreat", false)
+M.Draw()
+check(M.Lock(1) == nil and f._points[1][2] == _G.UIParent, "the threat bar turned off: the window is free again")
+_G.Ryna.Settings.Set("meterThreat", true)
+M.SetLock(1, nil)
+M.SetLock(2, nil)
+-- Two windows showing the same thing are told apart by number
+M.Pick("healing", 1)
+check(buttons(1):find("Under Healing (2)", 1, true) ~= nil, "the same view twice: named with its number")
+M.Pick("dps", 1)
+_G.Ryna.Settings.Set("meterThreat", false)
+M.Draw()
 M.SetLock(2, "below")
 eq(M.Open(), 3, "a third")
 M.SetLock(3, "below")
@@ -398,7 +433,7 @@ eq(M.Open(), nil, "and no more than four")
 check(M.MenuRows(1)[#M.MenuRows(1)].text ~= "Open another window", "with four open the list stops offering one")
 M.Close(4)
 M.Close(3)
-list2[#list2].pick()
+press(2, "Close this window")
 check(not f2:IsShown() and _G.RynaDB.meter.bars2.open == nil, "closing puts the window away and forgets it was open")
 eq(M.Close(1), false, "the first window isn't closed this way")
 M.Open()

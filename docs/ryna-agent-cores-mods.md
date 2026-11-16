@@ -1043,9 +1043,18 @@ The live half of Fights "in the manner of Details". `Bars.lua` draws the game's 
   window shows the partner of the first's view (DPS beside HPS, damage beside healing) when no open
   window has it, else the first view none shows. Each has its own view, tally and place
   (`RynaDB.meter.bars`, `bars2`, ...); the one setting hides them all. A window can be **locked**
-  under or beside the open window before it ("can I lock windows together?"): it sits against it,
-  follows its height, and a drag of any window in the group moves the first of them; unlocking leaves
-  it where it is. The first line names the view, the tally and,
+  under or beside another ("can I lock windows together?"): it sits against it, follows its height,
+  and a drag of any window in the group moves the head of it; unlocking leaves it where it is. The
+  list names what it can lock to by what each shows ("Under DPS", "Beside Threat", "Healing (2)" when
+  two show the same; "instead of lock to window above or below, can we just reference the window,
+  threat, dps or whatever is open on screen?"): any other open meter window, and the threat bar when
+  it is on screen. A lock that would close a ring isn't offered; one whose target is closed or turned
+  off leaves the window free where it stands.
+- **Seen working in game** (Maddison, 2026-11-15, The Deadmines: "it all works"): the meter and its
+  windows, two decimals during a fight, Announce to party from inside the dungeon, and the hover's
+  spells for other group members as well as her own. So `C_DamageMeter`, the two-decimal rule given
+  to `AbbreviateNumbers` and an addon's `SendChatMessage` out of combat in a dungeon all work on the
+  client. A raid is still unseen. The first line names the view, the tally and,
   when the game says it plainly, the fight's length.
 - **Rows**: the game's order, rank and name, the amount to two decimals ("18.57", "1.23K"; "decimals
   too please... two points", the same evening), a bar of the total against the highest. A plain

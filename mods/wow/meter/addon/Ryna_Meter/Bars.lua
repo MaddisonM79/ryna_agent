@@ -20,8 +20,9 @@
 -- "This fight" is the game's current tally; when that is empty (it is cleared between fights on some
 -- clients) the newest fight the game still holds is shown instead, so the meter never sits empty
 -- after a pull. The pick-list also opens another window (up to four: damage beside healing, DPS beside
--- HPS) and closes one, and locks a window under or beside the one before it, so they sit together and
--- drag as one. Each window's view, tally, lock and place are kept in RynaDB.meter (bars, bars2, ...);
+-- HPS) and closes one, and locks a window under or beside any other one on screen, named by what it
+-- shows ("Under DPS", "Beside Threat"), so they sit together and drag as one. Each window's view,
+-- tally, lock and place are kept in RynaDB.meter (bars, bars2, ...);
 -- a past fight picked from the list is kept only until /reload, since the game's fight numbers start
 -- over. The list also announces a window's rows to party, raid, guild or say: only on that click, and
 -- only once the fight is over, since hidden amounts can't be sent. Nothing is written elsewhere,
@@ -303,7 +304,7 @@ local function build(w)
   return M.frames[w]
 end
 
--- The open window before `w`, which `w` can be locked to; nil for the first.
+-- The open window before `w`: what a lock kept without a target (the first form of it) means.
 function M.Before(w)
   for i = (w or 1) - 1, 1, -1 do
     if M.IsOpen(i) then return i end
@@ -311,28 +312,64 @@ function M.Before(w)
   return nil
 end
 
--- How a window is locked to the one before it: "below", "beside", or nil when it is free (or there is
--- no window before it any more).
-function M.Lock(w)
-  local how = kept(w).lock
-  if (how == "below" or how == "beside") and M.Before(w) then return how end
+-- Locking: a window can be held under or beside any other open meter window, or the threat bar. What
+-- it is locked to is kept as that window's number, or "threat".
+local function frameOf(id)
+  if id == "threat" then
+    local bar = ns.ThreatBar
+    return bar and bar.On() and bar.frame or nil
+  end
+  if type(id) == "number" and M.IsOpen(id) then return M.frames[id] end
   return nil
 end
 
--- The window a drag of `w` moves: the head of its group.
-local function head(w)
-  while M.Lock(w) do w = M.Before(w) end
-  return w
+-- What a window's kept lock points at, whether or not that is on screen.
+local function keptTarget(w)
+  local k = kept(w)
+  if k.lock ~= "below" and k.lock ~= "beside" then return nil end
+  if k.lockTo == "threat" or type(k.lockTo) == "number" then return k.lockTo end
+  return M.Before(w)
 end
 
--- Puts a window where its lock says: under or beside the one before it, moving with it and following
--- its height. A window just unlocked stays where it was drawn.
+-- Whether locking `w` to `id` would close a ring (a window locked, through others, to itself).
+local function rings(w, id)
+  local seen = 0
+  while type(id) == "number" and seen <= M.MAX_WINDOWS do
+    if id == w then return true end
+    id = keptTarget(id)
+    seen = seen + 1
+  end
+  return false
+end
+
+-- What a window is locked to and how: the target (a number or "threat") and "below" or "beside"; nil
+-- when it is free, or its target is closed, off, or would make a ring.
+function M.Lock(w)
+  w = w or 1
+  local id = keptTarget(w)
+  if id == nil or rings(w, id) or not frameOf(id) then return nil end
+  return kept(w).lock, id
+end
+
+-- The frame a drag of `w` moves: the head of its group (a meter window, or the threat bar).
+local function head(w)
+  local id = w
+  for _ = 1, M.MAX_WINDOWS + 1 do
+    if type(id) ~= "number" then break end
+    local _, to = M.Lock(id)
+    if not to then break end
+    id = to
+  end
+  return frameOf(id) or M.frames[w]
+end
+
+-- Puts a window where its lock says: under or beside its target, moving with it and following its
+-- height. A window just unlocked stays where it was drawn.
 local function position(w, f)
-  local how = M.Lock(w)
-  f.mover = how and function() return M.frames[head(w)] end or nil
-  if how then
-    local anchor = M.frames[M.Before(w)]
-    if not anchor then return end
+  local how, to = M.Lock(w)
+  local anchor = how and frameOf(to)
+  f.mover = anchor and function() return head(w) end or nil
+  if anchor then
     f:ClearAllPoints()
     if how == "below" then
       f:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -M.GAP)
@@ -343,10 +380,8 @@ local function position(w, f)
   elseif f.locked then
     f.locked = nil
     -- Its own place again: where it is now when the client can say, else where it was last left.
-    local left, top = ns.Try(f.GetLeft, f), ns.Try(f.GetTop, f)
-    if type(left) == "number" and type(top) == "number" then
-      f:ClearAllPoints()
-      f:SetPoint("TOPLEFT", _G.UIParent, "BOTTOMLEFT", left, top)
+    local left, top = BF.Pin(f)
+    if left then
       local k = kept(w)
       k.point, k.rel, k.x, k.y = "TOPLEFT", "BOTTOMLEFT", left, top
     else
@@ -355,12 +390,47 @@ local function position(w, f)
   end
 end
 
--- Locks a window under or beside the one before it ("below", "beside"), or frees it (nil).
-function M.SetLock(w, how)
-  if (w or 1) == 1 then return false end
-  kept(w).lock = (how == "below" or how == "beside") and how or nil
+-- Locks a window under or beside another ("below", "beside"; `to` a window's number or "threat", the
+-- window before it when left out), or frees it (how = nil). False when that can't be: itself, a ring,
+-- or nothing there.
+function M.SetLock(w, how, to)
+  w = w or 1
+  local k = kept(w)
+  if how ~= "below" and how ~= "beside" then
+    k.lock, k.lockTo = nil, nil
+    M.Draw()
+    return true
+  end
+  to = to or M.Before(w)
+  if to == nil or to == w or rings(w, to) or not frameOf(to) then return false end
+  k.lock, k.lockTo = how, to
   M.Draw()
   return true
+end
+
+-- A window's name in another's list: what it shows ("DPS"), with its number when two show the same;
+-- the threat bar is "Threat".
+function M.Name(id)
+  if id == "threat" then return L["Threat"] end
+  local view = M.View(id)
+  for i = 1, M.MAX_WINDOWS do
+    if i ~= id and M.IsOpen(i) and M.View(i).key == view.key then
+      return string.format("%s (%d)", L[view.label], id)
+    end
+  end
+  return L[view.label]
+end
+
+-- What a window could be locked to now: the other open windows that wouldn't make a ring, then the
+-- threat bar when it is on screen.
+function M.Targets(w)
+  w = w or 1
+  local out = {}
+  for i = 1, M.MAX_WINDOWS do
+    if i ~= w and M.IsOpen(i) and M.frames[i] and not rings(w, i) then out[#out + 1] = i end
+  end
+  if frameOf("threat") then out[#out + 1] = "threat" end
+  return out
 end
 
 -- Which tally a window is showing, in words, with the fight's length when the game says it plainly:
@@ -728,16 +798,27 @@ function M.MenuRows(w)
     rows[#rows + 1] = { text = L["Open another window"], button = true, pick = function() M.Open() end }
   end
   if w > 1 then
-    local how = M.Lock(w)
-    if how then
-      rows[#rows + 1] = { text = L["Unlock this window"], button = true, pick = function() M.SetLock(w, nil) end }
-    elseif M.Before(w) then
-      rows[#rows + 1] = { text = L["Lock under the window before it"], button = true,
-        pick = function() M.SetLock(w, "below") end }
-      rows[#rows + 1] = { text = L["Lock beside the window before it"], button = true,
-        pick = function() M.SetLock(w, "beside") end }
-    end
     rows[#rows + 1] = { text = L["Close this window"], button = true, pick = function() M.Close(w) end }
+  end
+  -- Locking: free from what it is locked to, or under or beside anything else on screen, by name.
+  local how, to = M.Lock(w)
+  if how then
+    rows[#rows + 1] = { divider = true }
+    rows[#rows + 1] = { text = string.format(L["Unlock from %s"], M.Name(to)), button = true,
+      pick = function() M.SetLock(w, nil) end }
+  else
+    local targets = M.Targets(w)
+    if #targets > 0 then
+      rows[#rows + 1] = { divider = true }
+      rows[#rows + 1] = { title = L["Lock this window"] }
+    end
+    for _, id in ipairs(targets) do
+      local name = M.Name(id)
+      rows[#rows + 1] = { text = string.format(L["Under %s"], name), button = true,
+        pick = function() M.SetLock(w, "below", id) end }
+      rows[#rows + 1] = { text = string.format(L["Beside %s"], name), button = true,
+        pick = function() M.SetLock(w, "beside", id) end }
+    end
   end
   return rows
 end

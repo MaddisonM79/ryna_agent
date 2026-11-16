@@ -539,7 +539,7 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | Threat is readable in combat in a dungeon: `UnitDetailedThreatSituation` gives plain numbers for the player and for a party member against the target, a dungeon boss included; both `C_Secrets.ShouldUnitThreat...BeSecret("player","target")` are false | Game (2026-11-15) | Maddison's probes in The Deadmines; Docs `UnitDocumentation.lua`, `SecretPredicatesDocumentation.lua` |
 | Threat through `targettarget` is secret; through `nameplateN` it is plain | Game (2026-11-15) | Maddison's probes in The Deadmines; Ryna_Meter `Threat.lua` |
 | Secrets may be passed to `SetValue`, `SetMinMaxValues`, `SetText`, `SetFormattedText`, `SetVertexColor`, `SetAlpha`, `AbbreviateNumbers`; a live meter is drawn that way | Docs; Addons (2026-11-15) | Docs at Blz70938; Details `classes/class_damage.lua` |
-| `C_DamageMeter` answers an addon on Forever, live and after combat | Addons (2026-11-15); not yet run by us | Details `Details_Camelot.toc`, `core/parser_nocleu1.lua` |
+| `C_DamageMeter` answers an addon on Forever, live and after combat (sessions, a source's spells for group members); `AbbreviateNumbers` follows a `breakpointData` rule on secret numbers, the step below a thousand included; an addon's `SendChatMessage` to party posts inside a dungeon out of combat; `MenuUtil.CreateContextMenu` opens a menu for an addon | Game (2026-11-15) | Maddison in The Deadmines with Ryna_Meter (`Bars.lua`) |
 
 ## How to probe
 
