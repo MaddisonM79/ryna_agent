@@ -6,7 +6,7 @@ local _, ns = ...
 
 ns.NEWS = {
   {
-    version = "next",
+    version = "0.5.0",
     headline = "Ryna's own addon is now called Ryna Core.",
     items = {
       { where = "core", text = "Ryna's addon is now \"Ryna Core\" in the game's AddOns list. Nothing you recorded is lost." },

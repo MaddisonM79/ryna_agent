@@ -15,7 +15,7 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
-    "version": "next",
+    "version": "0.5.0",
     "headline": "Ryna's own addon is now called Ryna Core.",
     "items": [
       {
@@ -29,6 +29,10 @@ export const NEWS: NewsNote[] = [
       {
         "where": "app",
         "text": "The app moves your addon folder and saved data to the new name, with the game closed."
+      },
+      {
+        "where": "app",
+        "text": "The app has a new icon: Ryna herself."
       }
     ]
   },
