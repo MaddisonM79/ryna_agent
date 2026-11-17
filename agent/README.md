@@ -288,9 +288,11 @@ yet" until one is set. API and sign-in provider come from the same variables as 
 `settings.json` in its config folder (`io.ryna.app`); the sign-in and the push state are the
 core's, shared with the CLI.
 
-The icons in `app/src-tauri/icons` are placeholders: `pnpm icon` draws `app/app-icon.png` with a
-small Node script and runs `tauri icon` on it. Replace the PNG and run `pnpm tauri icon app-icon.png`
-for real artwork.
+The icons in `app/src-tauri/icons` are made from `app/app-icon.png` (1024 px): Ryna, the witch, scaled to
+824 px inside a rounded square (corner radius 185) with a clear margin around it, the shape macOS expects
+of an icon. To change the artwork, replace that PNG in the same shape and run `pnpm icon`, which runs
+`tauri icon` on it; commit `src-tauri/icons` (CI doesn't make them) and delete the `android/`, `ios/`,
+`Square*`, `StoreLogo.png` and `64x64.png` files it also writes, which a desktop build never reads.
 
 ## Updates
 
