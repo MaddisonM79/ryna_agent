@@ -1,4 +1,4 @@
--- Russian (ruRU) strings for Ryna. Loaded on every client, applied only when the game
+-- Russian (ruRU) strings for Core by Ryna. Loaded on every client, applied only when the game
 -- runs in ruRU: GetLocale() is "ruRU".
 --
 -- How to translate:
@@ -115,6 +115,9 @@ L["Off until the next reload, then on."] = nil
 L["Reload the interface now, so the change to Ryna's mods takes effect?"] = nil
 L["Reload"] = nil
 L["Later"] = nil
+L["Ryna moved to a new addon folder, Ryna_Core, and the old one is still here. Reload now to "
+  .. "finish the move? Everything Ryna recorded comes along."] = nil
+L["Needs a newer Ryna Core: update Ryna Core, then reload."] = nil
 L["type /reload to apply the change."] = nil
 L["the game didn't let Ryna change its addon list; use the AddOns button on the character screen."] = nil
 L["Combat log: %s right now. Mode: %s"] = nil

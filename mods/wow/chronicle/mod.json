@@ -2,12 +2,12 @@
   "id": "chronicle",
   "core": "wow",
   "name": "Chronicle",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "summary": "Records your characters (gear, bags and bank, quests, professions, reputations, gold and played time), your guild's roster, the players you see, and your kills and loot, for ryna.io.",
   "kind": "addon",
   "actsInGame": false,
   "source": { "kind": "bundled" },
-  "requires": { "core": ">=0.4.0" },
+  "requires": { "api": 2 },
   "defaultOn": true,
   "addons": ["Ryna_Chronicle"]
 }

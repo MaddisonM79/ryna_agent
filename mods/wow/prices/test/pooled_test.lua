@@ -14,7 +14,7 @@
 -- luacheck: ignore 1
 
 local ADDON = "mods/wow/prices/addon/Ryna_Prices/"
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 
 local failures, checks = 0, 0
 local function check(cond, what)
@@ -83,7 +83,7 @@ end
 
 -- The core's real Data.lua, loaded into a namespace of its own.
 local coreNs = {}
-assert(loadfile(CORE .. "Data.lua"))("Ryna", coreNs)
+assert(loadfile(CORE .. "Data.lua"))("Ryna_Core", coreNs)
 
 local settings, defaults, registered, statusSlash, postCalls, db
 local function installClient()

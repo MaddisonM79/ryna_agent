@@ -30,7 +30,9 @@ pub const SAVED_VARIABLE: &str = "RynaDB";
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
-    #[error("no {SAVED_VARIABLE} in this file: is it the Ryna addon's SavedVariables (Ryna.lua)?")]
+    #[error(
+        "no {SAVED_VARIABLE} in this file: is it the Ryna addon's SavedVariables (Ryna_Core.lua)?"
+    )]
     NoRynaDb,
     #[error("{SAVED_VARIABLE} is not a table")]
     NotATable,
@@ -762,7 +764,7 @@ pub fn build(parsed: &Value, source: &Source<'_>) -> Result<Built, SnapshotError
     })
 }
 
-/// Read, parse and build one account's `Ryna.lua`. `saved_at` is taken from the file's mtime.
+/// Read, parse and build one account's `Ryna_Core.lua`. `saved_at` is taken from the file's mtime.
 pub fn read_file(
     path: &Path,
     account_folder: &str,
@@ -1457,7 +1459,7 @@ mod tests {
     #[test]
     fn read_file_uses_the_mtime() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Ryna.lua");
+        let path = dir.path().join("Ryna_Core.lua");
         std::fs::write(&path, FIXTURE).unwrap();
         let built = read_file(&path, "FAKEACCOUNT1", Some("Main"), None).unwrap();
         let mtime = crate::util::mtime(&path).unwrap().secs;

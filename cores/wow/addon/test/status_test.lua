@@ -8,7 +8,7 @@
 -- This proves the logic; how the line and the notice look is the game's to show.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 
 local failures, checks = 0, 0
 local function check(cond, what)
@@ -69,7 +69,7 @@ _G.C_AddOns = { GetAddOnMetadata = function() return "0.3.10" end }
 
 local ns = {}
 for _, file in ipairs({ "Core.lua", "Locales/enUS.lua", "Status.lua", "Notice.lua" }) do
-  assert(loadfile(CORE .. file))("Ryna", ns)
+  assert(loadfile(CORE .. file))("Ryna_Core", ns)
 end
 local St, N = ns.Status, ns.Notice
 

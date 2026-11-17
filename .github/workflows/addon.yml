@@ -28,7 +28,7 @@ jobs:
       - name: Every addon file parses as Lua 5.1
         run: |
           shopt -s nullglob
-          for f in cores/wow/addon/Ryna/*.lua cores/wow/addon/Ryna/Locales/*.lua mods/wow/*/addon/*/*.lua mods/wow/*/addon/*/Locales/*.lua; do
+          for f in cores/wow/addon/Ryna_Core/*.lua cores/wow/addon/Ryna_Core/Locales/*.lua mods/wow/*/addon/*/*.lua mods/wow/*/addon/*/Locales/*.lua; do
             luac5.1 -p "$f" || exit 1
           done
       - name: Every translatable string is in its addon's Locales/enUS.lua and the locale templates

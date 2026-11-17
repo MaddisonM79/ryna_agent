@@ -61,7 +61,7 @@ pub enum WatchEvent {
         path: String,
         flavor: Option<String>,
     },
-    /// An account's `Ryna.lua` was written since its last push.
+    /// An account's `Ryna_Core.lua` was written since its last push.
     #[serde(rename_all = "camelCase")]
     AccountFileChanged {
         label: String,

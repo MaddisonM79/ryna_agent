@@ -15,6 +15,28 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "0.5.0",
+    "headline": "Ryna's own addon is now called Ryna Core.",
+    "items": [
+      {
+        "where": "core",
+        "text": "Ryna's addon is now \"Ryna Core\" in the game's AddOns list. Nothing you recorded is lost."
+      },
+      {
+        "where": "core",
+        "text": "The Mods tab says when a mod needs a newer Ryna Core."
+      },
+      {
+        "where": "app",
+        "text": "The app moves your addon folder and saved data to the new name, with the game closed."
+      },
+      {
+        "where": "app",
+        "text": "The app has a new icon: Ryna herself."
+      }
+    ]
+  },
+  {
     "version": "0.4.4",
     "headline": "Ryna's menu, from the minimap button.",
     "items": [

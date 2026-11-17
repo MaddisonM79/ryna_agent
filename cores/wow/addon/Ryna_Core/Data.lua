@@ -1,5 +1,5 @@
 -- Data: the data layer's reader (docs/ryna-agent-cores-mods.md section 7). The companion app writes
--- versioned tables under Interface/AddOns/Ryna/Data/ (one file each, loaded by the TOC at login and
+-- versioned tables under Interface/AddOns/Ryna_Core/Data/ (one file each, loaded by the TOC at login and
 -- /reload), each as one global `RynaData_<name>` shaped
 --
 --   { version = 1, writtenAt = 1762464000, flavor = "wowf", items = { [itemId] = ... } }

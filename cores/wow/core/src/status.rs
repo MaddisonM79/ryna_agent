@@ -26,9 +26,9 @@ pub struct InstallStatus {
     pub flavor: Option<String>,
     /// Forever (`wowf`): the addon is installed only into these unless a folder was chosen.
     pub forever: bool,
-    /// `Interface/AddOns/Ryna` is there.
+    /// `Interface/AddOns/Ryna_Core` is there.
     pub has_addon: bool,
-    /// Its `Ryna.toc`'s `## Version:`, when it's there and says.
+    /// Its `Ryna_Core.toc`'s `## Version:`, when it's there and says.
     pub addon_version: Option<String>,
     /// How that compares with `Status::addon_bundled`.
     pub addon: AddonState,
@@ -37,7 +37,7 @@ pub struct InstallStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountStatus {
-    /// The account's `Ryna.lua`.
+    /// The account's `Ryna_Core.lua`.
     pub path: String,
     /// The product folder it's under.
     pub install: String,
@@ -279,10 +279,10 @@ mod tests {
             &[("FAKEACCOUNT1", "RynaDB = {}")],
         );
         product(&root, "_retail_", "wow", &[]);
-        let addon = forever.join("Interface/AddOns/Ryna");
+        let addon = forever.join("Interface/AddOns/Ryna_Core");
         std::fs::create_dir_all(&addon).unwrap();
         std::fs::write(
-            addon.join("Ryna.toc"),
+            addon.join("Ryna_Core.toc"),
             "## Title: Ryna\n## Version: 0.1.0\n",
         )
         .unwrap();

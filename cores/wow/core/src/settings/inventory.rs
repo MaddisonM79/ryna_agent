@@ -5,7 +5,7 @@
 //! The game writes an addon's account-wide variables to `WTF/Account/<account>/SavedVariables/
 //! <Addon>.lua` and its per-character ones to `WTF/Account/<account>/<Realm>/<Character>/
 //! SavedVariables/<Addon>.lua`, the file named for the addon's folder. A file whose addon isn't
-//! installed any more is listed too (`installed: false`). `Ryna.lua` (the core's own) is never part
+//! installed any more is listed too (`installed: false`). `Ryna_Core.lua` (the core's own) is never part
 //! of any of it, nor the game's `.bak` files or this mod's `.ryna.bak` ones.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,7 +15,7 @@ use anyhow::{bail, Result};
 use serde::Serialize;
 
 use super::acedb;
-use crate::discovery::{Install, SAVED_VARIABLES_FILE};
+use crate::discovery::{is_core_saved_file, Install};
 use crate::lua;
 use crate::snapshot::account_key;
 
@@ -30,7 +30,13 @@ pub const GAME_FILES: &[&str] = &[
 ];
 
 /// The core's own addon, whose settings are the core's data and never part of this mod.
-pub const CORE_ADDON: &str = "Ryna";
+pub const CORE_ADDON: &str = crate::addon_install::ADDON_NAME;
+
+/// Whether `name` is the core's own addon, under its folder's name now or before 0.5.0.
+pub fn is_core_addon(name: &str) -> bool {
+    name.eq_ignore_ascii_case(CORE_ADDON)
+        || name.eq_ignore_ascii_case(crate::addon_install::LEGACY_ADDON_NAME)
+}
 
 /// A character, by its folder names: `Name` under `Realm`. Written `Name-Realm`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -394,14 +400,14 @@ fn file_info(root: &Path, rel: &str, character: Option<&Character>) -> Option<Se
     })
 }
 
-/// The `.lua` files in a SavedVariables folder, by addon name (the file's stem), less `Ryna.lua`.
+/// The `.lua` files in a SavedVariables folder, by addon name (the file's stem), less `Ryna_Core.lua`.
 fn lua_files(dir: &Path) -> Vec<String> {
     let mut v: Vec<String> = std::fs::read_dir(dir)
         .map(|rd| {
             rd.filter_map(Result::ok)
                 .filter(|e| e.path().is_file())
                 .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|n| n.ends_with(".lua") && n != SAVED_VARIABLES_FILE)
+                .filter(|n| n.ends_with(".lua") && !is_core_saved_file(n))
                 .map(|n| n.trim_end_matches(".lua").to_string())
                 .collect()
         })
@@ -493,15 +499,13 @@ pub fn inventory(install: &Install, account: &str) -> Result<Inventory> {
     };
     // Installed addons that declare settings, whether or not they've written any yet.
     for (folder, toc) in &tocs {
-        if folder.eq_ignore_ascii_case(CORE_ADDON)
-            || (toc.account.is_empty() && toc.character.is_empty())
-        {
+        if is_core_addon(folder) || (toc.account.is_empty() && toc.character.is_empty()) {
             continue;
         }
         entry(&mut addons, folder);
     }
     for name in lua_files(&root.join("SavedVariables")) {
-        if name.eq_ignore_ascii_case(CORE_ADDON) {
+        if is_core_addon(&name) {
             continue;
         }
         let key = entry(&mut addons, &name);
@@ -521,7 +525,7 @@ pub fn inventory(install: &Install, account: &str) -> Result<Inventory> {
     for ch in &character_folders {
         let dir = ch.rel_dir();
         for name in lua_files(&root.join(&ch.realm).join(&ch.name).join("SavedVariables")) {
-            if name.eq_ignore_ascii_case(CORE_ADDON) {
+            if is_core_addon(&name) {
                 continue;
             }
             let key = entry(&mut addons, &name);
@@ -808,7 +812,7 @@ mod tests {
                 "Stormcall/Aerin/AddOns.txt"
             ]
         );
-        // Nothing anywhere is Ryna.lua or a .bak.
+        // Nothing anywhere is Ryna_Core.lua or a .bak.
         let every_path = inv
             .addons
             .iter()
@@ -818,7 +822,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(every_path
             .iter()
-            .all(|p| !p.ends_with("Ryna.lua") && !p.ends_with(".bak")));
+            .all(|p| !p.ends_with("Ryna_Core.lua") && !p.ends_with(".bak")));
         assert!(inventory(&i, "NOPE").is_err());
     }
 

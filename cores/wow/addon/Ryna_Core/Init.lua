@@ -13,7 +13,44 @@ ns.On("ADDON_LOADED", function(_, name)
   if name == addonName then ns.InitDB() end
 end)
 
+-- Before 0.5.0 this addon's folder was Ryna. The companion app moves an install over with the game
+-- closed: the folder, and each account's saved file. Someone who unpacks a release by hand gets
+-- Ryna_Core beside the old Ryna, and the client then loads the same addon twice, both on one RynaDB.
+-- So when the old one loaded: take the mod API and RynaDB back (whichever of the two loaded last has
+-- them), turn the old one off in the game's addon list, and ask for the reload that makes it so (a
+-- dialog, never chat). RynaDB is the old folder's saved file when this one has none yet, which is how
+-- everything recorded comes along; from the reload on it is saved under this folder's name.
+function ns.RetireLegacy()
+  local loaded = ns.Fn("C_AddOns", "IsAddOnLoaded") or ns.Fn("IsAddOnLoaded")
+  if not ns.Try(loaded, ns.LEGACY_NAME) then return false end
+  Ryna = ns.ModAPI
+  if _G.RynaDB ~= ns.db then ns.InitDB() end
+  local disable = ns.Fn("C_AddOns", "DisableAddOn") or ns.Fn("DisableAddOn")
+  if disable then pcall(disable, ns.LEGACY_NAME) end
+  ns.legacy = true
+  ns.Debug("the old Ryna folder loaded too: turned off in the game's addon list, reload to finish")
+  return true
+end
+
+function ns.OfferLegacyReload()
+  local dialogs = StaticPopupDialogs
+  local show = ns.Fn("StaticPopup_Show")
+  local reload = ns.Fn("C_UI", "Reload") or ns.Fn("ReloadUI")
+  if type(dialogs) ~= "table" or not show or not reload then return false end
+  if not dialogs.RYNA_LEGACY_RELOAD then
+    dialogs.RYNA_LEGACY_RELOAD = {
+      text = L["Ryna moved to a new addon folder, Ryna_Core, and the old one is still here. Reload now to "
+        .. "finish the move? Everything Ryna recorded comes along."],
+      button1 = _G.RELOADUI or L["Reload"], button2 = _G.CANCEL or L["Later"],
+      OnAccept = function() reload() end,
+      timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
+  end
+  return ns.Try(show, "RYNA_LEGACY_RELOAD") and true or false
+end
+
 ns.On("PLAYER_LOGIN", function()
+  ns.Run("legacy folder", ns.RetireLegacy)
   if not ns.db then ns.InitDB() end
   ns.Journal.Prune()
   ns.Journal.StartSession(UnitGUID("player"))
@@ -43,7 +80,12 @@ ns.On("PLAYER_LOGIN", function()
   -- A frame, never chat, and only when the API said this version is no longer supported.
   ns.Run("version notice", ns.Notice.ShowAtLogin)
   -- What's new, once after an update: a frame too, and not on top of the notice above.
-  if not ns.Notice.shown then ns.Run("news", ns.News.ShowAtLogin) end
+  if ns.legacy then
+    -- The old folder is still loaded: the reload comes first, and the news after it.
+    ns.Run("legacy reload", ns.OfferLegacyReload)
+  elseif not ns.Notice.shown then
+    ns.Run("news", ns.News.ShowAtLogin)
+  end
 end)
 
 ns.On("PLAYER_LOGOUT", function()

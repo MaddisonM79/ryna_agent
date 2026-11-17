@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SOURCE = join(ROOT, "whats-new.json");
-export const LUA = join(ROOT, "cores", "wow", "addon", "Ryna", "WhatsNew.lua");
+export const LUA = join(ROOT, "cores", "wow", "addon", "Ryna_Core", "WhatsNew.lua");
 export const TS = join(ROOT, "agent", "app", "src", "whatsNewData.ts");
 
 // Where a change can be, and whether the game shows it.

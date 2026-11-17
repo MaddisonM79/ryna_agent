@@ -8,6 +8,10 @@
 local addonName, ns = ...
 
 ns.NAME = addonName
+-- What every mod's addon folder starts with (Ryna_Chronicle); this addon's own is Ryna_Core.
+ns.MOD_PREFIX = "Ryna_"
+-- The folder this addon had before 0.5.0. A copy left there is the same addon twice (Init.lua).
+ns.LEGACY_NAME = "Ryna"
 ns.SCHEMA = 1
 ns.FLAVOR = "wowf"
 ns.COMBAT_LOG_MODES = { instances = true, always = true, never = true }
@@ -129,13 +133,13 @@ local function debugEmit(msg)
 end
 
 -- Whether `addon`, as the client names it in ADDON_ACTION_BLOCKED and ADDON_ACTION_FORBIDDEN, is
--- this addon or one of its mods: the core's own name, a registered mod's addon, or a name that
--- starts with the core's and an underscore (Ryna_Chronicle), so a mod blamed before it registered
--- still counts. Anything else is someone else's addon.
+-- this addon or one of its mods: the core's own name (or the one it had before 0.5.0), a registered
+-- mod's addon, or a name that starts with the mods' prefix (Ryna_Chronicle), so a mod blamed before
+-- it registered still counts. Anything else is someone else's addon.
 function ns.IsOwnAddon(addon)
   if type(addon) ~= "string" then return false end
-  if addon == ns.NAME or (ns.modsByAddon and ns.modsByAddon[addon]) then return true end
-  return addon:sub(1, #ns.NAME + 1) == ns.NAME .. "_"
+  if addon == ns.NAME or addon == ns.LEGACY_NAME or (ns.modsByAddon and ns.modsByAddon[addon]) then return true end
+  return addon:sub(1, #ns.MOD_PREFIX) == ns.MOD_PREFIX
 end
 
 function ns.Debugging()

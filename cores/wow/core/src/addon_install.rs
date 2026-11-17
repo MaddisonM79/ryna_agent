@@ -1,17 +1,24 @@
-//! Installing the addon: copy an `addon/Ryna` folder into each install's `Interface/AddOns/Ryna`.
+//! Installing the addon: copy an `addon/Ryna_Core` folder into each install's `Interface/AddOns/Ryna_Core`.
 //!
-//! The release puts the addon beside the binary (`<dir>/addon/Ryna` or `<dir>/Ryna`); `--from`
+//! Before 0.5.0 the folder was `Ryna` ([`LEGACY_ADDON_NAME`]). An install that still has that one
+//! counts as having the addon (an old one: [`needs_update`]), the agent's files go on being written
+//! into it ([`addon_dir`]), and [`install`] moves it over: the new folder in, each account's saved
+//! file copied to the new folder's name (`Ryna.lua` to `Ryna_Core.lua`, the game names the file after
+//! the folder), the agent's `Data/` carried across, and the old folder removed. Only with the game
+//! closed: a running game still has the old addon in memory and writes the old file at logout.
+//!
+//! The release puts the addon beside the binary (`<dir>/addon/Ryna_Core` or `<dir>/Ryna`); `--from`
 //! names another. The copy is made next to the old one and swapped in, so a failed copy leaves
 //! the installed addon as it was. Symbolic links in the source are skipped.
 //!
-//! `installed_addon_version` reads the installed copy's `## Version:` from its `Ryna.toc`, for the
+//! `installed_addon_version` reads the installed copy's `## Version:` from its `Ryna_Core.toc`, for the
 //! app's install row and the heartbeat; `bundled_addon_version` reads the same line from the copy
 //! a front end would install (the app's resources, the CLI's `--from`), and `addon_state` says
 //! how the two compare (`compare_versions`: dotted integers).
 //!
 //! A WoW mod is its own addon folder beside `Ryna` (`Ryna_Chronicle`): `install_named`,
 //! `remove_named` and `installed_folder_version` do the same for any folder name; `install` is
-//! `install_named` with `Ryna`, unchanged.
+//! `install_named` with `Ryna_Core`, and the move from `Ryna` after it.
 
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
@@ -20,15 +27,33 @@ use anyhow::{bail, Context, Result};
 
 use crate::discovery::Install;
 
-pub const ADDON_NAME: &str = "Ryna";
+pub const ADDON_NAME: &str = "Ryna_Core";
+/// The folder the core's addon had before 0.5.0.
+pub const LEGACY_ADDON_NAME: &str = "Ryna";
 
-/// `<install>/Interface/AddOns/Ryna`, whether or not it's there.
+/// `<install>/Interface/AddOns/Ryna`, the folder from before 0.5.0, whether or not it's there.
+pub fn legacy_addon_dir(install: &Install) -> PathBuf {
+    addon_dir_named(install, LEGACY_ADDON_NAME)
+}
+
+/// Whether the folder from before 0.5.0 is still in this install.
+pub fn has_legacy_addon(install: &Install) -> bool {
+    legacy_addon_dir(install).is_dir()
+}
+
+/// The core addon's folder in this install: `Interface/AddOns/Ryna_Core`, or the old `Ryna` while
+/// that is the only one there (an install not moved over yet), whether or not either is there.
 pub fn addon_dir(install: &Install) -> PathBuf {
-    install
-        .path
-        .join("Interface")
-        .join("AddOns")
-        .join(ADDON_NAME)
+    let current = addon_dir_named(install, ADDON_NAME);
+    if !current.is_dir() && has_legacy_addon(install) {
+        return legacy_addon_dir(install);
+    }
+    current
+}
+
+/// The `## Version:` of the addon folder `dir`, from the `.toc` named after the folder.
+fn own_toc_version(dir: &Path) -> Option<String> {
+    folder_version_named(dir, dir.file_name()?.to_str()?)
 }
 
 /// Whether the addon's folder is in this install.
@@ -49,7 +74,7 @@ pub fn parse_toc_version(toc: &str) -> Option<String> {
     })
 }
 
-/// The `## Version:` of the `Ryna.toc` in the addon folder `dir`; None when it can't be read or
+/// The `## Version:` of the `Ryna_Core.toc` in the addon folder `dir`; None when it can't be read or
 /// names no version.
 fn folder_version(dir: &Path) -> Option<String> {
     folder_version_named(dir, ADDON_NAME)
@@ -71,14 +96,15 @@ pub fn installed_folder_version(install: &Install, name: &str) -> Option<String>
     folder_version_named(&addon_dir_named(install, name), name)
 }
 
-/// The installed addon's version, from `Interface/AddOns/Ryna/Ryna.toc`; None when the addon
-/// isn't installed, the file can't be read, or it names no version.
+/// The installed addon's version, from `Interface/AddOns/Ryna_Core/Ryna_Core.toc` (or the old
+/// `Ryna/Ryna.toc`, see [`addon_dir`]); None when the addon isn't installed, the file can't be read,
+/// or it names no version.
 pub fn installed_addon_version(install: &Install) -> Option<String> {
-    folder_version(&addon_dir(install))
+    own_toc_version(&addon_dir(install))
 }
 
 /// The version of the addon `from` names (resolved as `resolve_source` does: the folder itself,
-/// `Ryna/` or `addon/Ryna/` inside it); None when there's no addon there or its `.toc` names no
+/// `Ryna/` or `addon/Ryna_Core/` inside it); None when there's no addon there or its `.toc` names no
 /// version.
 pub fn bundled_addon_version(from: &Path) -> Option<String> {
     folder_version(&resolve_source(from).ok()?)
@@ -109,7 +135,7 @@ pub fn compare_versions(a: &str, b: &str) -> Ordering {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AddonState {
-    /// `Interface/AddOns/Ryna` isn't there.
+    /// `Interface/AddOns/Ryna_Core` isn't there.
     NotInstalled,
     /// The same version as the bundled one.
     Current,
@@ -140,13 +166,15 @@ pub fn addon_state(has_addon: bool, installed: Option<&str>, bundled: Option<&st
 /// Whether a front end should update this install's addon by itself: it is there, both sides name
 /// a version, and the installed one is older than `bundled`. Never where the addon isn't
 /// installed (that is the person's to choose), never a newer copy (installed from elsewhere), and
-/// never one that names no version.
+/// never one that names no version. An install with the folder from before 0.5.0 always does,
+/// whatever its version says: that folder is older than any addon this build carries.
 pub fn needs_update(install: &Install, bundled: Option<&str>) -> bool {
-    addon_state(
-        has_addon(install),
-        installed_addon_version(install).as_deref(),
-        bundled,
-    ) == AddonState::Older
+    (has_legacy_addon(install) && bundled.is_some())
+        || addon_state(
+            has_addon(install),
+            installed_addon_version(install).as_deref(),
+            bundled,
+        ) == AddonState::Older
 }
 
 fn has_toc(dir: &Path) -> bool {
@@ -162,7 +190,7 @@ fn has_toc(dir: &Path) -> bool {
 }
 
 /// The addon folder `from` names: `from` itself when it holds a `.toc`, else `from/Ryna`, else
-/// `from/addon/Ryna`.
+/// `from/addon/Ryna_Core`.
 pub fn resolve_source(from: &Path) -> Result<PathBuf> {
     for candidate in [
         from.to_path_buf(),
@@ -174,7 +202,7 @@ pub fn resolve_source(from: &Path) -> Result<PathBuf> {
         }
     }
     bail!(
-        "no addon in {}: expected a folder holding Ryna.toc (or Ryna/ or addon/Ryna/ inside it)",
+        "no addon in {}: expected a folder holding Ryna_Core.toc (or Ryna_Core/ or addon/Ryna_Core/ inside it)",
         from.display()
     )
 }
@@ -201,10 +229,97 @@ fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Copy `source` (the `Ryna` folder) into `install`'s `Interface/AddOns/Ryna`, replacing what's
-/// there. Returns the installed folder.
+/// Copy `source` (the `Ryna_Core` folder) into `install`'s `Interface/AddOns/Ryna_Core`, replacing
+/// what's there, and move an install over from the folder it had before 0.5.0. Returns the installed
+/// folder. Refused while the game runs when there is an old folder to move.
 pub fn install(source: &Path, install: &Install) -> Result<PathBuf> {
-    install_named(source, install, ADDON_NAME)
+    install_checked(source, install, &|| {
+        crate::game_process::game_running_at(&install.path)
+    })
+}
+
+/// [`install`], with the question "is the game running?" passed in.
+pub fn install_checked(
+    source: &Path,
+    install: &Install,
+    game_running: &dyn Fn() -> bool,
+) -> Result<PathBuf> {
+    let moving = has_legacy_addon(install);
+    if moving && game_running() {
+        bail!(
+            "close the game first: this update moves the addon from the folder {LEGACY_ADDON_NAME} to \
+             {ADDON_NAME}, and the game still has the old one open"
+        );
+    }
+    let had_current = addon_dir_named(install, ADDON_NAME).is_dir();
+    let target = install_named(source, install, ADDON_NAME)?;
+    if moving {
+        retire_legacy(install, &target, had_current)?;
+    }
+    Ok(target)
+}
+
+/// The saved file the game wrote for the folder `Ryna`, and the one it reads for `Ryna_Core`.
+const LEGACY_SAVED: &str = crate::discovery::LEGACY_SAVED_VARIABLES_FILE;
+const SAVED: &str = crate::discovery::SAVED_VARIABLES_FILE;
+
+/// Finish the move from the old folder, with the new one already in place at `target`: each
+/// account's saved file, then the agent's `Data/`, then the old folder goes. A saved file that
+/// can't be copied stops it with the old folder still there, so the next install tries again and
+/// nothing recorded is left behind under a name the game no longer reads.
+fn retire_legacy(install: &Install, target: &Path, had_current: bool) -> Result<()> {
+    let accounts = install.path.join("WTF").join("Account");
+    if let Ok(rd) = std::fs::read_dir(&accounts) {
+        for account in rd.filter_map(Result::ok) {
+            let saved = account.path().join("SavedVariables");
+            adopt_saved_file(&saved.join(LEGACY_SAVED), &saved.join(SAVED))?;
+        }
+    }
+    let legacy = legacy_addon_dir(install);
+    // The agent's tables, unless the new folder already had its own (both were there).
+    let kept = legacy.join(crate::prices_data::DIR);
+    if !had_current && kept.is_dir() {
+        let into = target.join(crate::prices_data::DIR);
+        let _ = std::fs::remove_dir_all(&into);
+        if let Err(e) = std::fs::rename(&kept, &into) {
+            eprintln!("couldn't keep {}: {e}", into.display());
+        }
+    }
+    std::fs::remove_dir_all(&legacy).with_context(|| format!("removing {}", legacy.display()))
+}
+
+/// Copy the old folder's saved file to the new folder's name, keeping its modified time (which is
+/// when the game saved it, and what the agent goes by). Not when the new one is there and no
+/// older: the game has written it since. The old file stays, for someone who goes back a version.
+fn adopt_saved_file(old: &Path, new: &Path) -> Result<()> {
+    let Ok(old_meta) = std::fs::metadata(old) else {
+        return Ok(());
+    };
+    if !old_meta.is_file() {
+        return Ok(());
+    }
+    let old_time = old_meta.modified().ok();
+    if let Ok(new_meta) = std::fs::metadata(new) {
+        match (old_time, new_meta.modified().ok()) {
+            (Some(o), Some(n)) if o > n => {}
+            _ => return Ok(()),
+        }
+    }
+    let staging = new.with_extension("lua.ryna.tmp");
+    let copy = || -> std::io::Result<()> {
+        std::fs::copy(old, &staging)?;
+        if let Some(t) = old_time {
+            std::fs::File::options()
+                .write(true)
+                .open(&staging)?
+                .set_modified(t)?;
+        }
+        std::fs::rename(&staging, new)
+    };
+    copy().map_err(|e| {
+        let _ = std::fs::remove_file(&staging);
+        anyhow::anyhow!("copying {} to {} failed: {e}", old.display(), new.display())
+    })
 }
 
 /// Copy `source` into `install`'s `Interface/AddOns/<name>`, replacing what's there, the same way
@@ -298,10 +413,14 @@ fn swap_in(
     }
 }
 
-/// Remove `install`'s `Interface/AddOns/<name>` (a mod's folder; never the core's own). Returns
-/// whether there was one to remove.
+/// Remove `install`'s `Interface/AddOns/<name>` (a mod's folder; never the core's own, under either
+/// of its names). Returns whether there was one to remove.
 pub fn remove_named(install: &Install, name: &str) -> Result<bool> {
-    if name == ADDON_NAME || name.is_empty() || name.contains(['/', '\\']) || name.starts_with('.')
+    if name == ADDON_NAME
+        || name == LEGACY_ADDON_NAME
+        || name.is_empty()
+        || name.contains(['/', '\\'])
+        || name.starts_with('.')
     {
         bail!("not a mod's addon folder: {name:?}");
     }
@@ -318,9 +437,9 @@ mod tests {
     use super::*;
 
     fn addon(dir: &Path) -> PathBuf {
-        let a = dir.join("release/addon/Ryna");
+        let a = dir.join("release/addon/Ryna_Core");
         std::fs::create_dir_all(a.join("Libs")).unwrap();
-        std::fs::write(a.join("Ryna.toc"), "## Interface: 11600\nCore.lua\n").unwrap();
+        std::fs::write(a.join("Ryna_Core.toc"), "## Interface: 11600\nCore.lua\n").unwrap();
         std::fs::write(a.join("Core.lua"), "-- core\n").unwrap();
         std::fs::write(a.join("Libs/Lib.lua"), "-- lib\n").unwrap();
         a
@@ -362,7 +481,7 @@ mod tests {
         assert_eq!(installed_addon_version(&inst), None);
         let a = addon(dir.path());
         std::fs::write(
-            a.join("Ryna.toc"),
+            a.join("Ryna_Core.toc"),
             "## Interface: 16001\n## Version: 0.1.0\n",
         )
         .unwrap();
@@ -414,7 +533,7 @@ mod tests {
         // Installed with no version: nothing to compare.
         install(&a, &inst).unwrap();
         assert!(!needs_update(&inst, Some("0.4.2")));
-        std::fs::write(a.join("Ryna.toc"), "## Version: 0.3.6\n").unwrap();
+        std::fs::write(a.join("Ryna_Core.toc"), "## Version: 0.3.6\n").unwrap();
         install(&a, &inst).unwrap();
         assert!(needs_update(&inst, Some("0.4.2")));
         assert!(needs_update(&inst, Some("0.10.0")));
@@ -435,11 +554,11 @@ mod tests {
             "a toc with no version"
         );
         std::fs::write(
-            a.join("Ryna.toc"),
+            a.join("Ryna_Core.toc"),
             "## Interface: 16001\n## Version: 0.2.0\nCore.lua\n",
         )
         .unwrap();
-        for from in ["release", "release/addon", "release/addon/Ryna"] {
+        for from in ["release", "release/addon", "release/addon/Ryna_Core"] {
             assert_eq!(
                 bundled_addon_version(&dir.path().join(from)).as_deref(),
                 Some("0.2.0"),
@@ -476,7 +595,7 @@ mod tests {
             !remove_named(&inst, "Ryna_Chronicle").unwrap(),
             "nothing left to remove"
         );
-        for refused in ["Ryna", "", "../Ryna", ".Ryna.old"] {
+        for refused in ["Ryna_Core", "Ryna", "", "../Ryna", ".Ryna.old"] {
             assert!(remove_named(&inst, refused).is_err(), "{refused}");
         }
         assert!(has_addon(&inst));
@@ -486,9 +605,9 @@ mod tests {
     fn a_failed_swap_says_where_the_previous_addon_is() {
         let dir = tempfile::tempdir().unwrap();
         let addons = dir.path();
-        let staging = addons.join(".Ryna.installing");
-        let target = addons.join("Ryna");
-        let old = addons.join(".Ryna.old");
+        let staging = addons.join(".Ryna_Core.installing");
+        let target = addons.join("Ryna_Core");
+        let old = addons.join(".Ryna_Core.old");
         std::fs::create_dir_all(&staging).unwrap();
         std::fs::create_dir_all(&old).unwrap();
         let refuse = |_: &Path, _: &Path| -> std::io::Result<()> {
@@ -535,7 +654,7 @@ mod tests {
 
     #[test]
     fn a_stranded_previous_addon_is_put_back_before_the_next_install() {
-        // A failed rollback left `.Ryna.old` (with the agent's Data/) and no `Ryna`.
+        // A failed rollback left `.Ryna_Core.old` (with the agent's Data/) and no `Ryna_Core`.
         let dir = tempfile::tempdir().unwrap();
         let src = addon(dir.path());
         let install = Install {
@@ -543,7 +662,7 @@ mod tests {
             flavor: Some("wowf".into()),
         };
         let addons = install.path.join("Interface/AddOns");
-        let stranded = addons.join(".Ryna.old");
+        let stranded = addons.join(".Ryna_Core.old");
         std::fs::create_dir_all(stranded.join(crate::prices_data::DIR)).unwrap();
         std::fs::write(stranded.join(crate::prices_data::DIR).join("kept.lua"), "x").unwrap();
         let target = install_named(&src, &install, ADDON_NAME).unwrap();
@@ -555,17 +674,171 @@ mod tests {
         assert!(!stranded.exists());
     }
 
+    /// An install as 0.4.4 left it: the folder `Ryna` (with the agent's Data/) and two accounts, one
+    /// with a saved file.
+    fn legacy_install(dir: &Path) -> Install {
+        let install = Install {
+            path: dir.join("_forever_"),
+            flavor: Some("wowf".into()),
+        };
+        let old = install.path.join("Interface/AddOns/Ryna");
+        std::fs::create_dir_all(old.join("Data")).unwrap();
+        std::fs::write(old.join("Ryna.toc"), "## Version: 0.4.4\n").unwrap();
+        std::fs::write(old.join("Data/vendors.lua"), "RynaData_vendors = {}").unwrap();
+        let sv = install.path.join("WTF/Account/ONE/SavedVariables");
+        std::fs::create_dir_all(&sv).unwrap();
+        std::fs::write(sv.join("Ryna.lua"), "RynaDB = { old = true }\n").unwrap();
+        std::fs::create_dir_all(install.path.join("WTF/Account/TWO/SavedVariables")).unwrap();
+        install
+    }
+
+    fn set_mtime(path: &Path, secs: u64) {
+        let t = std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs);
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(t)
+            .unwrap();
+    }
+
+    fn mtime(path: &Path) -> std::time::SystemTime {
+        std::fs::metadata(path).unwrap().modified().unwrap()
+    }
+
+    #[test]
+    fn an_install_with_the_old_folder_has_the_addon_and_needs_the_update() {
+        let dir = tempfile::tempdir().unwrap();
+        let install = legacy_install(dir.path());
+        assert!(has_addon(&install) && has_legacy_addon(&install));
+        assert_eq!(addon_dir(&install), legacy_addon_dir(&install));
+        assert_eq!(installed_addon_version(&install).as_deref(), Some("0.4.4"));
+        // Whatever the versions say, even the same one: the old folder is always behind.
+        assert!(needs_update(&install, Some("0.5.0")));
+        assert!(needs_update(&install, Some("0.4.4")));
+        assert!(
+            !needs_update(&install, None),
+            "a build with no addon to give"
+        );
+    }
+
+    #[test]
+    fn installing_moves_the_old_folder_over_with_its_saved_files_and_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = addon(dir.path());
+        let install = legacy_install(dir.path());
+        let sv = install.path.join("WTF/Account/ONE/SavedVariables");
+        set_mtime(&sv.join("Ryna.lua"), 1_700_000_000);
+
+        let target = install_checked(&src, &install, &|| false).unwrap();
+        assert_eq!(target, install.path.join("Interface/AddOns/Ryna_Core"));
+        assert!(target.join("Ryna_Core.toc").is_file());
+        assert!(!has_legacy_addon(&install), "the old folder is gone");
+        assert_eq!(addon_dir(&install), target);
+        // The agent's tables came across.
+        assert_eq!(
+            std::fs::read_to_string(target.join("Data/vendors.lua")).unwrap(),
+            "RynaData_vendors = {}"
+        );
+        // The saved file is under the new folder's name, as it was saved and when it was saved; the
+        // old one is left for someone who goes back a version.
+        assert_eq!(
+            std::fs::read_to_string(sv.join("Ryna_Core.lua")).unwrap(),
+            "RynaDB = { old = true }\n"
+        );
+        assert_eq!(
+            mtime(&sv.join("Ryna_Core.lua")),
+            mtime(&sv.join("Ryna.lua"))
+        );
+        assert!(sv.join("Ryna.lua").is_file());
+        // An account with no saved file gets none, and nothing is left half-written.
+        let two = install.path.join("WTF/Account/TWO/SavedVariables");
+        assert_eq!(std::fs::read_dir(&two).unwrap().count(), 0);
+        assert_eq!(std::fs::read_dir(&sv).unwrap().count(), 2);
+        assert!(
+            !needs_update(&install, Some("0.4.4")),
+            "moved: no longer behind"
+        );
+    }
+
+    #[test]
+    fn the_move_waits_for_the_game_to_close() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = addon(dir.path());
+        let install = legacy_install(dir.path());
+        let e = install_checked(&src, &install, &|| true)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("close the game first"), "{e}");
+        // Nothing was touched.
+        assert!(has_legacy_addon(&install));
+        assert!(!install.path.join("Interface/AddOns/Ryna_Core").exists());
+        assert!(!install
+            .path
+            .join("WTF/Account/ONE/SavedVariables/Ryna_Core.lua")
+            .exists());
+        // With no old folder a running game doesn't stop an install (it needs a /reload, as before).
+        let fresh = Install {
+            path: dir.path().join("_fresh_"),
+            flavor: Some("wowf".into()),
+        };
+        assert!(install_checked(&src, &fresh, &|| true).is_ok());
+    }
+
+    #[test]
+    fn a_saved_file_the_game_has_written_since_is_never_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = addon(dir.path());
+        let install = legacy_install(dir.path());
+        let sv = install.path.join("WTF/Account/ONE/SavedVariables");
+        // Both folders were there for a while (unpacked by hand): the new one's file is the newer.
+        std::fs::create_dir_all(install.path.join("Interface/AddOns/Ryna_Core/Data")).unwrap();
+        std::fs::write(
+            install
+                .path
+                .join("Interface/AddOns/Ryna_Core/Data/vendors.lua"),
+            "newer tables",
+        )
+        .unwrap();
+        std::fs::write(sv.join("Ryna_Core.lua"), "RynaDB = { new = true }\n").unwrap();
+        set_mtime(&sv.join("Ryna.lua"), 1_700_000_000);
+        set_mtime(&sv.join("Ryna_Core.lua"), 1_700_000_500);
+        let target = install_checked(&src, &install, &|| false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(sv.join("Ryna_Core.lua")).unwrap(),
+            "RynaDB = { new = true }\n"
+        );
+        // And the new folder's own tables are the ones kept.
+        assert_eq!(
+            std::fs::read_to_string(target.join("Data/vendors.lua")).unwrap(),
+            "newer tables"
+        );
+        assert!(!has_legacy_addon(&install));
+
+        // The other way round (the old addon was the one still running): the old file is the truth.
+        let again = legacy_install(&dir.path().join("again"));
+        let sv = again.path.join("WTF/Account/ONE/SavedVariables");
+        std::fs::write(sv.join("Ryna_Core.lua"), "RynaDB = { stale = true }\n").unwrap();
+        set_mtime(&sv.join("Ryna_Core.lua"), 1_700_000_000);
+        set_mtime(&sv.join("Ryna.lua"), 1_700_000_500);
+        install_checked(&src, &again, &|| false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(sv.join("Ryna_Core.lua")).unwrap(),
+            "RynaDB = { old = true }\n"
+        );
+    }
+
     #[test]
     fn installs_and_replaces() {
         let dir = tempfile::tempdir().unwrap();
         let a = addon(dir.path());
         let product = dir.path().join("_forever_");
-        std::fs::create_dir_all(product.join("Interface/AddOns/Ryna")).unwrap();
-        std::fs::write(product.join("Interface/AddOns/Ryna/Stale.lua"), "old").unwrap();
+        std::fs::create_dir_all(product.join("Interface/AddOns/Ryna_Core")).unwrap();
+        std::fs::write(product.join("Interface/AddOns/Ryna_Core/Stale.lua"), "old").unwrap();
         // The agent's price tables (prices_data) live under the core's Data/: kept across a reinstall.
-        std::fs::create_dir_all(product.join("Interface/AddOns/Ryna/Data")).unwrap();
+        std::fs::create_dir_all(product.join("Interface/AddOns/Ryna_Core/Data")).unwrap();
         std::fs::write(
-            product.join("Interface/AddOns/Ryna/Data/vendors.lua"),
+            product.join("Interface/AddOns/Ryna_Core/Data/vendors.lua"),
             "RynaData_vendors = { version = 1 }",
         )
         .unwrap();
@@ -578,12 +851,12 @@ mod tests {
         };
 
         let target = install(&a, &inst).unwrap();
-        assert_eq!(target, product.join("Interface/AddOns/Ryna"));
+        assert_eq!(target, product.join("Interface/AddOns/Ryna_Core"));
         assert_eq!(
             std::fs::read_to_string(target.join("Libs/Lib.lua")).unwrap(),
             "-- lib\n"
         );
-        assert!(target.join("Ryna.toc").is_file());
+        assert!(target.join("Ryna_Core.toc").is_file());
         assert!(
             !target.join("Stale.lua").exists(),
             "the old copy is replaced, not merged"

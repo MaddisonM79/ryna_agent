@@ -130,7 +130,7 @@ travels inside the app, so when the app updates, the *Game* section offers the m
 
 ## What leaves your computer
 
-Only what you can see in the addon's SavedVariables file (`WTF/Account/<account>/SavedVariables/Ryna.lua`)
+Only what you can see in the addon's SavedVariables file (`WTF/Account/<account>/SavedVariables/Ryna_Core.lua`)
 and in the per-fight summaries the app computes: your characters, their inventory, quests,
 professions and reputations; the guild roster; and for each fight, who was in it (character names
 and in-game ids), what they did, and when. Raw combat-log text is uploaded only if you turn that on
@@ -173,7 +173,7 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
 - `cores/`: the games (`cores/README.md`). `cores/wow` is World of Warcraft: Forever: its manifest
   `core.json`; the Rust core `cores/wow/core` (crate `ryna-wow-core`: the SavedVariables reader,
   install discovery, the combat-log tailer and fight parser, the pusher, the watch loop and the addon
-  installer); the in-game addon `cores/wow/addon/Ryna`, tagged for Forever, the plumbing its mods
+  installer); the in-game addon `cores/wow/addon/Ryna_Core`, tagged for Forever, the plumbing its mods
   build on (`cores/wow/addon/README.md`: what is recorded, settings, your own `/who`, translations,
   the mod API); and the scrubbed test fixtures in `cores/wow/fixtures`. Its mods are in `mods/wow`:
   Chronicle (`mods/wow/chronicle`), everything recorded about a character, Automation
@@ -188,7 +188,7 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
   the saves' compression with kraken-decode (MIT, our own); `cores/palworld/NOTICE.md` has both.
 - `mods/`: each core's mods (`mods/wow`), from stage 2 of the design.
 - `scripts/`: version checks, the release manifest, the CLI smoke test, `core-package.mjs` (a
-  fetched core's package), and `capture.sh`, which turns a real `Ryna.lua` into a scrubbed test
+  fetched core's package), and `capture.sh`, which turns a real `Ryna_Core.lua` into a scrubbed test
   fixture.
 
 Releases are built by `.github/workflows/release.yml` from a `vX.Y.Z` tag: macOS (both chips),

@@ -7,7 +7,7 @@
 --   lua5.1 mods/wow/chronicle/test/window_failsoft_test.lua
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local CHRON = "mods/wow/chronicle/addon/Ryna_Chronicle/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
@@ -34,8 +34,8 @@ _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {
 
 -- The core as it is, then without its window: what Chronicle sees beside an older core.
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 _G.Ryna.Window, _G.Ryna.Tooltip = nil, nil
 
 local ns = {}

@@ -8,7 +8,7 @@
 --   lua5.1 cores/wow/addon/test/window_say_test.lua
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
 local failures, checks = 0, 0
@@ -30,8 +30,8 @@ _G.C_AddOns = { GetAddOnMetadata = function() return "0.0.0" end }
 _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {} }
 
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 F.Fire("PLAYER_LOGIN")
 F.DropTimers()
 

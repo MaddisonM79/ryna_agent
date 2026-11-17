@@ -1,9 +1,10 @@
 ## Interface: 16001
-## Title: Ryna
+## Title: Ryna Core
 ## Notes: The Ryna companion app's in-game half: settings, the journal and the panel its mods (Ryna_Chronicle and others) build on. /ryna for settings.
 ## Author: Ryna contributors
-## Version: 0.4.4
+## Version: 0.5.0
 ## SavedVariables: RynaDB
+## X-Ryna-API: 2
 
 Core.lua
 Locales\enUS.lua

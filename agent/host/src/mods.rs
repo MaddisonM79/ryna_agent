@@ -61,8 +61,12 @@ pub enum ModSource {
 #[serde(rename_all = "camelCase")]
 pub struct Requires {
     /// The core versions it works with (`>=0.3.0`, `^0.3`, `>=0.3.0, <0.5.0`); none: any.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub core: Option<String>,
+    /// The lowest core API level it works with (`CoreManifest::api`); none: any. This is what a mod
+    /// with its own version line says about the core, in place of a range of the core's versions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api: Option<u32>,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -124,6 +128,9 @@ impl ModManifest {
                 return bad(format!("requires.core: {e}"));
             }
         }
+        if self.requires.api == Some(0) {
+            return bad("requires.api: levels start at 1".to_string());
+        }
         for folder in &self.addons {
             let plain = !folder.is_empty()
                 && folder != "."
@@ -136,6 +143,15 @@ impl ModManifest {
             }
         }
         Ok(())
+    }
+
+    /// Whether a core at API level `core_api` is one this mod works with (`requires.api`; none: any).
+    /// A core that names no level satisfies no requirement for one.
+    pub fn works_with_api(&self, core_api: Option<u32>) -> bool {
+        match self.requires.api {
+            None => true,
+            Some(needs) => core_api.is_some_and(|have| have >= needs),
+        }
     }
 
     /// Whether the core at `core_version` is one this mod works with (`requires.core`; none: any).
@@ -315,6 +331,20 @@ mod tests {
         assert_eq!(m.requires, Requires::default());
         assert!(matches!(m.source, ModSource::Git { .. }));
         assert!(m.works_with_core("0.0.1"), "no requirement: any core");
+        assert!(
+            m.works_with_api(None) && m.works_with_api(Some(1)),
+            "no level asked: any core"
+        );
+        let mut v = chronicle_like();
+        v["requires"] = json!({ "api": 2 });
+        let m = ModManifest::parse(&v.to_string()).unwrap();
+        assert!(
+            m.works_with_core("0.0.1"),
+            "a level says nothing of versions"
+        );
+        assert!(m.works_with_api(Some(2)) && m.works_with_api(Some(3)));
+        assert!(!m.works_with_api(Some(1)), "a core below the level");
+        assert!(!m.works_with_api(None), "a core that names no level");
     }
 
     #[test]
@@ -336,6 +366,7 @@ mod tests {
         assert!(refused("kind", json!("")).contains("kind"));
         assert!(refused("requires", json!({ "core": ">=zero" })).contains("requires.core"));
         assert!(refused("requires", json!({ "core": "" })).contains("requires.core"));
+        assert!(refused("requires", json!({ "api": 0 })).contains("requires.api"));
         assert!(refused("addons", json!(["../Ryna"])).contains("addon folder"));
         assert!(refused("addons", json!(["Ryna/Chronicle"])).contains("addon folder"));
         assert!(refused(

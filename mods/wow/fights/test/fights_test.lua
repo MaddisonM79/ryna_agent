@@ -12,7 +12,7 @@
 -- version, an empty list and malformed rows; nothing in chat, no errors, never the word "threat".
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local ADDON = "mods/wow/fights/addon/Ryna_Fights/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 local plain = F.Plain
@@ -46,10 +46,10 @@ _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {
 } }
 
 local core, mod = {}, {}
-F.LoadAddon(CORE, "Ryna", core)
+F.LoadAddon(CORE, "Ryna_Core", core)
 F.LoadAddon(ADDON, "Ryna_Fights", mod)
 dofile("mods/wow/fights/test/fixtures/fights.lua")
-F.Fire("ADDON_LOADED", "Ryna")
+F.Fire("ADDON_LOADED", "Ryna_Core")
 F.Fire("PLAYER_LOGIN")
 F.DropTimers()
 

@@ -10,7 +10,7 @@
 -- This proves the logic; how the view looks in the default UI and in ElvUI is the game's to show.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local CHRON = "mods/wow/chronicle/addon/Ryna_Chronicle/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
@@ -236,8 +236,8 @@ _G.RynaDB = {
 _G.date = os.date -- this computer's zone: the checks below hold in any
 
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 local cns = {}
 F.LoadAddon(CHRON, "Ryna_Chronicle", cns)
 F.Fire("ADDON_LOADED", "Ryna_Chronicle")

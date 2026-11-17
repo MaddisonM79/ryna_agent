@@ -17,7 +17,7 @@
 //! A restore checks everything before it writes anything: the ciphertext's size and sha256, the
 //! decryption (which fails on any changed byte), each file's sha256 against the manifest, and that
 //! every path is one this mod writes (a SavedVariables `.lua` or one of the game's files, never
-//! `Ryna.lua`). Then each file it replaces is kept as `<file>.ryna.bak` and the files are written,
+//! `Ryna_Core.lua`). Then each file it replaces is kept as `<file>.ryna.bak` and the files are written,
 //! with the game closed.
 
 use std::collections::BTreeSet;
@@ -37,7 +37,7 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 use super::inventory::{Inventory, GAME_FILES};
-use crate::discovery::{Install, SAVED_VARIABLES_FILE};
+use crate::discovery::{is_core_saved_file, Install};
 use crate::http::Method;
 use crate::push::{path_segment, Api, SETTINGS_BACKUPS_PATH};
 use crate::snapshot::account_key;
@@ -537,7 +537,7 @@ pub fn account_for(
 
 /// The account-relative path for a backup path of account `key`, if it's one this mod writes:
 /// `SavedVariables/<x>.lua`, `<Realm>/<Name>/SavedVariables/<x>.lua` or `<Realm>/<Name>/<game file>`,
-/// each part a plain name, and never `Ryna.lua`.
+/// each part a plain name, and never `Ryna_Core.lua`.
 pub fn restorable_path(path: &str, key: &str) -> Option<String> {
     let rest = path
         .strip_prefix("Account/")?
@@ -547,9 +547,7 @@ pub fn restorable_path(path: &str, key: &str) -> Option<String> {
     if !parts.iter().all(|p| super::plain_component(p)) {
         return None;
     }
-    let lua = |f: &str| {
-        f.ends_with(".lua") && f.len() > 4 && !f.eq_ignore_ascii_case(SAVED_VARIABLES_FILE)
-    };
+    let lua = |f: &str| f.ends_with(".lua") && f.len() > 4 && !is_core_saved_file(f);
     let ok = match parts.as_slice() {
         ["SavedVariables", f] => lua(f),
         [_, _, "SavedVariables", f] => lua(f),
@@ -1058,8 +1056,8 @@ mod tests {
         assert!(ok("Stormcall/Aerin/config-cache.wtf").is_some());
         assert!(ok("Argent Dawn/Aerin/AddOns.txt").is_some());
         for bad in [
-            "SavedVariables/Ryna.lua",
-            "Stormcall/Aerin/SavedVariables/Ryna.lua",
+            "SavedVariables/Ryna_Core.lua",
+            "Stormcall/Aerin/SavedVariables/Ryna_Core.lua",
             "SavedVariables/../../../Interface/AddOns/x.lua",
             "../x/SavedVariables/a.lua",
             "SavedVariables/a.lua.bak",
@@ -1099,7 +1097,7 @@ mod tests {
             .contains(&format!("Account/{k}/Stormcall/Aerin/SavedVariables/Details.lua").as_str()));
         assert!(paths
             .iter()
-            .all(|p| !p.contains("ACCOUNT1") && !p.ends_with("Ryna.lua")));
+            .all(|p| !p.contains("ACCOUNT1") && !p.ends_with("Ryna_Core.lua")));
         assert!(
             paths.iter().all(|p| !p.ends_with(".wtf")),
             "game files only when asked"
@@ -1239,9 +1237,9 @@ mod tests {
         assert!(report
             .backups
             .contains(&"SavedVariables/ElvUI.lua.ryna.bak".to_string()));
-        // Ryna.lua was never in it, so it's as it was.
+        // Ryna_Core.lua was never in it, so it's as it was.
         assert_eq!(
-            std::fs::read_to_string(root.join("SavedVariables/Ryna.lua")).unwrap(),
+            std::fs::read_to_string(root.join("SavedVariables/Ryna_Core.lua")).unwrap(),
             "RynaDB = {}\n"
         );
 

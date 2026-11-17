@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks the addons' translatable strings (no dependencies; Node 18+): the core addon
-// (cores/wow/addon/Ryna) and every WoW mod's addon (mods/wow/*/addon/*). From the repository root:
+// (cores/wow/addon/Ryna_Core) and every WoW mod's addon (mods/wow/*/addon/*). From the repository root:
 //
 //   node cores/wow/addon/tools/strings.mjs [folder...]              report and exit 1 when anything is off
 //   node cores/wow/addon/tools/strings.mjs --templates [folder...]  also rewrite the other Locales/*.lua from
@@ -19,7 +19,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
-const CORE = join(ROOT, "cores", "wow", "addon", "Ryna");
+const CORE = join(ROOT, "cores", "wow", "addon", "Ryna_Core");
 const MODS = join(ROOT, "mods", "wow");
 const BASE = "enUS";
 

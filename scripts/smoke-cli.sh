@@ -6,8 +6,8 @@
 # --version; parse cores/wow/fixtures/Ryna.lua (stdout must be JSON); combat
 # cores/wow/fixtures/combat-world.txt (must find a fight); and discovery: a temporary
 # `Program Files (x86)/World of Warcraft/_forever_` tree with a .flavor.info and one account's
-# Ryna.lua, which `status --install <that>` must list, and `settings list` must see (and not list
-# Ryna.lua). CI runs it on every OS (Windows is the
+# Ryna_Core.lua, which `status --install <that>` must list, and `settings list` must see (and not list
+# Ryna_Core.lua). CI runs it on every OS (Windows is the
 # case it's for). The sign-in provider and the API are made-up ones, so the keychain lookups (the
 # sign-in, the device key) find nothing and never touch a real one; the state folder is
 # temporary too.
@@ -52,15 +52,15 @@ game="$tmp/Program Files (x86)/World of Warcraft"
 product="$game/_forever_"
 mkdir -p "$product/WTF/Account/SMOKE/SavedVariables"
 printf 'Product Flavor!STRING:0\nwowf\n' > "$product/.flavor.info"
-cp "$root/cores/wow/fixtures/Ryna.lua" "$product/WTF/Account/SMOKE/SavedVariables/Ryna.lua"
+cp "$root/cores/wow/fixtures/Ryna.lua" "$product/WTF/Account/SMOKE/SavedVariables/Ryna_Core.lua"
 "$bin" status --install "$(native "$game")" | tee "$tmp/status.txt"
 grep -q '_forever_  flavor wowf' "$tmp/status.txt" || fail "status didn't list the _forever_ install"
 grep -q '^Accounts:' "$tmp/status.txt" || fail "status didn't list the account"
-grep -q 'SavedVariables.Ryna\.lua' "$tmp/status.txt" || fail "status didn't list the account's Ryna.lua"
+grep -q 'SavedVariables.Ryna_Core\.lua' "$tmp/status.txt" || fail "status didn't list the account's Ryna_Core.lua"
 grep -q '^Submission ID: ' "$tmp/status.txt" || fail "status didn't say the submission ID"
 
 step "settings"
-# The Settings mod's inventory of the same tree (local: no keychain, no network). Ryna.lua is
+# The Settings mod's inventory of the same tree (local: no keychain, no network). Ryna_Core.lua is
 # the core's own and never listed.
 "$bin" settings list --install "$(native "$game")" | tee "$tmp/settings.txt"
 grep -q '^SMOKE in ' "$tmp/settings.txt" || fail "settings list didn't name the account"

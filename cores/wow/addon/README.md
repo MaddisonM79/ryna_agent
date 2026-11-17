@@ -4,14 +4,14 @@ World of Warcraft: Forever addons that record what your characters have and do i
 account-wide SavedVariable, `RynaDB`, for the Ryna companion app (the agent) to read and upload.
 The core's addon and its mods' addons are installed side by side by the companion app:
 
-- **Ryna** (`cores/wow/addon/Ryna`), the WoW core's in-game half and only the plumbing: `RynaDB`
+- **Ryna** (`cores/wow/addon/Ryna_Core`), the WoW core's in-game half and only the plumbing: `RynaDB`
   and its schema, the event dispatcher, the settings and their defaults, the journal (append,
   dedupe, prune), the settings panel and its tabs, the strings (`Locales/`), `/ryna`, error
   reporting, the minimap button, reading the app's `AgentStatus.lua`, and the
   combat log (`CombatLog.lua`: turning it on where the mode wants it, and Advanced combat logging),
   which is how the app gets fights whatever mods are on. On its own it records nothing about a
   character.
-- **Chronicle by Ryna** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna`), the first
+- **Chronicle by Ryna** (`mods/wow/chronicle/addon/Ryna_Chronicle`, `## Dependencies: Ryna_Core`), the first
   mod and on by default: everything recorded about a character (below), the tooltips, and the
   panel's Recording and Census tabs. It builds on the core only through the mod API (below) and
   writes exactly the `RynaDB` the single addon wrote before the split (docs/wow.md section 2).
@@ -179,10 +179,10 @@ names match the JSON the agent uploads one for one.
 
 ## Where the file is
 
-`WTF/Account/<ACCOUNT>/SavedVariables/Ryna.lua` under the Forever install:
+`WTF/Account/<ACCOUNT>/SavedVariables/Ryna_Core.lua` under the Forever install:
 
-- macOS: `/Applications/World of Warcraft/_forever_/WTF/Account/<ACCOUNT>/SavedVariables/Ryna.lua`
-- Windows: `C:\Program Files (x86)\World of Warcraft\_forever_\WTF\Account\<ACCOUNT>\SavedVariables\Ryna.lua`
+- macOS: `/Applications/World of Warcraft/_forever_/WTF/Account/<ACCOUNT>/SavedVariables/Ryna_Core.lua`
+- Windows: `C:\Program Files (x86)\World of Warcraft\_forever_\WTF\Account\<ACCOUNT>\SavedVariables\Ryna_Core.lua`
 
 `<ACCOUNT>` is the game account's folder. `WTF` only exists after the first login.
 
@@ -486,7 +486,7 @@ the minimap (its place is saved in `RynaDB.settings.minimap`); hover it for the 
 ## AgentStatus.lua: how the companion app talks back
 
 An addon can't read the network or any file other than its own, so the companion app writes one:
-`Interface/AddOns/Ryna/AgentStatus.lua`, rewritten after every sync, which the game loads at login
+`Interface/AddOns/Ryna_Core/AgentStatus.lua`, rewritten after every sync, which the game loads at login
 and `/reload`. It sets one global, `RynaAgentStatus`:
 
 ```lua
@@ -519,7 +519,7 @@ line: "Ryna: the companion app hasn't synced recently."
 ## Data/: what the companion app brings into the game
 
 The same trick, generalised (docs/ryna-agent-cores-mods.md section 7): the app writes versioned
-tables under `Interface/AddOns/Ryna/Data/`, one file each, loaded at login and `/reload`, each
+tables under `Interface/AddOns/Ryna_Core/Data/`, one file each, loaded at login and `/reload`, each
 one global `RynaData_<name>` shaped `{ version, writtenAt, flavor, items = { [itemId] = ... } }`.
 Two are for the Prices mod, both pooled from everyone's uploads, about no one; the third is the
 Fights mod's, from this computer's own combat log:
@@ -576,9 +576,9 @@ positions and health in the log, turn on **Advanced Combat Logging** in the game
 
 ## Installing by hand
 
-Copy the `cores/wow/addon/Ryna` folder and the `mods/wow/chronicle/addon/Ryna_Chronicle` folder
+Copy the `cores/wow/addon/Ryna_Core` folder and the `mods/wow/chronicle/addon/Ryna_Chronicle` folder
 (the release's `Ryna-<version>.zip` holds both at its top level) into the Forever install's
-`Interface/AddOns`, so you have `.../_forever_/Interface/AddOns/Ryna/Ryna.toc` and
+`Interface/AddOns`, so you have `.../_forever_/Interface/AddOns/Ryna_Core/Ryna_Core.toc` and
 `.../Interface/AddOns/Ryna_Chronicle/Ryna_Chronicle.toc`, then restart the game or `/reload`. Without
 Chronicle by Ryna nothing about your characters is recorded. The agent's `install-addon` command does
 the same (it installs the core and every mod that is on by default). Chronicle by Ryna needs this Ryna
@@ -587,7 +587,7 @@ once and loads nothing, so nothing is ever recorded twice.
 
 ## The Interface number
 
-`Ryna.toc` says `## Interface: 16001`, Forever's number: the game's own `GetBuildInfo()` gave
+`Ryna_Core.toc` says `## Interface: 16001`, Forever's number: the game's own `GetBuildInfo()` gave
 16001 on build 1.60.1 (70862) on 2026-11-08 (see `docs/forever-client-api.md`). The game loads only
 addons whose Interface number it accepts for Forever, so a later patch may raise it. If the addon
 shows as out of date, check the client's number with
@@ -610,14 +610,14 @@ world, and bag and quest updates are coalesced.
 ## Translating Ryna
 
 Everything Ryna shows (the panel, the minimap tooltip, chat lines and `/ryna` output) comes from
-`Ryna/Locales/` and, for Chronicle's own strings, `Ryna_Chronicle/Locales/` (a key the core's files
+`Ryna_Core/Locales/` and, for Chronicle's own strings, `Ryna_Chronicle/Locales/` (a key the core's files
 already have isn't repeated there: Chronicle's strings fall back to the core's). The keys are the English text itself, and **English is always the fallback**: a
 string a language hasn't translated shows in English, never as a blank or an error. Debug lines
 (`/ryna debug`) stay English on purpose, and so does everything Ryna saves for the companion app.
 
 To translate it into your client's language:
 
-1. Open that language's file in `Ryna/Locales/` (and in `Ryna_Chronicle/Locales/`): `deDE.lua`, `frFR.lua`, `esES.lua`, `esMX.lua`,
+1. Open that language's file in `Ryna_Core/Locales/` (and in `Ryna_Chronicle/Locales/`): `deDE.lua`, `frFR.lua`, `esES.lua`, `esMX.lua`,
    `itIT.lua`, `ptBR.lua`, `ruRU.lua`, `koKR.lua`, `zhCN.lua` or `zhTW.lua` (the name is what
    `/run print(GetLocale())` prints). Each is a copy of `enUS.lua` with every value `nil`, and only
    loads when the game runs in that language.
@@ -641,11 +641,12 @@ looked up with `L[reason]` (no string needs it today).
 
 ## The mod API
 
-A mod is its own addon folder (`Ryna_<Name>`, `## Dependencies: Ryna`) with a `mod.json` beside it
+A mod is its own addon folder (`Ryna_<Name>`, `## Dependencies: Ryna_Core`) with a `mod.json` beside it
 in `mods/wow/<id>/` (docs/ryna-agent-cores-mods.md section 6). It reaches the core only through the
 global `Ryna` (`Mods.lua`, where every function is described), never the core's private namespace:
 
-- `Ryna.API` (1), `Ryna.VERSION`; `Ryna.RegisterMod{ id, addon, name, version, onLogin, onLogout,
+- `Ryna.API` (2: the level of this surface, a whole number; a mod's TOC says the level it needs in
+  `## X-Ryna-API` and loads nothing on a core below it), `Ryna.VERSION`; `Ryna.RegisterMod{ id, addon, name, version, onLogin, onLogout,
   onDefaults }` (onLogin runs at login once `RynaDB` is set up and the journal session has started)
   and `Ryna.Mods()`.
 - `Ryna.On(event, fn)`, the dispatcher; `Ryna.DB()`, `RynaDB` (a mod writes under its own key or in

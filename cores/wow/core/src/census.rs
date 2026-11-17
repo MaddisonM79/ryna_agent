@@ -92,7 +92,7 @@ fn guid_server_id(guid: &str) -> Option<i64> {
 /// Every character Ryna has recorded on this computer: the GUIDs and full names of the characters
 /// in every account's snapshot, in every install, and the name of every character folder the game
 /// keeps under `WTF/Account/<account>/<Realm>/` ([`OwnCharacters::add_folders`], which covers an
-/// account whose `Ryna.lua` there isn't, or doesn't read). The census leaves out any sighting of one
+/// account whose `Ryna_Core.lua` there isn't, or doesn't read). The census leaves out any sighting of one
 /// of them, by GUID, or by full name where the event has no GUID (a `/who` row carries none, so the
 /// name match is what catches those).
 ///
@@ -144,7 +144,7 @@ impl OwnCharacters {
     }
 
     /// Add the name of every character folder in `install` (`WTF/Account/*/<Realm>/<Name>`): every
-    /// character that has logged in there, whether or not its account has a `Ryna.lua`.
+    /// character that has logged in there, whether or not its account has a `Ryna_Core.lua`.
     pub fn add_folders(&mut self, install: &Install) {
         for account in subdirs(&install.path.join("WTF").join("Account")) {
             for realm in subdirs(&account) {
@@ -421,7 +421,7 @@ mod tests {
         ] {
             assert!(!own.sighting_of(&seen(stranger)), "{stranger}");
         }
-        // A character folder on a second account with no Ryna.lua at all is still own.
+        // A character folder on a second account with no Ryna_Core.lua at all is still own.
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("_forever_");
         std::fs::create_dir_all(p.join("WTF/Account/SECOND/91/Tavi-Emberleaf")).unwrap();

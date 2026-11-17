@@ -18,7 +18,15 @@
 local addonName, ns = ...
 
 local R = _G.Ryna
-if type(R) ~= "table" or type(R.API) ~= "number" or R.API < 1 or type(R.RegisterMod) ~= "function" then
+-- The core API level this mod needs is the TOC's (## X-Ryna-API), the one place it is written;
+-- on a core below it nothing loads, and the core's Mods tab says why.
+local needs = 1
+do
+  local read = (_G.C_AddOns and _G.C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
+  local ok, level = pcall(function() return tonumber(read(addonName, "X-Ryna-API")) end)
+  if ok and level then needs = level end
+end
+if type(R) ~= "table" or type(R.API) ~= "number" or R.API < needs or type(R.RegisterMod) ~= "function" then
   ns.off = true
   local frame = _G.DEFAULT_CHAT_FRAME
   if frame and frame.AddMessage then

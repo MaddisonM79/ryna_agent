@@ -35,6 +35,10 @@ pub struct CoreManifest {
     pub name: String,
     /// The core's version (`x.y.z`); while cores are bundled it is the agent's.
     pub version: String,
+    /// The level of what the core offers its mods, a whole number that goes up when a change could
+    /// break one (the WoW core addon's `Ryna.API`); absent: the core has no such level.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api: Option<u32>,
     pub runtime: Runtime,
     /// The resource (RFC 8707) its tokens are for.
     pub resource: String,
@@ -377,7 +381,7 @@ mod tests {
             "resource": "https://api.ryna.io/wow/ingest",
             "scopes": ["wow:ingest"],
             "detect": { "folders": ["/Applications/World of Warcraft"] },
-            "data": { "reads": ["WTF/Account/*/SavedVariables/Ryna.lua"], "writes": ["Interface/AddOns/Ryna/AgentStatus.lua"] },
+            "data": { "reads": ["WTF/Account/*/SavedVariables/Ryna_Core.lua"], "writes": ["Interface/AddOns/Ryna_Core/AgentStatus.lua"] },
             "mods": "mods/wow"
         })
     }

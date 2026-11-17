@@ -92,12 +92,12 @@ group("what a toggle and an install say", () => {
     expect(
       installedLines({
         version: "0.3.0",
-        installed: [{ install: AT, path: `${AT}/Interface/AddOns/Ryna` }],
+        installed: [{ install: AT, path: `${AT}/Interface/AddOns/Ryna_Core` }],
         mods: [{ change: "installed", id: "chronicle", name: "Chronicle", folder: "Ryna_Chronicle", path: `${AT}/Interface/AddOns/Ryna_Chronicle`, version: "0.3.0" }],
         gameRunning: false,
       }),
     ).toEqual([
-      `Installed addon 0.3.0 into ${AT}/Interface/AddOns/Ryna`,
+      `Installed addon 0.3.0 into ${AT}/Interface/AddOns/Ryna_Core`,
       `Installed the Chronicle mod 0.3.0 into ${AT}/Interface/AddOns/Ryna_Chronicle`,
     ]);
   });

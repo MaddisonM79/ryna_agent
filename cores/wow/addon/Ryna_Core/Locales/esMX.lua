@@ -1,5 +1,5 @@
--- Spanish (Spain) (esES) strings for Ryna. Loaded on every client, applied only when the game
--- runs in esES: GetLocale() is "esES".
+-- Spanish (Latin America) (esMX) strings for Core by Ryna. Loaded on every client, applied only when the game
+-- runs in esMX: GetLocale() is "esMX".
 --
 -- How to translate:
 --   - Each line is L["English"] = nil. Replace nil with your text in double quotes:
@@ -12,13 +12,13 @@
 --     For a language with more forms, use the wording that reads best for most numbers.
 --   - Keys are the English text and must stay exactly as they are; only change the values.
 --   - Test: set the client's language (Battle.net -> Settings -> Game Settings -> Text Language,
---     or SET textLocale "esES" in WTF/Config.wtf, with that language installed), log in, then
+--     or SET textLocale "esMX" in WTF/Config.wtf, with that language installed), log in, then
 --     /ryna, /ryna status and /ryna help.
 -- This file is generated from enUS.lua by cores/wow/addon/tools/strings.mjs --templates, which keeps the
 -- translations already here; run it after enUS.lua changes.
 
 local _, ns = ...
-if ns.Locale() ~= "esES" then return end
+if ns.Locale() ~= "esMX" then return end
 local L = ns.L
 
 -- Core.lua
@@ -115,6 +115,9 @@ L["Off until the next reload, then on."] = nil
 L["Reload the interface now, so the change to Ryna's mods takes effect?"] = nil
 L["Reload"] = nil
 L["Later"] = nil
+L["Ryna moved to a new addon folder, Ryna_Core, and the old one is still here. Reload now to "
+  .. "finish the move? Everything Ryna recorded comes along."] = nil
+L["Needs a newer Ryna Core: update Ryna Core, then reload."] = nil
 L["type /reload to apply the change."] = nil
 L["the game didn't let Ryna change its addon list; use the AddOns button on the character screen."] = nil
 L["Combat log: %s right now. Mode: %s"] = nil

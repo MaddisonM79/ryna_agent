@@ -1,7 +1,7 @@
 {
   "id": "satisfactory",
   "name": "Satisfactory",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "runtime": { "kind": "builtin" },
   "resource": "https://api.ryna.io/wow/ingest",
   "scopes": ["wow:ingest"],

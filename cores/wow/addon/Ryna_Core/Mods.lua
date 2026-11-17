@@ -1,11 +1,19 @@
 -- Mods: the mod API, the one global this addon defines for other addons (`Ryna`), and the registry of
--- the mods that use it. A mod is its own addon folder (`Ryna_<Name>`, `## Dependencies: Ryna`) that
+-- the mods that use it. A mod is its own addon folder (`Ryna_<Name>`, `## Dependencies: Ryna_Core`) that
 -- the companion app installs beside this one (docs/ryna-agent-cores-mods.md section 6). Chronicle,
 -- everything recorded about a character, is the first (mods/wow/chronicle). A mod reaches the core
 -- only through this table, never through the core's private namespace, so the core can change
--- inside without breaking one. The surface (API 1):
+-- inside without breaking one.
 --
---   Ryna.API, Ryna.VERSION            the API's number (1) and the core addon's version
+-- Ryna.API is the level of this surface, a whole number. A mod's TOC says the level it needs
+-- (## X-Ryna-API) and its Mod.lua loads nothing on a core below it; the Mods tab says so. The rule:
+-- a change here that an existing mod could break on (something removed, renamed or made to behave
+-- differently) raises the number, and an addition a mod must have raises it too, so "needs level N"
+-- is the whole of what a mod says about the core. Level 1 was the surface through 0.4.4, in the
+-- folder Ryna. Level 2 is the same surface in the folder Ryna_Core (0.5.0): a mod's
+-- `## Dependencies` names the folder, so no level 1 mod loads against this core. The surface (API 2):
+--
+--   Ryna.API, Ryna.VERSION            the API's level (2) and the core addon's version
 --   Ryna.RegisterMod(spec)            { id, addon, name, version, onLogin, onLogout, onDefaults } -> true
 --                                     onLogin runs at PLAYER_LOGIN after RynaDB is set up and the
 --                                     journal session has started; onLogout at PLAYER_LOGOUT;
@@ -63,7 +71,9 @@ local _, ns = ...
 local R = {}
 Ryna = R
 
-R.API = 1
+R.API = 2
+ns.API_LEVEL = R.API
+ns.ModAPI = R
 R.VERSION = ns.VERSION
 R.L = ns.L
 

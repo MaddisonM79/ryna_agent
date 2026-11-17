@@ -3,9 +3,9 @@
 Mods for the World of Warcraft: Forever core, one folder each with its `mod.json`
 (`cores/wow/core.json` names this folder as its `mods`; the manifest is
 `ryna_agent::mods::ModManifest`, docs/ryna-agent-cores-mods.md section 6). A WoW mod is
-`kind: "addon"`: its own addon folders under `addon/` (`Ryna_<Name>`, `## Dependencies: Ryna`),
+`kind: "addon"`: its own addon folders under `addon/` (`Ryna_<Name>`, `## Dependencies: Ryna_Core`),
 installed beside the core's `Ryna` addon and built on it only through the mod API, the `Ryna` global
-(`cores/wow/addon/Ryna/Mods.lua`; the addon README's "The mod API"). Or it is `kind: "agent"`: no
+(`cores/wow/addon/Ryna_Core/Mods.lua`; the addon README's "The mod API"). Or it is `kind: "agent"`: no
 addon folder at all, the work done by the agent (installing and removing it do nothing; its toggle
 is the whole of it).
 
@@ -170,7 +170,7 @@ Bundled mods are compiled into the WoW core (`cores/wow/core/src/mods.rs`, `BUND
 new one there; a test holds the list to this folder) and version with the agent
 (`scripts/check-versions.mjs` checks each `mod.json` and TOC; an agent mod has only the `mod.json`).
 The app carries each addon folder
-beside `addon/Ryna` (`tauri.conf.json`'s resources), and the release's addon zip holds them beside
+beside `addon/Ryna_Core` (`tauri.conf.json`'s resources), and the release's addon zip holds them beside
 `Ryna`. The app's Mods tab turns each one on or off (installing or removing its folders); the core
 addon's Mods tab turns it on or off in the game's own AddOns list. A mod that `actsInGame` says so
 under its toggle, every time.
