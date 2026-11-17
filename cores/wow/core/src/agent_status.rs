@@ -1,5 +1,5 @@
 //! `AgentStatus.lua`: what the agent tells the addon. After every run, the agent rewrites
-//! `<install>/Interface/AddOns/Ryna/AgentStatus.lua` in each install that has the addon (and leaves
+//! `<install>/Interface/AddOns/Ryna_Core/AgentStatus.lua` in each install that has the addon (and leaves
 //! installs without it alone), as one Lua assignment the addon loads at login:
 //!
 //! ```lua
@@ -458,10 +458,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("World of Warcraft");
         let forever = product(&root, "_forever_", "wowf", &[("FAKEACCOUNT1", "")]);
-        let addon = forever.join("Interface/AddOns/Ryna");
+        let addon = forever.join("Interface/AddOns/Ryna_Core");
         std::fs::create_dir_all(&addon).unwrap();
         std::fs::write(
-            addon.join("Ryna.toc"),
+            addon.join("Ryna_Core.toc"),
             format!("## Title: Ryna\n## Version: {toc}\n"),
         )
         .unwrap();
@@ -565,7 +565,7 @@ mod tests {
         let root = dir.path().join("World of Warcraft");
         let forever = product(&root, "_forever_", "wowf", &[("FAKEACCOUNT1", "")]);
         product(&root, "_retail_", "wow", &[("FAKEACCOUNT2", "")]);
-        std::fs::create_dir_all(forever.join("Interface/AddOns/Ryna")).unwrap();
+        std::fs::create_dir_all(forever.join("Interface/AddOns/Ryna_Core")).unwrap();
         let d = discover(Some(&root));
         let mut st = State::default();
         st.accounts.insert(
@@ -594,7 +594,7 @@ mod tests {
         assert!(failed.is_empty());
         assert_eq!(
             written,
-            vec![forever.join("Interface/AddOns/Ryna/AgentStatus.lua")]
+            vec![forever.join("Interface/AddOns/Ryna_Core/AgentStatus.lua")]
         );
         let v = lua::parse(&std::fs::read_to_string(&written[0]).unwrap()).unwrap();
         let s = &v["RynaAgentStatus"];
@@ -611,7 +611,7 @@ mod tests {
         let v = lua::parse(&std::fs::read_to_string(&written[0]).unwrap()).unwrap();
         assert_eq!(v["RynaAgentStatus"]["messages"], json!([]));
         assert_eq!(
-            std::fs::read_dir(forever.join("Interface/AddOns/Ryna"))
+            std::fs::read_dir(forever.join("Interface/AddOns/Ryna_Core"))
                 .unwrap()
                 .count(),
             1

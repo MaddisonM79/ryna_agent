@@ -136,11 +136,11 @@ group("the addon's row", () => {
   it("says what went in and how the game loads it", () => {
     const done = {
       version: "0.2.0",
-      installed: [{ install: "/wow/_forever_", path: "/wow/_forever_/Interface/AddOns/Ryna" }],
+      installed: [{ install: "/wow/_forever_", path: "/wow/_forever_/Interface/AddOns/Ryna_Core" }],
       mods: [],
       gameRunning: false,
     };
-    expect(installedLines(done)).toEqual(["Installed addon 0.2.0 into /wow/_forever_/Interface/AddOns/Ryna"]);
+    expect(installedLines(done)).toEqual(["Installed addon 0.2.0 into /wow/_forever_/Interface/AddOns/Ryna_Core"]);
     expect(installedMessage(done)).toEqual(["Installed 0.2.0. The game loads it at the next login or /reload."]);
     expect(installedMessage({ ...done, gameRunning: true })[1]).toBe(
       "The game is running: /reload or log out and in to load it.",
@@ -178,7 +178,7 @@ group("About's addon line", () => {
 
 group("the addon updated by the app itself", () => {
   it("says where and to what, and what went wrong", () => {
-    const result = { version: "0.4.3", installed: [{ install: "/Games/WoW/_forever_", path: "/Games/WoW/_forever_/Interface/AddOns/Ryna" }], mods: [], gameRunning: false };
+    const result = { version: "0.4.3", installed: [{ install: "/Games/WoW/_forever_", path: "/Games/WoW/_forever_/Interface/AddOns/Ryna_Core" }], mods: [], gameRunning: false };
     expect(addonUpdatedLines({ result, error: null })).toEqual([
       "Updated the addon in /Games/WoW/_forever_ to 0.4.3: it was older than this app's.",
     ]);

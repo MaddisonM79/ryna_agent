@@ -106,6 +106,9 @@ L["Off until the next reload, then on."] = true
 L["Reload the interface now, so the change to Ryna's mods takes effect?"] = true
 L["Reload"] = true
 L["Later"] = true
+L["Ryna moved to a new addon folder, Ryna_Core, and the old one is still here. Reload now to "
+  .. "finish the move? Everything Ryna recorded comes along."] = true
+L["Needs a newer Ryna Core: update Ryna Core, then reload."] = true
 L["type /reload to apply the change."] = true
 L["the game didn't let Ryna change its addon list; use the AddOns button on the character screen."] = true
 L["Combat log: %s right now. Mode: %s"] = true

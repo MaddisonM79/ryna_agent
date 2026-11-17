@@ -47,7 +47,7 @@ fn parse_raw_prints_the_lua_as_json() {
 fn parse_refuses_a_bad_file_with_a_position() {
     let dir = std::env::temp_dir().join(format!("ryna-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let f = dir.join("Ryna.lua");
+    let f = dir.join("Ryna_Core.lua");
     std::fs::write(&f, "RynaDB = {\n  schema = 1,\n  @\n}").unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_ryna"))
         .args(["parse", f.to_str().unwrap()])

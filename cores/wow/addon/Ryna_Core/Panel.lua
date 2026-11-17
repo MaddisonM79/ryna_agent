@@ -389,15 +389,16 @@ function layout.advanced(s, settings)
   s.text(P.versions, 8, 6)
 end
 
--- The Mods tab: every Ryna_* addon in the client's list, each with a box that enables or disables
--- it in that list (C_AddOns.EnableAddOn / DisableAddOn). The change applies at the next load, so a
+-- The Mods tab: every Ryna_* addon in the client's list but this one (Ryna_Core), each with a box that
+-- enables or disables it in that list (C_AddOns.EnableAddOn / DisableAddOn). The change applies at the next load, so a
 -- change offers a reload. The companion app installs and removes the folders (its Game tab); a mod
 -- the app hasn't installed isn't in the client's list, so it isn't here.
 local function addonCall(name)
   return ns.Fn("C_AddOns", name) or ns.Fn(name)
 end
 
--- The Ryna_* addons in the client's list: { name, title, notes }.
+-- The Ryna_* addons in the client's list, less this one: { name, title, notes, api }. `api` is the
+-- core API level the mod's TOC says it needs (## X-Ryna-API), when it says.
 function P.ModAddons()
   local out = {}
   local count = ns.Try(addonCall("GetNumAddOns"))
@@ -405,8 +406,9 @@ function P.ModAddons()
   if type(count) ~= "number" or not info then return out end
   for i = 1, count do
     local name, title, notes = ns.Try(info, i)
-    if type(name) == "string" and name:find("^Ryna_") then
-      out[#out + 1] = { name = name, title = ns.NonEmpty(title) or name, notes = ns.NonEmpty(notes) }
+    if type(name) == "string" and name ~= ns.NAME and name:sub(1, #ns.MOD_PREFIX) == ns.MOD_PREFIX then
+      out[#out + 1] = { name = name, title = ns.NonEmpty(title) or name, notes = ns.NonEmpty(notes),
+        api = tonumber(ns.Try(addonCall("GetAddOnMetadata"), name, "X-Ryna-API")) }
     end
   end
   table.sort(out, function(a, b) return a.name < b.name end)
@@ -479,7 +481,10 @@ local function modHelp(m)
   local enabled, loaded = P.ModEnabled(m.name), P.ModLoaded(m.name)
   local version = ns.NonEmpty(ns.Try(addonCall("GetAddOnMetadata"), m.name, "Version"))
   local state
-  if loaded and enabled then
+  if m.api and m.api > ns.API_LEVEL then
+    -- Its files load nothing on this core (each mod's Mod.lua checks the level first).
+    state = L["Needs a newer Ryna Core: update Ryna Core, then reload."]
+  elseif loaded and enabled then
     state = L["On."]
   elseif loaded then
     state = L["On until the next reload, then off."]

@@ -673,7 +673,7 @@ fn install_with(dir: &Path, log: &str, addon: bool) -> (PathBuf, PathBuf) {
     std::fs::create_dir_all(p.join("Logs")).unwrap();
     std::fs::write(p.join("Logs/WoWCombatLog-111226_210000.txt"), log).unwrap();
     if addon {
-        std::fs::create_dir_all(p.join("Interface/AddOns/Ryna")).unwrap();
+        std::fs::create_dir_all(p.join("Interface/AddOns/Ryna_Core")).unwrap();
     }
     (root, p)
 }
@@ -689,7 +689,7 @@ fn the_tailer_writes_the_file_when_a_fight_ends_and_at_start_up() {
     let (root, product) = install_with(dir.path(), &log, true);
     let found = crate::discovery::discover(Some(&root));
     let state = dir.path().join("state");
-    let file = product.join("Interface/AddOns/Ryna/Data").join(FILE);
+    let file = product.join("Interface/AddOns/Ryna_Core/Data").join(FILE);
     let now = 1_900_000_000;
     let mut tailer = Tailer::new(&state, CombatOptions::default());
     tailer.poll(&found, None, now, &mut |_| {});

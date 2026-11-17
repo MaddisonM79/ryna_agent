@@ -12,7 +12,7 @@
 -- This proves the logic; how the frames look in the default UI and in ElvUI is the game's to show.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local CHRON = "mods/wow/chronicle/addon/Ryna_Chronicle/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 local plain = F.Plain
@@ -103,13 +103,13 @@ _G.C_Container = {
 local function tocVersion(folder, name)
   return assert(io.open(folder .. name .. ".toc")):read("*a"):match("## Version:%s*(%S+)")
 end
-local TOC = { Ryna = tocVersion(CORE, "Ryna"), Ryna_Chronicle = tocVersion(CHRON, "Ryna_Chronicle") }
+local TOC = { Ryna_Core = tocVersion(CORE, "Ryna_Core"), Ryna_Chronicle = tocVersion(CHRON, "Ryna_Chronicle") }
 _G.C_AddOns = { GetAddOnMetadata = function(name, field) if field == "Version" then return TOC[name] end end }
 
 -- Load the core, then Chronicle, and log in.
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 local ns = {}
 F.LoadAddon(CHRON, "Ryna_Chronicle", ns)
 F.Fire("ADDON_LOADED", "Ryna_Chronicle")
@@ -126,10 +126,10 @@ check(ns.Window.available, "Chronicle sees the window")
 
 -- Each addon's version is its TOC's, with no copy in Lua to fall behind it (the core's sat at 0.3.2
 -- while the TOC said 0.3.9), and it is the number RynaDB hands the companion app.
-check(type(TOC.Ryna) == "string" and TOC.Ryna:match("^%d+%.%d+%.%d+"), "the core's TOC has a version")
-eq(core.VERSION, TOC.Ryna, "the core's version is its TOC's")
-eq(R.VERSION, TOC.Ryna, "Ryna.VERSION is the TOC's")
-eq(RynaDB.addon, TOC.Ryna, "RynaDB.addon is the TOC's")
+check(type(TOC.Ryna_Core) == "string" and TOC.Ryna_Core:match("^%d+%.%d+%.%d+"), "the core's TOC has a version")
+eq(core.VERSION, TOC.Ryna_Core, "the core's version is its TOC's")
+eq(R.VERSION, TOC.Ryna_Core, "Ryna.VERSION is the TOC's")
+eq(RynaDB.addon, TOC.Ryna_Core, "RynaDB.addon is the TOC's")
 eq(ns.VERSION, TOC.Ryna_Chronicle, "Chronicle's version is its TOC's")
 
 -- Registration and the rail. ------------------------------------------------------------------------
@@ -533,7 +533,7 @@ check(core.errors.count == 0, "no errors caught: " .. tostring(core.errors.last)
 -- Last, because it loads Core.lua a second time.
 _G.C_AddOns = nil
 local bare = {}
-assert(loadfile(CORE .. "Core.lua"))("Ryna", bare)
+assert(loadfile(CORE .. "Core.lua"))("Ryna_Core", bare)
 eq(bare.VERSION, "unknown", "no metadata call: the version is unknown")
 eq(core.Status.CompareVersions("9.9.9", bare.VERSION), nil, "unknown compares as no version, so no update line")
 print(string.format("window: %d checks, %d failed", checks, failures))

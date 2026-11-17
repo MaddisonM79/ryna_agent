@@ -1,4 +1,4 @@
--- Data: the app's fights file, read once at login. The Ryna app writes Interface/AddOns/Ryna/Data/fights.lua
+-- Data: the app's fights file, read once at login. The Ryna app writes Interface/AddOns/Ryna_Core/Data/fights.lua
 -- (its fights_data.rs has the whole shape) and the core hands it out through Ryna.Data.Get("fights", 1):
 --
 --   RynaData_fights = { version = 1, writtenAt, flavor, items = { fight, ... } }   newest first

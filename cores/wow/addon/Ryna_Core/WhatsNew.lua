@@ -6,6 +6,14 @@ local _, ns = ...
 
 ns.NEWS = {
   {
+    version = "next",
+    headline = "Ryna's own addon is now called Ryna Core.",
+    items = {
+      { where = "core", text = "Ryna's addon is now \"Ryna Core\" in the game's AddOns list. Nothing you recorded is lost." },
+      { where = "core", text = "The Mods tab says when a mod needs a newer Ryna Core." },
+    },
+  },
+  {
     version = "0.4.4",
     headline = "Ryna's menu, from the minimap button.",
     items = {

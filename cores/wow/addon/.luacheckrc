@@ -1,5 +1,5 @@
 -- luacheck config for the Ryna addons (World of Warcraft: Forever, modern client, Lua 5.1): the core's
--- (cores/wow/addon/Ryna) and the mods' (mods/wow/*/addon/*). Run from the repository root:
+-- (cores/wow/addon/Ryna_Core) and the mods' (mods/wow/*/addon/*). Run from the repository root:
 --   luacheck cores/wow/addon/ mods/wow/ --config cores/wow/addon/.luacheckrc
 std = "lua51"
 max_line_length = 120

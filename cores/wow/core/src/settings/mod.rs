@@ -324,7 +324,7 @@ ElvPrivateDB = {
             "SavedVariables/Plain.lua",
             "PlainDB = { [\"x\"] = 1 }\n",
         );
-        put(&i, "SavedVariables/Ryna.lua", "RynaDB = {}\n");
+        put(&i, "SavedVariables/Ryna_Core.lua", "RynaDB = {}\n");
         put(&i, "SavedVariables/Gone.lua", "GoneDB = {}\n");
         put(&i, "SavedVariables/ElvUI.lua.bak", "ElvDB = {}\n");
         put(
@@ -345,7 +345,11 @@ ElvPrivateDB = {
         put(&i, "Stormcall/Aerin/AddOns.txt", "ElvUI: enabled\n");
         put(&i, "Stormcall/Aerin/macros-cache.txt", "MACRO 1 \"x\"\n");
         put(&i, "Doomhowl/Bryn/config-cache.wtf", "SET uiScale \"1\"\n");
-        put(&i, "Doomhowl/Bryn/SavedVariables/Ryna.lua", "RynaDB = {}\n");
+        put(
+            &i,
+            "Doomhowl/Bryn/SavedVariables/Ryna_Core.lua",
+            "RynaDB = {}\n",
+        );
         std::fs::create_dir_all(account_dir(&i).join("Doomhowl/Cael")).unwrap();
         i
     }

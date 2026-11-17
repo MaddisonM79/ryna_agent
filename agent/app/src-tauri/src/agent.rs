@@ -138,7 +138,7 @@ pub struct Live {
     control: Option<CoreControl>,
     /// The last loop's thread, joined by the next loop before it starts so two never overlap.
     worker: Option<JoinHandle<()>>,
-    /// Each account's row state, by its `Ryna.lua` path.
+    /// Each account's row state, by its `Ryna_Core.lua` path.
     phases: BTreeMap<String, Phase>,
     /// The last pass's whole-pass error (its neutral words), cleared by a pass that went through.
     last_error: Option<String>,
@@ -588,7 +588,7 @@ pub struct Status {
     pub device_key_error: Option<String>,
     pub watching: bool,
     pub installs: Vec<InstallStatus>,
-    /// The bundled addon's version (its `Ryna.toc`), when this build carries one that says.
+    /// The bundled addon's version (its `Ryna_Core.toc`), when this build carries one that says.
     pub addon_bundled: Option<String>,
     pub accounts: Vec<AccountView>,
     /// What to show for the last failure: this session's, else the last run's.
@@ -781,19 +781,19 @@ pub fn status(app: &AppHandle) -> Status {
     }
 }
 
-/// Where the bundled addon is: the app's resources (`addon/Ryna`, from the repository's
-/// `cores/wow/addon/Ryna`), or in a debug build the repository itself.
+/// Where the bundled addon is: the app's resources (`addon/Ryna_Core`, from the repository's
+/// `cores/wow/addon/Ryna_Core`), or in a debug build the repository itself.
 fn bundled_addon(app: &AppHandle) -> Result<PathBuf, String> {
     let mut tried = Vec::new();
     if let Ok(dir) = app
         .path()
-        .resolve("addon/Ryna", tauri::path::BaseDirectory::Resource)
+        .resolve("addon/Ryna_Core", tauri::path::BaseDirectory::Resource)
     {
         tried.push(dir);
     }
     #[cfg(debug_assertions)]
     let checkout =
-        Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../cores/wow/addon/Ryna"));
+        Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../cores/wow/addon/Ryna_Core"));
     #[cfg(not(debug_assertions))]
     let checkout: Option<PathBuf> = None;
     tried.extend(checkout);
@@ -816,7 +816,7 @@ pub struct Installed {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallResult {
-    /// The version installed (the bundled `Ryna.toc`'s), when it says.
+    /// The version installed (the bundled `Ryna_Core.toc`'s), when it says.
     pub version: Option<String>,
     pub installed: Vec<Installed>,
     /// Each mod folder installed (an on mod) or removed (an off one) with it.
@@ -1073,8 +1073,8 @@ mod tests {
         }
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let mut folders = vec![(
-            "../../../cores/wow/addon/Ryna".to_string(),
-            "Ryna".to_string(),
+            "../../../cores/wow/addon/Ryna_Core".to_string(),
+            addon_install::ADDON_NAME.to_string(),
         )];
         for m in core_mods::bundled() {
             for folder in &m.addons {
@@ -1112,7 +1112,7 @@ mod tests {
         }
     }
 
-    const A: &str = "/wow/_forever_/WTF/Account/A/SavedVariables/Ryna.lua";
+    const A: &str = "/wow/_forever_/WTF/Account/A/SavedVariables/Ryna_Core.lua";
 
     impl Live {
         fn observe_event(&mut self, event: &WatchEvent) {

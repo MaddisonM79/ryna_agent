@@ -51,7 +51,7 @@ standalone branch "running concurrently with both retail and Classic", developed
 | `GetBuildInfo()` | `"1.60.1", "70862", "Nov  6 2026", 16001, "", " "`: six values, the retail shape (no Classic seventh `currentVersion`) | In game (Team, 2026-11-08); shape per https://warcraft.wiki.gg/wiki/GetBuildInfo |
 | TOC game type | `camelot`, with `forever` as an alias since build 70291; family `mainline` | WTOC; W160 |
 
-Our TOCs say `## Interface: 16001` (Disk `Ryna/Ryna.toc`), which is verified.
+Our TOCs say `## Interface: 16001` (Disk `Ryna/Ryna_Core.toc`), which is verified.
 
 ### Declaring the interface and loading per flavour
 

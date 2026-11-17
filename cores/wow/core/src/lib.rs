@@ -1,9 +1,9 @@
 //! The World of Warcraft: Forever core: everything that knows about the game (its folders,
-//! `Ryna.lua`, the combat logs and the addon), driven by the agent (`ryna-agent`) through
+//! `Ryna_Core.lua`, the combat logs and the addon), driven by the agent (`ryna-agent`) through
 //! [`wow_core::WowCore`], its implementation of `ryna_agent::core::Core`.
 //!
 //! - [`wow_core`]: the core behind the agent's interface, and its manifest (`cores/wow/core.json`).
-//! - [`discovery`]: the game's install folders and each account's `Ryna.lua`.
+//! - [`discovery`]: the game's install folders and each account's `Ryna_Core.lua`.
 //! - [`lua`]: a reader for the Lua the game writes to SavedVariables, and [`lua_write`] a writer.
 //! - [`snapshot`]: the JSON snapshot the API takes (docs/wow.md section 2), built from `RynaDB`.
 //! - [`push`]: posting snapshots and heartbeats (and census uploads), signed by the device key.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# capture.sh: turn a real Ryna.lua (or a combat log) into a fixture that is safe to commit.
+# capture.sh: turn a real Ryna_Core.lua (or a combat log) into a fixture that is safe to commit.
 #
-#   scripts/capture.sh <path to WTF/Account/<ACCOUNT>/SavedVariables/Ryna.lua> [fixture-name]
+#   scripts/capture.sh <path to WTF/Account/<ACCOUNT>/SavedVariables/Ryna_Core.lua> [fixture-name]
 #   scripts/capture.sh --combat <path to Logs/WoWCombatLog-*.txt> [fixture-name] [--from HH:MM:SS] [--until HH:MM:SS]
 #
 # Combat-log mode (docs/wow.md section 9.8) writes cores/wow/fixtures/<fixture-name>.txt (default
@@ -117,7 +117,7 @@ close $fh;
   exit 0
 fi
 
-src="${1:?usage: scripts/capture.sh <Ryna.lua> [fixture-name]}"
+src="${1:?usage: scripts/capture.sh <Ryna_Core.lua> [fixture-name]}"
 name="${2:-captured}"
 [ -f "$src" ] || { echo "no such file: $src" >&2; exit 1; }
 
@@ -126,7 +126,7 @@ account="$(basename "$(dirname "$(dirname "$src")")")"
 
 mkdir -p "$repo/captures" "$repo/cores/wow/fixtures"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-cp "$src" "$repo/captures/$stamp-Ryna.lua"
+cp "$src" "$repo/captures/$stamp-Ryna_Core.lua"
 out="$repo/cores/wow/fixtures/$name.lua"
 leaks="$repo/captures/$stamp-scrubbed-values.txt"
 
@@ -188,5 +188,5 @@ if grep -F -w -f "$leaks" "$out.tmp" >/dev/null 2>&1; then
   exit 1
 fi
 mv "$out.tmp" "$out"
-echo "raw copy:      captures/$stamp-Ryna.lua (gitignored)"
+echo "raw copy:      captures/$stamp-Ryna_Core.lua (gitignored)"
 echo "scrubbed copy: cores/wow/fixtures/$name.lua (review before committing)"

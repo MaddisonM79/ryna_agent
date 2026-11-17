@@ -18,7 +18,7 @@
 -- announcement's channels and lines, none in a fight, a refusal caught.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local ADDON = "mods/wow/meter/addon/Ryna_Meter/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
@@ -137,9 +137,9 @@ world.sessions["0:0"] = { max = 9000, duration = 600, source("Brom", "WARRIOR", 
 world.sessions["0:1"] = world.sessions["0:0"]
 
 local core, mod = {}, {}
-F.LoadAddon(CORE, "Ryna", core)
+F.LoadAddon(CORE, "Ryna_Core", core)
 F.LoadAddon(ADDON, "Ryna_Meter", mod)
-F.Fire("ADDON_LOADED", "Ryna")
+F.Fire("ADDON_LOADED", "Ryna_Core")
 F.Fire("PLAYER_LOGIN")
 F.DropTimers()
 

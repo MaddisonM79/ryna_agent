@@ -7,6 +7,5 @@
   "kind": "agent",
   "actsInGame": false,
   "source": { "kind": "bundled" },
-  "requires": { "core": ">=0.3.9" },
   "defaultOn": false
 }

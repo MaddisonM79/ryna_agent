@@ -345,7 +345,7 @@ mod tests {
             assert!(listed, "{root} isn't in core.json's detect.folders");
         }
         for read in [
-            "WTF/Account/*/SavedVariables/Ryna.lua",
+            "WTF/Account/*/SavedVariables/Ryna_Core.lua",
             "Logs/WoWCombatLog-*.txt",
         ] {
             assert!(m.data.reads.iter().any(|r| r == read), "{read}");
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn events_become_rows_and_errors() {
-        let path = "/wow/_forever_/WTF/Account/A/SavedVariables/Ryna.lua";
+        let path = "/wow/_forever_/WTF/Account/A/SavedVariables/Ryna_Core.lua";
         let a = activity(&WatchEvent::Pushing {
             label: "UNT1".into(),
             path: path.into(),

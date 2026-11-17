@@ -10,7 +10,7 @@
 --   lua5.1 mods/wow/chronicle/test/chronicle_zones_test.lua
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local CHRON = "mods/wow/chronicle/addon/Ryna_Chronicle/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 local plain = F.Plain
@@ -112,8 +112,8 @@ local TOC = {}
 _G.C_AddOns = { GetAddOnMetadata = function(name, field) if field == "Version" then return TOC[name] end end }
 
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 local ns = {}
 F.LoadAddon(CHRON, "Ryna_Chronicle", ns)
 F.Fire("ADDON_LOADED", "Ryna_Chronicle")

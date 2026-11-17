@@ -7,7 +7,7 @@
   "kind": "addon",
   "actsInGame": true,
   "source": { "kind": "bundled" },
-  "requires": { "core": ">=0.3.9" },
+  "requires": { "api": 2 },
   "defaultOn": false,
   "addons": ["Ryna_Automation"]
 }

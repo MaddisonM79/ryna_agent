@@ -1,4 +1,4 @@
--- The core's journal prune for the Prices mod's `auction` events (cores/wow/addon/Ryna/Journal.lua,
+-- The core's journal prune for the Prices mod's `auction` events (cores/wow/addon/Ryna_Core/Journal.lua,
 -- J.SHORT_LIVED): they go at login once the companion app has uploaded them for this account (its
 -- entry in AgentStatus.lua, matched by RynaDB.meta.accountId, has journalThrough at or past the
 -- event), and after three days whatever happens; every other event keeps the journal's 30 days.
@@ -25,7 +25,7 @@ local function load(journal, status, id)
   local ns = { db = { journal = journal, meta = { accountId = id } }, Now = function() return NOW end,
     Debug = function() end, Debugging = function() return false end }
   _G.RynaAgentStatus = status
-  assert(loadfile("cores/wow/addon/Ryna/Journal.lua"))("Ryna", ns)
+  assert(loadfile("cores/wow/addon/Ryna_Core/Journal.lua"))("Ryna_Core", ns)
   return ns
 end
 local function prune(journal, status, id)
@@ -33,7 +33,7 @@ local function prune(journal, status, id)
   local ns = { db = { journal = journal, meta = { accountId = id or nil } }, Now = function() return NOW end,
     Debug = function() end, Debugging = function() return false end }
   _G.RynaAgentStatus = status
-  assert(loadfile("cores/wow/addon/Ryna/Journal.lua"))("Ryna", ns)
+  assert(loadfile("cores/wow/addon/Ryna_Core/Journal.lua"))("Ryna_Core", ns)
   ns.Journal.Prune()
   local kinds = {}
   for _, e in ipairs(ns.db.journal) do kinds[#kinds + 1] = e.type .. "@" .. (NOW - e.at) end

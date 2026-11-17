@@ -1,7 +1,7 @@
 //! `ryna`: the World of Warcraft: Forever companion agent's command line, for developers and
 //! for debugging. People install the desktop app, which runs the same core while it is open.
 //!
-//! Finds the game's install(s), reads each account's `Ryna.lua` (the addon's SavedVariables),
+//! Finds the game's install(s), reads each account's `Ryna_Core.lua` (the addon's SavedVariables),
 //! and pushes a snapshot of it to the API as the person who signed in with `ryna login`.
 
 mod settings_cmd;
@@ -93,7 +93,7 @@ enum Command {
     },
     /// Copy the addon into each Forever install's Interface/AddOns.
     InstallAddon {
-        /// The addon folder (or a folder holding Ryna/ or addon/Ryna/). Default: beside this binary.
+        /// The addon folder (or a folder holding Ryna/ or addon/Ryna_Core/). Default: beside this binary.
         #[arg(long, value_name = "DIR")]
         from: Option<PathBuf>,
     },
@@ -356,7 +356,7 @@ fn status(config: &Config, install: Option<&Path>, from: Option<&Path>) -> Resul
         }
     }
     if s.accounts.is_empty() {
-        println!("\nNo Ryna.lua yet: install the addon (`ryna install-addon`), log in to the game, then /reload or log out.");
+        println!("\nNo Ryna_Core.lua yet: install the addon (`ryna install-addon`), log in to the game, then /reload or log out.");
     } else {
         println!("\nAccounts:");
     }
@@ -531,7 +531,7 @@ fn census_push(config: &Config, install: Option<&Path>, dry_run: bool) -> Result
     // stage 1: direct; stage (c) gives the core a "contribute without an account" mode.
     let found = discovery::discover(install);
     if found.accounts.is_empty() {
-        bail!("no Ryna.lua found: point at the game with --install <folder>");
+        bail!("no Ryna_Core.lua found: point at the game with --install <folder>");
     }
     println!("Submission ID: {}", key.display_id());
     let http = HttpTransport::new().map_err(anyhow::Error::msg)?;
@@ -563,7 +563,7 @@ fn census_push(config: &Config, install: Option<&Path>, dry_run: bool) -> Result
         );
     }
     // Plus every character folder in every install on this computer: the one --install names and
-    // every one in the usual places, so a character on an account whose Ryna.lua isn't there (or
+    // every one in the usual places, so a character on an account whose Ryna_Core.lua isn't there (or
     // in an install --install left out) still isn't a stranger.
     let mut own = census::OwnCharacters::of(&snapshots);
     let mut installs = found.installs.clone();
@@ -754,7 +754,7 @@ fn install_addon(install: Option<&Path>, from: Option<&Path>) -> Result<ExitCode
     let source = match from {
         Some(dir) => addon_install::resolve_source(dir)?,
         None => addon_install::beside_binary().context(
-            "no addon beside this binary: pass --from <dir> (the folder holding Ryna.toc)",
+            "no addon beside this binary: pass --from <dir> (the folder holding Ryna_Core.toc)",
         )?,
     };
     let found = discovery::discover(install);
@@ -796,7 +796,7 @@ fn install_addon(install: Option<&Path>, from: Option<&Path>) -> Result<ExitCode
             }
             Err(e) => eprintln!(
                 "warning: {e:#}. Without it nothing about your characters is recorded: pass --from \
-                 the folder holding both Ryna and Ryna_Chronicle (the release's addon zip)."
+                 the folder holding both Ryna_Core and Ryna_Chronicle (the release's addon zip)."
             ),
         }
     }

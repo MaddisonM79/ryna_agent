@@ -29,7 +29,7 @@ password; nothing runs in the background.
 
 Today the agent and the WoW core are one program. `agent/core` (Rust) is the WoW core: install
 discovery, the SavedVariables reader, the snapshot pusher, the combat-log tail, the addon installer.
-`agent/app` (Tauri) is the agent: sign-in, updater, tray, the window. The addon `addon/Ryna` is the
+`agent/app` (Tauri) is the agent: sign-in, updater, tray, the window. The addon `addon/Ryna_Core` is the
 WoW core's in-game half, with Chronicle inside it. The Palworld agent is a separate Node program in
 the private monorepo (`apps/palworld-agent`), run by launchd in the background on one Mac, with its
 own device client at the identity provider.
@@ -94,8 +94,8 @@ A core declares itself with a manifest the agent reads at start:
   "resource": "https://api.ryna.io/wow/ingest",    // the token it needs
   "scopes": ["wow:ingest"],
   "detect": { "folders": ["/Applications/World of Warcraft/_forever_", "C:\\Program Files (x86)\\World of Warcraft\\_forever_"] },
-  "data": { "reads": ["WTF/Account/*/SavedVariables/Ryna.lua", "Cache/WDB/*/creaturecache.wdb", "Logs/WoWCombatLog-*.txt"],
-            "writes": ["Interface/AddOns/Ryna/Data/"] },
+  "data": { "reads": ["WTF/Account/*/SavedVariables/Ryna_Core.lua", "Cache/WDB/*/creaturecache.wdb", "Logs/WoWCombatLog-*.txt"],
+            "writes": ["Interface/AddOns/Ryna_Core/Data/"] },
   "mods": "mods/wow"                                 // where its mods' manifests live
 }
 ```
@@ -110,7 +110,7 @@ stdin/stdout as line-delimited JSON, started and stopped by the agent, never lef
 ### WoW Forever
 
 Exactly what `agent/core` does today, behind the interface: find the install, read every account's
-`Ryna.lua`, build and push snapshots, heartbeat, tail the combat logs and upload fights, install and
+`Ryna_Core.lua`, build and push snapshots, heartbeat, tail the combat logs and upload fights, install and
 update the addon. New under this design: it also reads the client's caches (section 7), writes the
 data files the addon loads, and manages the WoW mods. The addon stays the core's in-game half; the
 mods are separate addon folders beside it (section 6).
@@ -151,9 +151,9 @@ A mod is a folder with a manifest, installed and toggled by the agent, belonging
   "kind": "addon",                                   // wow: "addon" (an addon folder) or "agent" (no folder: the agent's own work, the Settings mod); other cores: their kinds
   "actsInGame": false,                               // true for anything that does something for the player
   "source": { "kind": "bundled" },                   // or { "kind": "git", "repo": "https://github.com/…", "tag": "v0.1.0", "sha256": "…" }
-  "requires": { "core": ">=0.3.8" },
+  "requires": { "api": 2 },                          // the lowest core API level it works with (below); `core`, a range of core versions, is still read
   "defaultOn": false,
-  "addons": ["Ryna_Prices"]                          // an addon mod's folders, installed beside Ryna
+  "addons": ["Ryna_Prices"]                          // an addon mod's folders, installed beside Ryna_Core
 }
 ```
 
@@ -164,8 +164,8 @@ A mod is a folder with a manifest, installed and toggled by the agent, belonging
 - **Bundled or fetched.** A bundled mod ships inside the agent and versions with it. A fetched mod is
   pulled by the agent from a git source on an allow-list, by pinned tag, and its files are checked
   against the manifest's hash before anything is written. The person sees the source and the version.
-- **The WoW kind.** A WoW mod is its own addon folder (`Ryna_Prices`, `## Dependencies: Ryna`),
-  installed next to `Ryna`. The toggle in the agent installs or removes the folder; the toggle in the
+- **The WoW kind.** A WoW mod is its own addon folder (`Ryna_Prices`, `## Dependencies: Ryna_Core`),
+  installed next to `Ryna_Core`. The toggle in the agent installs or removes the folder; the toggle in the
   in-game panel enables or disables the addon through the client's addon list and asks for a reload.
   Both toggles show the same state. Mods may use the core's namespace for shared helpers and settings
   (a small, documented surface), never its data tables directly.
@@ -175,12 +175,56 @@ A mod is a folder with a manifest, installed and toggled by the agent, belonging
   engine restricts some APIs (the combat log above all).
 - **Removal is clean.** Removing a mod removes its folder and its settings; the core's data is untouched.
 
+### 6.1 The core's folder, and the API level (0.5.0, decided 2026-11-16)
+
+Two changes made together, before any addon is listed anywhere outside the app, because both are
+cheap now and expensive once other people's installs depend on the names.
+
+**The core addon's folder is `Ryna_Core`**, titled "Ryna Core" in the game's AddOns list; it was
+`Ryna` through 0.4.4. The global `Ryna`, the saved variable `RynaDB`, `/ryna` and the window's name
+are unchanged. The game names an addon's saved file after its folder, so the file moves too:
+`SavedVariables/Ryna.lua` becomes `SavedVariables/Ryna_Core.lua`.
+
+- **The app moves an install over** when it installs or updates the addon (`addon_install::install`):
+  the new folder in, each account's `Ryna.lua` copied to `Ryna_Core.lua` with its saved time kept,
+  the agent's `Data/` carried across, the old folder removed. Only with the game closed (a running
+  game has the old addon in memory and writes the old file at logout); the update at launch already
+  waits for that, and the Install button and `ryna install-addon` refuse with "close the game first".
+  A saved file that can't be copied stops the move with the old folder still there, so it is tried
+  again. The old `Ryna.lua` is left in place, for someone who goes back a version.
+- **Until it is moved, an install with only the old folder still works**: it counts as having the
+  addon (always "older"), `AgentStatus.lua` and `Data/` are written into it, and each account is read
+  from whichever of the two saved files the game wrote last.
+- **Someone who unpacks a release by hand** gets `Ryna_Core` beside the old `Ryna`, and the client
+  loads both. The core sees that at login, takes the mod API and `RynaDB` back, turns the old folder
+  off in the game's addon list and offers a reload in a dialog. `RynaDB` is the old folder's saved
+  file when the new one has none, so what was recorded comes along without the app.
+- **`Ryna_Core` starts with `Ryna_`**, the mods' prefix. Wherever "a mod's folder" is told by that
+  prefix (the Mods tab, whose blocked call it was), the core's own name is taken out first.
+- The agent's push state is kept by saved-file path, so the first run after the move pushes each
+  account once more; the API takes that without harm.
+
+**The core API level is a whole number**, `Ryna.API` (2 from 0.5.0; 1 was the same surface in the
+folder `Ryna`). It replaces "which core release does this mod need" (`requires.core`, a version
+range), which stops meaning anything once each addon has its own version line.
+
+- It is written in `cores/wow/core.json` (`api`), the addon's `Mods.lua` (`R.API`) and its TOC
+  (`## X-Ryna-API`); a mod says the level it needs in `mod.json` (`requires.api`) and its TOC
+  (`## X-Ryna-API`). A test holds all five to each other.
+- **In the game** a mod's `Mod.lua` reads its own TOC's level and loads nothing on a core below it;
+  the core's Mods tab says "Needs a newer Ryna Core" for that mod. **In the app** a bundled mod whose
+  level the core doesn't have is left out, as one outside `requires.core` was.
+- **The rule for raising it:** a change to the mod API that an existing mod could break on (something
+  removed, renamed or made to behave differently) raises the level, and so does an addition a mod
+  must have. A mod then says one number about the core, and CI can test each mod against the oldest
+  core at its level.
+
 ## 7. The data layer
 
 The thing only an agent can do: bring data *into* the game. Addons can't fetch, but they load files at
 startup and on `/reload`, and the agent writes files. The first such file was `AgentStatus.lua`
 (the agent's status for the panel). The data layer generalises it: a versioned set of files the core
-writes under `Interface/AddOns/Ryna/Data/`, one table each, each with a version, the addon reading
+writes under `Interface/AddOns/Ryna_Core/Data/`, one table each, each with a version, the addon reading
 what's there and showing its age. The first two are the Prices mod's `Data/vendors.lua` and
 `Data/auctions.lua` (7.3, "The way back down as built", 2026-11-09): one global `RynaData_<name>`
 per file, `{ version, writtenAt, flavor, items }`, read by the core's `Ryna.Data.Get(name, version)`
@@ -245,7 +289,7 @@ person. The design:
   every character Ryna has recorded on this computer (every account's snapshot, and every character
   folder the game keeps under `WTF/Account`, in every install): a sighting of any of them, by GUID
   or by full name (case, spaces and a realm suffix aside), is left out of the uploads, and nothing
-  is sent while an account's `Ryna.lua` can't be read. The census is the one thing
+  is sent while an account's `Ryna_Core.lua` can't be read. The census is the one thing
   the agent does before, or without, signing in; the Census tab says "contributes without an account"
   in plain words, with the same switches to stop any of it.
 
@@ -345,7 +389,7 @@ characters on one game account only, restore on a click, never automatic.
   `core.json`'s `data.reads`/`writes` list the SavedVariables and the game's files it touches.
 - `cores/wow/core/src/settings/`: `inventory` (TOC scan with suffixed TOCs, account and
   realm/character walk, sizes and times, the characters each addon has settings for, the game's
-  six per-character files as their own group, `Ryna.lua` never), `acedb` (the layout, copying one
+  six per-character files as their own group, `Ryna_Core.lua` never), `acedb` (the layout, copying one
   character's `profileKeys`/`char`/own profile and namespaces to another; ElvUI's `ElvPrivateDB` by
   the same code; `realm`/`faction`/`class` sections left alone), `copy` (plan = dry run, apply with a
   `.ryna.bak` per replaced file, the diff by content), `backup` (zip with `manifest.json`,
@@ -547,7 +591,7 @@ sellers (`npcId, name, zone, price, stack, currency, observers, lastSeen`) and t
 (`cores/wow/core/src/prices_data.rs`) takes the item ids of the account files it parsed and pushed
 (`snapshot::item_ids`: what the characters hold, bags, bank and keyring, then what they have looted,
 then what the Prices mod's own auction store has seen; each id once, most useful first; at most
-4,000 an install), asks the API a page of 200 at a time, and writes `Interface/AddOns/Ryna/Data/vendors.lua`
+4,000 an install), asks the API a page of 200 at a time, and writes `Interface/AddOns/Ryna_Core/Data/vendors.lua`
 and `Data/auctions.lua`: one plain global each (`RynaData_vendors`, `RynaData_auctions`; the
 SavedVariables form the agent's own reader reads back), `{ version = 1, writtenAt, flavor, items }`,
 vendors as up to three rows `{ npcId, name, zone, price, stack, observers, currency }` per item
@@ -739,7 +783,7 @@ moved into the core as `Ryna.Window`, beside `Ryna.Panel` (built 2026-11-09):
   rows = function(ctx) … end, fill, tiles, tooltip, click, footer, version })`, where `ctx` carries the
   chosen character (or all) and the search text. The core owns the frame, the virtual list, sorting,
   the picker, the search box and the row tooltip; a mod supplies rows. As built (2026-11-09): a section
-  is one list (no tabs inside a section); the spec is at the top of `cores/wow/addon/Ryna/Window.lua`
+  is one list (no tabs inside a section); the spec is at the top of `cores/wow/addon/Ryna_Core/Window.lua`
   and in `cores/wow/addon/README.md`, "Ryna's window".
 - Chronicle registers its four tabs as one section, unchanged, and its journal sections
   ("Collections", "Dungeons", later "Quests") when their settings are on. Prices can add "Auctions"
@@ -1109,7 +1153,7 @@ in each zone you go to?" Today the answer is "partly".
   `/chronicle/creatures/:npcId` lists "zones" as the 5 most common `last_zone`s across characters: one vote per
   character, not a count of kills.
 - **Measured on 2026-11-10:**
-  - Maddison's `Ryna.lua` is 5.8 MB, almost all of it journal and price data.
+  - Maddison's `Ryna_Core.lua` is 5.8 MB, almost all of it journal and price data.
   - Its two characters hold 94 kill entries, 206 loot entries and 17 objects.
   - In prod, all 168 creatures killed so far were killed in one zone each (6 characters).
   - The pool is young, so "most creatures live in one zone" is likely but not yet proven.
@@ -1226,7 +1270,7 @@ log before building; if it's ever the subzone, fold it up through the same `area
   pieces, quests done, deaths and time spent. Clicking a row opens Kills on that zone.
   - Kills, creatures, drops and pieces are sums over the tallies' `zones` (and `logZones`).
   - The rest needs a small lifetime map on the character, because the addon's journal keeps only 30 days
-    (`cores/wow/addon/Ryna/Journal.lua` `Prune`): `places[zone] = { seconds, quests, deaths, first, last }`.
+    (`cores/wow/addon/Ryna_Core/Journal.lua` `Prune`): `places[zone] = { seconds, quests, deaths, first, last }`.
   - `seconds` grows on each zone change and at logout, from the time the zone was entered. `quests` grows on a quest
     turned in and `deaths` on `PLAYER_DEAD`, both in the character's zone at the time.
   - On first run it is seeded from what the journal still holds (up to 30 days of `zone`, `questDone` and `death`
@@ -1345,7 +1389,7 @@ the calls that are hers are listed at the end, with her answers once given.
 - The app's own version is in every body it sends: the snapshot's `agent`, the heartbeat's `agent`,
   the census upload's `agent` (`ryna-agent/0.3.9`). It is reliable: Cargo, `package.json` and the tag
   are held equal by `check-versions`.
-- Each install's core addon version is read from `Interface/AddOns/Ryna/Ryna.toc` (`## Version:`) by
+- Each install's core addon version is read from `Interface/AddOns/Ryna_Core/Ryna_Core.toc` (`## Version:`) by
   the app and sent as the heartbeat's `installs[].addon`, by every released app since v0.2.0. Reliable.
 - The snapshot's `addon` is `RynaDB.addon`, which the addon wrote from its own Lua. **Every released
   addon through 0.3.9 says `0.3.2` there** (the core and Chronicle each hard-coded it until 662e1b3,
@@ -1354,6 +1398,7 @@ the calls that are hers are listed at the end, with her answers once given.
 - `AgentStatus.lua` carries `latest = { addon = nil, agent = nil }` back to the addon; nothing fills it,
   so the Status tab's "Update available" lines never show.
 - Mods carry `requires.core` in `mod.json` and their own TOC version; all release together today.
+  (Since 0.5.0 an addon mod carries `requires.api`, the core API level, instead: section 6.1.)
 - The only judgment that exists is the snapshot's `schema` (`SCHEMA_UNSUPPORTED`, accepted `[1]`).
 
 **What is versioned, and what carries the marks.** One set of marks, for **a Ryna release**
@@ -1533,7 +1578,7 @@ A release says what changed, once, in plain words, in both places.
   WoW mod's id, `app`, or another core's id); `new` marks the item that introduces a mod. A note is
   written by hand for a player (GitHub's generated notes are commit subjects, written for us), and
   drafted by whoever does the work as it merges, under the version `"next"`. `scripts/whats-new.mjs`
-  makes the two copies: `cores/wow/addon/Ryna/WhatsNew.lua` (what the game shows) and
+  makes the two copies: `cores/wow/addon/Ryna_Core/WhatsNew.lua` (what the game shows) and
   `agent/app/src/whatsNewData.ts` (everything). CI checks the copies are current
   (`scripts/whats-new.test.mjs`); the release workflow refuses a tag with no note for its version,
   or with one still marked `"next"`.

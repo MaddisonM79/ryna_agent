@@ -3,12 +3,39 @@
 //! Blizzard puts each product in its own `_<name>_` folder under one install root
 //! (`/Applications/World of Warcraft/_forever_`, `_retail_`, ...), each holding a `.flavor.info`
 //! whose second line names the product (`wowf` for Forever). The addon's file is
-//! `<product>/WTF/Account/<account>/SavedVariables/Ryna.lua`, one per game account.
+//! `<product>/WTF/Account/<account>/SavedVariables/Ryna_Core.lua`, one per game account.
 
 use std::path::{Path, PathBuf};
 
 /// The file the client writes the addon's SavedVariable to.
-pub const SAVED_VARIABLES_FILE: &str = "Ryna.lua";
+pub const SAVED_VARIABLES_FILE: &str = "Ryna_Core.lua";
+/// The same file from before 0.5.0, when the addon's folder was `Ryna` (the client names the file
+/// after the folder). The agent's install copies it to the new name (`addon_install`); until then,
+/// and for someone still on the old addon, it is the one the game writes.
+pub const LEGACY_SAVED_VARIABLES_FILE: &str = "Ryna.lua";
+
+/// Whether `name` is the core addon's saved file, under either of its names.
+pub fn is_core_saved_file(name: &str) -> bool {
+    name.eq_ignore_ascii_case(SAVED_VARIABLES_FILE)
+        || name.eq_ignore_ascii_case(LEGACY_SAVED_VARIABLES_FILE)
+}
+
+/// The core addon's saved file in a `SavedVariables` folder: `Ryna_Core.lua`, or the old `Ryna.lua`
+/// when that is the only one or the one written last (the old addon is still the one running).
+fn core_saved_file(saved_variables: &Path) -> Option<PathBuf> {
+    let current = saved_variables.join(SAVED_VARIABLES_FILE);
+    let legacy = saved_variables.join(LEGACY_SAVED_VARIABLES_FILE);
+    let written = |p: &Path| std::fs::metadata(p).ok().filter(|m| m.is_file());
+    match (written(&current), written(&legacy)) {
+        (Some(c), Some(l)) => match (c.modified().ok(), l.modified().ok()) {
+            (Some(c), Some(l)) if l > c => Some(legacy),
+            _ => Some(current),
+        },
+        (Some(_), None) => Some(current),
+        (None, Some(_)) => Some(legacy),
+        (None, None) => None,
+    }
+}
 
 /// One product folder (`_forever_`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,7 +45,7 @@ pub struct Install {
     pub flavor: Option<String>,
 }
 
-/// One account's `Ryna.lua`.
+/// One account's `Ryna_Core.lua`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountFile {
     /// The product folder it's under.
@@ -181,15 +208,12 @@ pub fn find_installs(roots: &[PathBuf]) -> Vec<Install> {
     out
 }
 
-/// Every account's `Ryna.lua` in an install, by account folder name.
+/// Every account's `Ryna_Core.lua` in an install, by account folder name.
 pub fn find_accounts(install: &Install) -> Vec<AccountFile> {
     sorted_dirs(&install.path.join("WTF").join("Account"))
         .into_iter()
         .filter_map(|dir| {
-            let path = dir.join("SavedVariables").join(SAVED_VARIABLES_FILE);
-            if !path.is_file() {
-                return None;
-            }
+            let path = core_saved_file(&dir.join("SavedVariables"))?;
             Some(AccountFile {
                 install: install.path.clone(),
                 flavor: install.flavor.clone(),
@@ -211,7 +235,7 @@ pub fn discover(override_path: Option<&Path>) -> Discovery {
     Discovery { installs, accounts }
 }
 
-/// The account folder a `Ryna.lua` path sits in (`.../Account/<name>/SavedVariables/Ryna.lua`).
+/// The account folder a `Ryna_Core.lua` path sits in (`.../Account/<name>/SavedVariables/Ryna_Core.lua`).
 pub fn account_folder_of(path: &Path) -> Option<String> {
     let saved = path.parent()?;
     if saved.file_name()? != "SavedVariables" {
@@ -224,7 +248,7 @@ pub fn account_folder_of(path: &Path) -> Option<String> {
 pub(crate) mod testing {
     use std::path::{Path, PathBuf};
 
-    /// `<root>/<product>/` with a `.flavor.info` and the given accounts' `Ryna.lua` files.
+    /// `<root>/<product>/` with a `.flavor.info` and the given accounts' `Ryna_Core.lua` files.
     pub fn product(root: &Path, product: &str, flavor: &str, accounts: &[(&str, &str)]) -> PathBuf {
         let p = root.join(product);
         std::fs::create_dir_all(p.join("WTF/Account")).unwrap();
@@ -236,7 +260,7 @@ pub(crate) mod testing {
         for (account, body) in accounts {
             let sv = p.join("WTF/Account").join(account).join("SavedVariables");
             std::fs::create_dir_all(&sv).unwrap();
-            std::fs::write(sv.join("Ryna.lua"), body).unwrap();
+            std::fs::write(sv.join("Ryna_Core.lua"), body).unwrap();
         }
         p
     }
@@ -264,6 +288,59 @@ mod tests {
         assert_eq!(parse_flavor_info("wowf"), Some("wowf".into()));
         assert_eq!(parse_flavor_info("Product Flavor!STRING:0\n"), None);
         assert_eq!(parse_flavor_info(""), None);
+    }
+
+    #[test]
+    fn an_account_is_read_from_whichever_saved_file_the_game_wrote_last() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("World of Warcraft");
+        let p = product(&root, "_forever_", "wowf", &[]);
+        let install = Install {
+            path: p.clone(),
+            flavor: Some("wowf".into()),
+        };
+        let sv = |a: &str| p.join("WTF/Account").join(a).join("SavedVariables");
+        let put = |a: &str, file: &str, secs: u64| {
+            std::fs::create_dir_all(sv(a)).unwrap();
+            let path = sv(a).join(file);
+            std::fs::write(&path, "RynaDB = {}\n").unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs))
+                .unwrap();
+        };
+        // Not moved over yet: only the old folder's file.
+        put("OLD", "Ryna.lua", 100);
+        // Moved: both, saved at the same moment (the copy keeps the time). The new one.
+        put("MOVED", "Ryna.lua", 100);
+        put("MOVED", "Ryna_Core.lua", 100);
+        // The old addon is still the one running: its file is the newer.
+        put("BEHIND", "Ryna_Core.lua", 100);
+        put("BEHIND", "Ryna.lua", 200);
+        // A new install: only the new one.
+        put("NEW", "Ryna_Core.lua", 100);
+        std::fs::create_dir_all(sv("EMPTY")).unwrap();
+        let found: Vec<(String, String)> = find_accounts(&install)
+            .into_iter()
+            .map(|a| {
+                let file = a.path.file_name().unwrap().to_string_lossy().into_owned();
+                (a.account, file)
+            })
+            .collect();
+        let want = [
+            ("BEHIND", "Ryna.lua"),
+            ("MOVED", "Ryna_Core.lua"),
+            ("NEW", "Ryna_Core.lua"),
+            ("OLD", "Ryna.lua"),
+        ];
+        assert_eq!(
+            found,
+            want.map(|(a, f)| (a.to_string(), f.to_string())).to_vec()
+        );
+        assert!(is_core_saved_file("Ryna_Core.lua") && is_core_saved_file("ryna.LUA"));
+        assert!(!is_core_saved_file("Ryna_Chronicle.lua"));
     }
 
     #[test]
@@ -304,7 +381,7 @@ mod tests {
         assert_eq!(d.accounts[0].flavor.as_deref(), Some("wowf"));
         assert!(d.accounts[0]
             .path
-            .ends_with("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"));
+            .ends_with("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"));
         assert_eq!(
             account_folder_of(&d.accounts[0].path).as_deref(),
             Some("FAKEACCOUNT1")

@@ -1,7 +1,7 @@
 # Ryna: the agent
 
 A small program that runs on your computer, finds World of Warcraft: Forever, reads what the Ryna
-addon saved (`WTF/Account/<account>/SavedVariables/Ryna.lua`), and sends a summary of it to the
+addon saved (`WTF/Account/<account>/SavedVariables/Ryna_Core.lua`), and sends a summary of it to the
 backend as you. It never reads anything outside the game's folder, and it signs in with the OAuth
 device grant, so it never sees your password.
 
@@ -111,12 +111,12 @@ Errors name no command. Each carries a `Fix` (`signIn`, `update`, `network`, `ot
 words for it (`Fix::message`: "Sign in again", "Update the agent and addon", "Couldn't reach the
 API", or for `other` the error itself); an `error` event has both, as `fix` and `advice`, beside the
 raw `message`. The CLI appends its own hints (`run ryna login`); the app shows the words.
-`addon_install::installed_addon_version` reads `## Version:` from the installed `Ryna.toc`; the
+`addon_install::installed_addon_version` reads `## Version:` from the installed `Ryna_Core.toc`; the
 heartbeat sends it as each install's `addon`. `bundled_addon_version` reads the same line from the
 copy a front end would install (the app's resources, the CLI's `--from`), and `addon_state`
 compares the two as dotted integers (`notInstalled`, `current`, `older`, `newer`, `unknown`).
 
-After every pass, successful or not, the agent rewrites `Interface/AddOns/Ryna/AgentStatus.lua`
+After every pass, successful or not, the agent rewrites `Interface/AddOns/Ryna_Core/AgentStatus.lua`
 in each install that has the addon (`RynaAgentStatus`: version, signed in and as whom, last push,
 that install's accounts, the last error as a message, and the API's judgment of this version with
 the newer releases to offer), so the addon can show it in game.
@@ -162,7 +162,7 @@ choices the app's Settings do. Combat fixtures come from `scripts/capture.sh --c
 
 `app/` is the product: the only thing a person installs (a `.dmg` on macOS, an NSIS installer on
 Windows, an AppImage on Linux). It signs in with the device grant (it shows the code and opens the sign-in page), finds
-the game, installs the bundled addon (`cores/wow/addon/Ryna`, carried as the resource `addon/Ryna`)
+the game, installs the bundled addon (`cores/wow/addon/Ryna_Core`, carried as the resource `addon/Ryna_Core`)
 with every mod that's on (Chronicle, `mods/wow/chronicle/addon/Ryna_Chronicle`, carried beside it as
 `addon/Ryna_Chronicle`, on by default; Automation, `mods/wow/automation/addon/Ryna_Automation` as
 `addon/Ryna_Automation`, off by default; each mod's switch under the install, kept in the app's
@@ -334,17 +334,19 @@ without a key.
 ## Releasing
 
 1. Bump the version everywhere: `version` in the root `Cargo.toml` (`[workspace.package]`, every
-   crate takes it), `version` in `app/package.json`, `## Version:` in `cores/wow/addon/Ryna/Ryna.toc`, `version` in `cores/wow/core.json`,
+   crate takes it), `version` in `app/package.json`, `## Version:` in `cores/wow/addon/Ryna_Core/Ryna_Core.toc`, `version` in `cores/wow/core.json`,
    and each bundled mod's `version` in `mods/wow/<id>/mod.json` and `## Version:` in its addon's TOC
    (Chronicle: `mods/wow/chronicle/addon/Ryna_Chronicle/Ryna_Chronicle.toc`). No Lua carries the
    version: every addon reads its own TOC in game, and the check refuses a copy that disagrees.
-   A mod's `requires.core` should name the release that brought the mod API it needs.
+   A mod's `requires.api` (and `## X-Ryna-API` in its TOC) names the core API level it needs; a change
+   to the mod API that could break a mod raises the level (`Ryna.API` in `Mods.lua`, `api` in
+   `core.json`, `## X-Ryna-API` in the core's TOC), and a test holds them to each other.
    Run `cargo check` so `Cargo.lock` follows, then `node scripts/check-versions.mjs`, which fails
    and names each file when they disagree (CI runs it on every push too).
    In the same change, say what's new: in `whats-new.json` (repository root) give the release its
    note, renaming the one marked `"next"` to the version (a headline and a few plain lines, written
    for a player), then run `node scripts/whats-new.mjs`, which writes the game's copy
-   (`cores/wow/addon/Ryna/WhatsNew.lua`) and the app's (`agent/app/src/whatsNewData.ts`). The
+   (`cores/wow/addon/Ryna_Core/WhatsNew.lua`) and the app's (`agent/app/src/whatsNewData.ts`). The
    release workflow refuses a tag with no note, or with one still marked `"next"`.
 2. Commit, then tag and push the tag: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/release.yml` checks the tag against the files (a mismatch stops it before
@@ -436,7 +438,7 @@ manager; keep both.
 ```bash
 ryna install-addon --from cores/wow/addon    # copies Ryna and the on-by-default mods (Chronicle) into each Forever install's Interface/AddOns
 ryna login                         # prints a link and a code; open it, check the code, allow it
-ryna run                           # pushes every account whose Ryna.lua changed, then reports in
+ryna run                           # pushes every account whose Ryna_Core.lua changed, then reports in
 ryna status                        # installs, accounts, last pushes, signed in or not
                                        # (--from addon: say which installs need the addon updated)
 ryna watch --interval 60           # `run` every minute until stopped
@@ -466,7 +468,7 @@ into another (the app never does). A backup is a zip of the files, encrypted on 
 AES-256-GCM under a key ryna.io makes for that backup; the files' list goes up with the account
 folder as its hash, never its name.
 
-The game writes `Ryna.lua` when you log out or `/reload`, so that's when there is something new
+The game writes `Ryna_Core.lua` when you log out or `/reload`, so that's when there is something new
 to push. `run` exits 0 when everything went, 3 when you need to `login` again, 4 when the agent
 and addon need updating (the file or the API is on a schema this agent doesn't know), and 1 for
 anything else (offline, a file that doesn't parse). A file that failed stays unpushed and is

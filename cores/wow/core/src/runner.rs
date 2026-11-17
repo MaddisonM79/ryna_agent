@@ -541,7 +541,7 @@ mod tests {
         // One file written again: that one.
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT2/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT2/SavedVariables/Ryna_Core.lua"),
             5,
         );
         let http = ScriptedTransport::new();
@@ -563,7 +563,7 @@ mod tests {
         let mut e = env(&[("FAKEACCOUNT1", FIXTURE)]);
         // A token that outlives the six hours below, so no refresh call lands in the script.
         e.store = MemoryStore::with_access("tok", NOW + 100_000);
-        let addon = e.root.join("_forever_/Interface/AddOns/Ryna");
+        let addon = e.root.join("_forever_/Interface/AddOns/Ryna_Core");
         std::fs::create_dir_all(&addon).unwrap();
         let http = ScriptedTransport::new();
         http.json(200, ingested()).json(200, ok()).json(
@@ -638,7 +638,7 @@ mod tests {
         // The price read failing never fails the run.
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"),
             5,
         );
         let http = ScriptedTransport::new();
@@ -657,7 +657,7 @@ mod tests {
         let other = FIXTURE.replacen("[\"itemId\"] = 6948", "[\"itemId\"] = 424242", 1);
         let mut e = env(&[("FAKEACCOUNT1", FIXTURE), ("FAKEACCOUNT2", &other)]);
         e.store = MemoryStore::with_access("tok", NOW + 100_000);
-        let addon = e.root.join("_forever_/Interface/AddOns/Ryna");
+        let addon = e.root.join("_forever_/Interface/AddOns/Ryna_Core");
         std::fs::create_dir_all(&addon).unwrap();
         let empty = || json!({ "ok": true, "data": { "flavor": "wowf", "items": [] } });
         let http = ScriptedTransport::new();
@@ -675,7 +675,7 @@ mod tests {
         // Only the first account changes: the second's ids are still asked for (read from its file).
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"),
             5,
         );
         let http = ScriptedTransport::new();
@@ -693,7 +693,7 @@ mod tests {
         // A refused page: the run is fine, the install waits RETRY_AFTER_S, then tries again.
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"),
             10,
         );
         let http = ScriptedTransport::new();
@@ -713,7 +713,7 @@ mod tests {
         );
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"),
             15,
         );
         let http = ScriptedTransport::new();
@@ -724,7 +724,7 @@ mod tests {
         e.clock.now.set(NOW + crate::prices_data::RETRY_AFTER_S);
         touch(
             &e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT1/SavedVariables/Ryna_Core.lua"),
             20,
         );
         let http = ScriptedTransport::new();
@@ -742,7 +742,7 @@ mod tests {
             .set(NOW + crate::prices_data::REFRESH_EVERY_S * 2);
         std::fs::write(
             e.root
-                .join("_forever_/WTF/Account/FAKEACCOUNT2/SavedVariables/Ryna.lua"),
+                .join("_forever_/WTF/Account/FAKEACCOUNT2/SavedVariables/Ryna_Core.lua"),
             "RynaDB = { broken",
         )
         .unwrap();
@@ -949,10 +949,10 @@ mod tests {
 
     /// The addon at `toc` in the fixture's install; returns its folder.
     fn addon_at(e: &Env, toc: &str) -> PathBuf {
-        let addon = e.root.join("_forever_/Interface/AddOns/Ryna");
+        let addon = e.root.join("_forever_/Interface/AddOns/Ryna_Core");
         std::fs::create_dir_all(&addon).unwrap();
         std::fs::write(
-            addon.join("Ryna.toc"),
+            addon.join("Ryna_Core.toc"),
             format!("## Title: Ryna\n## Version: {toc}\n"),
         )
         .unwrap();

@@ -1,6 +1,6 @@
 -- Pooled: everyone's prices, as the companion app brings them into the game (the data layer,
 -- docs/ryna-agent-cores-mods.md 7 and 7.3; the API's docs/wow.md 17.2). After a sync the app writes
--- Interface/AddOns/Ryna/Data/vendors.lua and Data/auctions.lua, which the core addon loads at login
+-- Interface/AddOns/Ryna_Core/Data/vendors.lua and Data/auctions.lua, which the core addon loads at login
 -- and /reload and hands out through Ryna.Data.Get(name, version). This file reads the two tables
 -- Prices knows (version 1) once at login and answers the tooltip's questions:
 --

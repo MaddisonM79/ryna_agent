@@ -10,7 +10,7 @@
 -- This proves the logic; how the bars look in the default UI and in ElvUI is the game's to show.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local CHRON = "mods/wow/chronicle/addon/Ryna_Chronicle/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 local plain = F.Plain
@@ -67,8 +67,8 @@ _G.RynaDB = {
 }
 
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
-F.Fire("ADDON_LOADED", "Ryna")
+F.LoadAddon(CORE, "Ryna_Core", core)
+F.Fire("ADDON_LOADED", "Ryna_Core")
 local ns = {}
 F.LoadAddon(CHRON, "Ryna_Chronicle", ns)
 F.Fire("ADDON_LOADED", "Ryna_Chronicle")

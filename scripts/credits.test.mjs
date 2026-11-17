@@ -30,7 +30,7 @@ test("credits.json has names, roles and lines", () => {
 
 test("CREDITS.md and the addon's Credits.lua carry every name and line", () => {
   const md = read("CREDITS.md");
-  const lua = read("cores/wow/addon/Ryna/Credits.lua");
+  const lua = read("cores/wow/addon/Ryna_Core/Credits.lua");
   for (const c of credits) {
     assert.ok(md.includes(c.name), `CREDITS.md lacks ${c.name}`);
     assert.ok(md.includes(c.line), `CREDITS.md lacks ${c.name}'s line`);

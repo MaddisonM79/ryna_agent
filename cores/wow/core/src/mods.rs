@@ -2,12 +2,12 @@
 //! one's addon folders are, what's installed, and putting an install in step with what's on.
 //!
 //! A WoW mod is `kind: "addon"`: one or more addon folders (`Ryna_Chronicle`) installed beside the
-//! core's `Ryna`, with `## Dependencies: Ryna`. Or it is `kind: "agent"`: no addon folder at all,
+//! core's `Ryna_Core`, with `## Dependencies: Ryna_Core`. Or it is `kind: "agent"`: no addon folder at all,
 //! the work done by the agent itself (the Settings mod, [`crate::settings`]); installing and
 //! removing one is nothing, and its toggle only says whether the agent does that work. The bundled ones are compiled in (their
 //! `mods/wow/<id>/mod.json`, [`BUNDLED_MOD_JSON`]), so they version with the agent; a test holds the
 //! list to the folders in `mods/wow`. Their addon folders come with the core's addon: the app carries
-//! them beside `addon/Ryna` (`addon/Ryna_Chronicle`), the release zip beside `Ryna`, and a checkout in
+//! them beside `addon/Ryna_Core` (`addon/Ryna_Chronicle`), the release zip beside `Ryna`, and a checkout in
 //! `mods/wow/<id>/addon/`.
 //!
 //! A mod is on when the person turned it on, else when its manifest says `defaultOn`. Installing the
@@ -62,6 +62,7 @@ pub fn bundled() -> &'static [ModManifest] {
                         || (m.kind == AGENT_KIND && m.addons.is_empty()))
                     && m.source == ModSource::Bundled
                     && m.works_with_core(&core.version)
+                    && m.works_with_api(core.api)
             })
             .collect()
     })
@@ -78,7 +79,7 @@ fn has_toc_named(dir: &Path, folder: &str) -> bool {
 
 /// Where the addon folder `folder` of mod `m` is, next to the core's addon at `core_source` (the
 /// `Ryna` folder a front end installs from): beside it (`<…>/Ryna_Chronicle`, the app's resources
-/// and the release zip), else in the repository's layout (`cores/wow/addon/Ryna` →
+/// and the release zip), else in the repository's layout (`cores/wow/addon/Ryna_Core` →
 /// `mods/wow/<id>/addon/<folder>`, a checkout).
 pub fn addon_source(core_source: &Path, m: &ModManifest, folder: &str) -> Option<PathBuf> {
     let beside = core_source.parent().map(|p| p.join(folder));
@@ -361,13 +362,30 @@ mod tests {
             "every mod.json parses, is wow's and works with this core"
         );
         let core = crate::wow_core::manifest();
+        // The core's API level is written three times, and each must say the same: core.json, the
+        // addon's Mods.lua (what a mod reads in the game) and the addon's TOC.
+        let level = core.api.expect("core.json names the API level");
+        let core_addon = root().join("cores/wow/addon").join(ADDON_NAME);
+        let mods_lua = std::fs::read_to_string(core_addon.join("Mods.lua")).unwrap();
+        assert!(
+            mods_lua.contains(&format!("\nR.API = {level}\n")),
+            "Mods.lua's R.API is core.json's api ({level})"
+        );
+        let toc_level = |toc: &str| -> Option<u32> {
+            toc.lines()
+                .find_map(|l| l.strip_prefix("## X-Ryna-API:"))
+                .and_then(|v| v.trim().parse().ok())
+        };
+        let core_toc =
+            std::fs::read_to_string(core_addon.join(format!("{ADDON_NAME}.toc"))).unwrap();
+        assert_eq!(toc_level(&core_toc), Some(level), "{ADDON_NAME}.toc");
         for m in bundled() {
             assert_eq!(
                 m.version, core.version,
                 "{}: a bundled mod takes the agent's version",
                 m.id
             );
-            let source = root().join("cores/wow/addon/Ryna");
+            let source = root().join("cores/wow/addon/Ryna_Core");
             for folder in &m.addons {
                 let dir = addon_source(&source, m, folder).expect(folder);
                 assert_eq!(
@@ -376,7 +394,22 @@ mod tests {
                     "{folder}.toc"
                 );
                 let toc = std::fs::read_to_string(dir.join(format!("{folder}.toc"))).unwrap();
-                assert!(toc.contains("## Dependencies: Ryna"), "{folder}.toc");
+                assert!(
+                    toc.contains(&format!("## Dependencies: {ADDON_NAME}\n")),
+                    "{folder}.toc depends on the core's folder"
+                );
+                // What the mod reads in the game (its TOC) is what its manifest says.
+                assert!(
+                    m.requires.api.is_some(),
+                    "{}: an addon mod names a level",
+                    m.id
+                );
+                assert_eq!(toc_level(&toc), m.requires.api, "{folder}.toc X-Ryna-API");
+                assert!(
+                    m.requires.api <= Some(level),
+                    "{}: a level this core has",
+                    m.id
+                );
             }
         }
         let chronicle = bundled().iter().find(|m| m.id == "chronicle").unwrap();
@@ -404,10 +437,10 @@ mod tests {
         assert!(!settings.default_on && !settings.acts_in_game);
     }
 
-    /// A release layout: `<dir>/Ryna` and each bundled mod's folder beside it, each with its toc.
+    /// A release layout: `<dir>/Ryna_Core` and each bundled mod's folder beside it, each with its toc.
     fn release(dir: &Path, version: &str) -> PathBuf {
         for name in [
-            "Ryna",
+            ADDON_NAME,
             "Ryna_Chronicle",
             "Ryna_Automation",
             "Ryna_Prices",
@@ -422,7 +455,7 @@ mod tests {
             )
             .unwrap();
         }
-        dir.join("release/Ryna")
+        dir.join("release").join(ADDON_NAME)
     }
 
     fn forever(dir: &Path) -> Install {

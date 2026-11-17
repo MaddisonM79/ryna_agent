@@ -9,7 +9,7 @@
 -- on a client without menus a click opens Settings as before; nothing in chat, no errors.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
 local failures, checks = 0, 0
@@ -31,9 +31,9 @@ _G.C_AddOns = { GetAddOnMetadata = function() return "9.9.9" end }
 _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {}, newsSeen = "9.9.9" }
 
 local core = {}
-F.LoadAddon(CORE, "Ryna", core)
+F.LoadAddon(CORE, "Ryna_Core", core)
 core.NEWS = { { version = "9.9.9", headline = "A headline.", items = { { where = "core", text = "A change." } } } }
-F.Fire("ADDON_LOADED", "Ryna")
+F.Fire("ADDON_LOADED", "Ryna_Core")
 F.Fire("PLAYER_LOGIN")
 F.DropTimers()
 

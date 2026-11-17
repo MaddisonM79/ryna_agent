@@ -241,7 +241,7 @@ impl Accounts {
         &self.by_install[install]
     }
 
-    /// The logger's account key: the account whose `Ryna.lua` lists one of the fight's players
+    /// The logger's account key: the account whose `Ryna_Core.lua` lists one of the fight's players
     /// (the logger first), else the install's most recently saved account, else none.
     fn key_for(
         &mut self,

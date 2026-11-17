@@ -5,7 +5,7 @@
 //! a zone. What each creature counted before then (`n` less its `zones`) has no zone; the logs on
 //! this computer may say where some of it happened. This runs once per character, by itself, the
 //! first time a run sees `zonesSince` on a character with no `zonesBackfill`, and only with the
-//! game closed (it writes `Ryna.lua` the way the Settings mod's copy writes SavedVariables:
+//! game closed (it writes `Ryna_Core.lua` the way the Settings mod's copy writes SavedVariables:
 //! [`crate::settings::write_all`], a `.ryna.bak` first, refused while the game runs). Nothing here
 //! leaves the computer: the next push carries the result like any other change to the file.
 //!
@@ -438,7 +438,7 @@ pub enum Outcome {
     Done { placed: Vec<Placed>, files: usize },
 }
 
-/// The backfill for one account's `Ryna.lua`: the characters with `zonesSince` and no
+/// The backfill for one account's `Ryna_Core.lua`: the characters with `zonesSince` and no
 /// `zonesBackfill`, from the install's logs, written back with the game closed. `game_running` is
 /// asked only when there is something to do, and again right before the write.
 pub fn run(acct: &AccountFile, now_secs: i64, game_running: &dyn Fn() -> bool) -> Result<Outcome> {
@@ -620,7 +620,7 @@ RynaOther = {
     fn account(dir: &Path, install: &Path) -> AccountFile {
         let sv = dir.join("SavedVariables");
         std::fs::create_dir_all(&sv).unwrap();
-        let path = sv.join("Ryna.lua");
+        let path = sv.join("Ryna_Core.lua");
         std::fs::write(&path, SAVED).unwrap();
         AccountFile {
             install: install.to_path_buf(),
@@ -687,7 +687,7 @@ RynaOther = {
         // The rest of the file as it was, the other variable included, and a backup beside it.
         assert_eq!(v["RynaOther"], serde_json::json!(["kept"]));
         assert_eq!(v["RynaDB"]["schema"], 1);
-        assert!(acct.path.with_file_name("Ryna.lua.ryna.bak").exists());
+        assert!(acct.path.with_file_name("Ryna_Core.lua.ryna.bak").exists());
 
         // Never twice: the stamp is there now, so nothing to do, and nothing counted again.
         let before = std::fs::read(&acct.path).unwrap();

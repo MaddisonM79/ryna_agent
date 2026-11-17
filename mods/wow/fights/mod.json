@@ -7,7 +7,7 @@
   "kind": "addon",
   "actsInGame": false,
   "source": { "kind": "bundled" },
-  "requires": { "core": ">=0.4.3" },
+  "requires": { "api": 2 },
   "defaultOn": false,
   "addons": ["Ryna_Fights"]
 }

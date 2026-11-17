@@ -10,7 +10,7 @@
 -- notes shipped with the addon are well formed; nothing in chat unasked, no errors.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
 local failures, checks = 0, 0
@@ -47,13 +47,13 @@ local function login(saved, opts)
   _G.RynaNews, _G.RynaVersionNotice = nil, nil
   _G.RynaDB = saved
   local core = {}
-  F.LoadAddon(CORE, "Ryna", core)
+  F.LoadAddon(CORE, "Ryna_Core", core)
   local shipped = core.NEWS
   core.NEWS = opts.notes or NOTES
   if opts.mods then
     for _, id in ipairs(opts.mods) do _G.Ryna.RegisterMod({ id = id, name = id }) end
   end
-  F.Fire("ADDON_LOADED", "Ryna")
+  F.Fire("ADDON_LOADED", "Ryna_Core")
   F.Fire("PLAYER_LOGIN")
   F.DropTimers()
   return core, shipped

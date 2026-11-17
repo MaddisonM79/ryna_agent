@@ -12,7 +12,7 @@
 -- example for /ryna meter threat; nothing in chat unasked, no errors.
 -- luacheck: ignore 1
 
-local CORE = "cores/wow/addon/Ryna/"
+local CORE = "cores/wow/addon/Ryna_Core/"
 local ADDON = "mods/wow/meter/addon/Ryna_Meter/"
 local F = dofile("mods/wow/chronicle/test/fake_client.lua")
 
@@ -102,9 +102,9 @@ _G.RynaDB = { schema = 1, settings = {}, journal = {}, characters = {} }
 
 reset()
 local core, mod = {}, {}
-F.LoadAddon(CORE, "Ryna", core)
+F.LoadAddon(CORE, "Ryna_Core", core)
 F.LoadAddon(ADDON, "Ryna_Meter", mod)
-F.Fire("ADDON_LOADED", "Ryna")
+F.Fire("ADDON_LOADED", "Ryna_Core")
 F.Fire("PLAYER_LOGIN")
 F.DropTimers()
 

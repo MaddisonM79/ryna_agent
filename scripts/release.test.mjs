@@ -44,7 +44,7 @@ test("reads each bundled mod's manifest and its addon folders' TOCs", () => {
 
 test("a version written into an addon's Lua is found, and has to agree with the rest", () => {
   const root = mkdtempSync(join(tmpdir(), "ryna-versions-"));
-  const core = join(root, "cores", "wow", "addon", "Ryna");
+  const core = join(root, "cores", "wow", "addon", "Ryna_Core");
   const mod = join(root, "mods", "wow", "chronicle");
   mkdirSync(core, { recursive: true });
   mkdirSync(join(mod, "addon", "Ryna_Chronicle"), { recursive: true });
@@ -54,10 +54,10 @@ test("a version written into an addon's Lua is found, and has to agree with the 
   writeFileSync(join(core, "Mods.lua"), "R.VERSION = ns.VERSION\n");
   writeFileSync(join(mod, "addon", "Ryna_Chronicle", "Mod.lua"), 'ns.VERSION = R.Try(metadata, addonName, "Version")\nP.VERSION = 1\n');
   writeFileSync(join(mod, "test", "x_test.lua"), 'ns.VERSION = "test"\n');
-  const where = join("cores", "wow", "addon", "Ryna", "Core.lua");
+  const where = join("cores", "wow", "addon", "Ryna_Core", "Core.lua");
   assert.deepEqual(luaVersions(root), [[where, "0.3.2"]]);
   assert.deepEqual(luaVersions(join(root, "nowhere")), []);
-  const off = agree({ "cores/wow/addon/Ryna/Ryna.toc": "0.3.9", [where]: "0.3.2" }, null);
+  const off = agree({ "cores/wow/addon/Ryna_Core/Ryna_Core.toc": "0.3.9", [where]: "0.3.2" }, null);
   assert.equal(off.version, null);
   assert.match(off.problems[0], /disagree[\s\S]*0\.3\.2  .*Core\.lua/);
 });
@@ -83,9 +83,9 @@ test("refuses versions that disagree, or a tag that doesn't match", () => {
   const ok = { a: "0.2.0", b: "0.2.0" };
   assert.deepEqual(agree(ok, "v0.2.0"), { version: "0.2.0", problems: [] });
   assert.deepEqual(agree(ok, null), { version: "0.2.0", problems: [] });
-  const off = agree({ a: "0.2.0", "cores/wow/addon/Ryna/Ryna.toc": "0.1.0" }, "v0.2.0");
+  const off = agree({ a: "0.2.0", "cores/wow/addon/Ryna_Core/Ryna_Core.toc": "0.1.0" }, "v0.2.0");
   assert.equal(off.version, null);
-  assert.match(off.problems[0], /disagree[\s\S]*0\.1\.0  cores\/wow\/addon\/Ryna\/Ryna\.toc/);
+  assert.match(off.problems[0], /disagree[\s\S]*0\.1\.0  cores\/wow\/addon\/Ryna_Core\/Ryna_Core\.toc/);
   assert.match(agree(ok, "v0.3.0").problems[0], /the tag is v0\.3\.0/);
   assert.match(agree({ a: null, b: "0.2.0" }, null).problems[0], /a: no version found/);
 });

@@ -36,7 +36,7 @@ export function readVersions(root) {
   const found = {
     "Cargo.toml [workspace.package]": workspaceVersion(read("Cargo.toml")),
     "agent/app/package.json": JSON.parse(read("agent/app/package.json")).version ?? null,
-    "cores/wow/addon/Ryna/Ryna.toc": tocVersion(read("cores/wow/addon/Ryna/Ryna.toc")),
+    "cores/wow/addon/Ryna_Core/Ryna_Core.toc": tocVersion(read("cores/wow/addon/Ryna_Core/Ryna_Core.toc")),
     // A core's manifest version is what its heartbeat reports; bundled cores take the agent's.
     "cores/wow/core.json": JSON.parse(read("cores/wow/core.json")).version ?? null,
     "cores/satisfactory/core.json": JSON.parse(read("cores/satisfactory/core.json")).version ?? null,

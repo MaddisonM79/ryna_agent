@@ -1,7 +1,7 @@
 //! The Fights view's file (docs/ryna-agent-cores-mods.md 7 and 7.5, "The fight timeline"): the
 //! client refuses the combat log to addons, so the app, which already reads every fight from
 //! `Logs/WoWCombatLog-*.txt` ([`crate::combat`]), keeps what the in-game view needs of each one and
-//! writes the most recent into `Interface/AddOns/Ryna/Data/fights.lua`, which the game loads at login
+//! writes the most recent into `Interface/AddOns/Ryna_Core/Data/fights.lua`, which the game loads at login
 //! and `/reload`:
 //!
 //! ```lua

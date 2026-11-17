@@ -26,7 +26,7 @@ fn tree(root: &Path) -> std::path::PathBuf {
         &acct.join("SavedVariables/ElvUI.lua"),
         "ElvDB = {\n\t[\"profileKeys\"] = {\n\t\t[\"Aerin - Stormcall\"] = \"Aerin - Stormcall\",\n\t},\n\t[\"profiles\"] = {\n\t\t[\"Aerin - Stormcall\"] = { [\"scale\"] = 0.7 },\n\t},\n}\n",
     );
-    write(&acct.join("SavedVariables/Ryna.lua"), "RynaDB = {}\n");
+    write(&acct.join("SavedVariables/Ryna_Core.lua"), "RynaDB = {}\n");
     write(
         &acct.join("Stormcall/Aerin/SavedVariables/Details.lua"),
         "DetailsCharDB = { [\"w\"] = 1 }\n",
@@ -82,7 +82,7 @@ fn list_diff_and_copy_on_a_fake_tree() {
     );
     assert!(list.contains("Aerin-Stormcall: config-cache.wtf"), "{list}");
     assert!(
-        !list.contains("Ryna.lua") && !list.contains(" Ryna "),
+        !list.contains("Ryna_Core.lua") && !list.contains(" Ryna "),
         "{list}"
     );
 
