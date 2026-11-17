@@ -367,8 +367,9 @@ mod tests {
         let level = core.api.expect("core.json names the API level");
         let core_addon = root().join("cores/wow/addon").join(ADDON_NAME);
         let mods_lua = std::fs::read_to_string(core_addon.join("Mods.lua")).unwrap();
+        // By line, never by "\n": a Windows checkout has CRLF endings.
         assert!(
-            mods_lua.contains(&format!("\nR.API = {level}\n")),
+            mods_lua.lines().any(|l| l == format!("R.API = {level}")),
             "Mods.lua's R.API is core.json's api ({level})"
         );
         let toc_level = |toc: &str| -> Option<u32> {
@@ -395,7 +396,8 @@ mod tests {
                 );
                 let toc = std::fs::read_to_string(dir.join(format!("{folder}.toc"))).unwrap();
                 assert!(
-                    toc.contains(&format!("## Dependencies: {ADDON_NAME}\n")),
+                    toc.lines()
+                        .any(|l| l == format!("## Dependencies: {ADDON_NAME}")),
                     "{folder}.toc depends on the core's folder"
                 );
                 // What the mod reads in the game (its TOC) is what its manifest says.
