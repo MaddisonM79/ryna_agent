@@ -56,7 +56,7 @@ cp "$root/cores/wow/fixtures/Ryna.lua" "$product/WTF/Account/SMOKE/SavedVariable
 "$bin" status --install "$(native "$game")" | tee "$tmp/status.txt"
 grep -q '_forever_  flavor wowf' "$tmp/status.txt" || fail "status didn't list the _forever_ install"
 grep -q '^Accounts:' "$tmp/status.txt" || fail "status didn't list the account"
-grep -q 'SavedVariables.Ryna\.lua' "$tmp/status.txt" || fail "status didn't list the account's Ryna_Core.lua"
+grep -q 'SavedVariables.Ryna_Core\.lua' "$tmp/status.txt" || fail "status didn't list the account's Ryna_Core.lua"
 grep -q '^Submission ID: ' "$tmp/status.txt" || fail "status didn't say the submission ID"
 
 step "settings"

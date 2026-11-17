@@ -51,7 +51,9 @@ when tests ran on it instead of 5.1.
 
 Agent (`.github/workflows/agent.yml`): `cargo fmt --all --check`, `cargo clippy --all-targets
 --locked -- -D warnings`, `cargo test --locked`, `node --test scripts/release.test.mjs` and
-`node scripts/check-versions.mjs`, and `node --test scripts/whats-new.test.mjs`. In `agent/app`:
+`node scripts/check-versions.mjs`, and `node --test scripts/whats-new.test.mjs`. It also builds the CLI
+(`cargo build --locked -p ryna`) and runs `scripts/smoke-cli.sh target/debug/ryna`: run that too, it
+isn't covered by `cargo test`. In `agent/app`:
 `pnpm typecheck` and `pnpm test`.
 
 Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm install --frozen-lockfile`,
