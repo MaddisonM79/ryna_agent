@@ -376,6 +376,40 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   is **nil**, and `C_SkillInfo.GetNumSkillLines()` is 21. Chronicle takes the `GetProfessions` path
   (its skill-line fallback is for classic clients). What `GetProfessions()` returns is not yet checked.
 
+### Auras and dispels
+
+- **Docs**: an aura's details are `SecretWhenUnitAuraRestricted` (`C_UnitAuras.GetAuraDataByIndex`,
+  `GetAuraDataByAuraInstanceID`, `GetUnitAuras`, whose table has `ConditionalSecretContents`): secret
+  "when combat, encounter, challenge mode, or PvP match addon restrictions are in effect", though a
+  spell may be flagged never or always secret (Docs `UnitAuraDocumentation.lua`,
+  `SecretPredicatesDocumentation.lua`). `GetUnitAuraInstanceIDs` and `IsAuraFilteredOutByInstanceID`
+  carry no secret mark. Calls that take an aura instance id are `SecretArguments =
+  "AllowedWhenUntainted"`: addon code may not pass them a secret.
+- **The filter knows the class.** `"RAID"` with `"HARMFUL"` is "harmful auras the player can
+  dispel"; `"RAID_PLAYER_DISPELLABLE"` is "someone in the player's raid can"; `"DISPELLABLE"` is any
+  dispellable aura (Blz `Blizzard_FrameXMLUtil/AuraUtil.lua`, `AuraUtil.AuraFilters`). So what a class
+  can cure is the game's to answer, not a table of ours.
+- **A kind's colour without its name**: `C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID,
+  curve)` maps the dispel type id through a colour curve (`C_CurveUtil.CreateColorCurve()`), and its
+  result is secret when the aura is (Docs). The type ids used for the curve's points (Magic 1, Curse
+  2, Disease 3, Poison 4) are from memory of retail addons, **not checked on Forever**.
+- **Forever's cures are the old kind**: a spell per kind of affliction (a priest's Dispel Magic 527
+  and Cure Disease 528 or Abolish Disease 552; a druid's Remove Curse 2782 and Abolish Poison 2893;
+  a shaman's Cure Poison 526 and Cure Disease 2870, and totems), seen in ElvUI's LibDispel
+  (`ElvUI_Libraries/Game/Shared/LibDispel/LibDispel.lua`, which treats Forever as vanilla).
+- **Seen in game** (Maddison, a priest, out of combat, 2026-11-18): with Weakened Soul on her,
+  `GetUnitAuraInstanceIDs("player","HARMFUL|RAID")` gave 0 and `"HARMFUL"` gave 1, so the filter
+  tells "a debuff" from "one I can cure"; the aura's `name`, `icon`, `dispelName` and
+  `auraInstanceID` were all plain; and `SetTexture(aura.icon)` drew it.
+- **Unknown, all in combat**: whether the `"HARMFUL|RAID"` answer stays plain, which of an aura's
+  fields go secret (the instance id above all: a secret one can't be passed to
+  `GetAuraDispelTypeColor`), whether a secret icon and name draw, and whether the filter follows the
+  class (a curse on a priest). Also whether a cure cast with nothing to cure is refused without a
+  global cooldown.
+- **Secure buttons** (`SecureActionButtonTemplate`, `RegisterUnitWatch`): a click on one may cast on
+  its unit; its attributes, place and visibility can't be changed in combat. Cleanse
+  (`Ryna-Mods/cleanse`) is built on that and **has not been run in the game yet**.
+
 ### The game's damage meter
 
 - **Forever**: `Blizzard_DamageMeter` is allowed (`AllowLoadGameType: standard, camelot`), and
@@ -539,6 +573,7 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | Threat is readable in combat in a dungeon: `UnitDetailedThreatSituation` gives plain numbers for the player and for a party member against the target, a dungeon boss included; both `C_Secrets.ShouldUnitThreat...BeSecret("player","target")` are false | Game (2026-11-15) | Maddison's probes in The Deadmines; Docs `UnitDocumentation.lua`, `SecretPredicatesDocumentation.lua` |
 | Threat through `targettarget` is secret; through `nameplateN` it is plain | Game (2026-11-15) | Maddison's probes in The Deadmines; Ryna_Meter `Threat.lua` |
 | Secrets may be passed to `SetValue`, `SetMinMaxValues`, `SetText`, `SetFormattedText`, `SetVertexColor`, `SetAlpha`, `AbbreviateNumbers`; a live meter is drawn that way | Docs; Addons (2026-11-15) | Docs at Blz70938; Details `classes/class_damage.lua` |
+| Out of combat, an aura's `name`, `icon`, `dispelName` and `auraInstanceID` are plain, `SetTexture(aura.icon)` draws, and `GetUnitAuraInstanceIDs(unit, "HARMFUL\|RAID")` leaves out what the player can't dispel (Weakened Soul: 0 of 1) | Game (2026-11-18) | Maddison's probes on a priest; the section "Auras and dispels" |
 | `C_DamageMeter` answers an addon on Forever, live and after combat (sessions, a source's spells for group members); `AbbreviateNumbers` follows a `breakpointData` rule on secret numbers, the step below a thousand included; an addon's `SendChatMessage` to party posts inside a dungeon out of combat; `MenuUtil.CreateContextMenu` opens a menu for an addon | Game (2026-11-15) | Maddison in The Deadmines with Ryna_Meter (`Bars.lua`) |
 
 ## How to probe
@@ -588,6 +623,15 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
 15. Gold at logout (what `GetMoney()` answers during `PLAYER_LOGOUT` is unknown; saved records had 0): log
     character A out to the character list, log in character B, and open Ryna's window, Characters: A's gold
     should be what A carried, not 0
+16. Auras in combat, with something on you that your class can cure (a magic effect or a disease on a
+    priest), one macro each:
+    `/run local f=C_UnitAuras.GetUnitAuraInstanceIDs local t,a=f("player","HARMFUL|RAID"),f("player","HARMFUL") print("RynaP1 cure",issecretvalue(t) or #t,"all",issecretvalue(a) or #a,"combat",InCombatLockdown())`
+    (is the count plain? with a curse or poison on a priest, is "cure" 0?);
+    `/run print("RynaP2",pcall(function() local a=C_UnitAuras.GetUnitAuras("player","HARMFUL",1)[1] local s=issecretvalue return a and s(a.name),a and s(a.icon),a and s(a.dispelName),a and s(a.auraInstanceID) end))`
+    (which of name, icon, kind and instance id are secret);
+    `/run local a=C_UnitAuras.GetUnitAuras("player","HARMFUL",1)[1] print("RynaP3",a~=nil) local f=CreateFrame("Frame",nil,UIParent) f:SetSize(48,48) f:SetPoint("CENTER") local t=f:CreateTexture() t:SetAllPoints() t:SetTexture(a.icon) print("RynaP3 ok")`
+    (does a secret icon draw?)
+17. Out of combat, with nothing to cure: cast a cure on yourself. Refused or cast? Mana, global cooldown?
 
 ## Links
 
