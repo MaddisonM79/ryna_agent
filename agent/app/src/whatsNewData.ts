@@ -15,6 +15,24 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "0.5.1",
+    "headline": "Ryna's addons now update on their own.",
+    "items": [
+      {
+        "where": "app",
+        "text": "The app keeps each Ryna addon up to date by itself, between app updates. A new version goes in the next time the game is closed."
+      },
+      {
+        "where": "app",
+        "text": "Every addon now has its own version number, so the app and its addons no longer always match. That is expected."
+      },
+      {
+        "where": "app",
+        "text": "This update brings Ryna Core 0.5.1 and the newest version of each mod you have on."
+      }
+    ]
+  },
+  {
     "version": "0.5.0",
     "headline": "Ryna's own addon is now called Ryna Core.",
     "items": [
