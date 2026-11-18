@@ -293,6 +293,31 @@ pub fn apply(
     Ok(changes)
 }
 
+/// Whether `install` has a mod that is on, already installed, and older than the copy beside
+/// `core_source`: one a front end should bring up to date by itself, as it does the core's addon
+/// ([`addon_install::needs_update`]). Never a mod that isn't installed, and never an install
+/// without the core's addon.
+pub fn needs_update(
+    install: &Install,
+    core_source: &Path,
+    chosen: &BTreeMap<String, bool>,
+) -> bool {
+    if !addon_install::has_addon(install) {
+        return false;
+    }
+    bundled()
+        .iter()
+        .filter(|m| !is_agent_mod(m) && is_on(m, chosen))
+        .flat_map(|m| m.addons.iter().map(move |folder| (m, folder)))
+        .filter(|(_, folder)| folder.as_str() != ADDON_NAME)
+        .any(|(m, folder)| {
+            let installed = addon_install::installed_folder_version(install, folder);
+            let available = addon_source(core_source, m, folder)
+                .and_then(|dir| addon_install::folder_version_named(&dir, folder));
+            matches!((installed, available), (Some(i), Some(a)) if compare_versions(&i, &a).is_lt())
+        })
+}
+
 /// The status card's words for a mod in the install at `path`.
 pub fn row_words(m: &ModStatus, path: &str) -> (String, ryna_agent::core::Chip) {
     use ryna_agent::core::Chip;
@@ -380,6 +405,17 @@ mod tests {
         let core_toc =
             std::fs::read_to_string(core_addon.join(format!("{ADDON_NAME}.toc"))).unwrap();
         assert_eq!(toc_level(&core_toc), Some(level), "{ADDON_NAME}.toc");
+        // The lowest level it serves, the same three places (docs 6.2).
+        let lowest = core.api_min.expect("core.json names the lowest level");
+        assert!((1..=level).contains(&lowest));
+        assert!(
+            mods_lua
+                .lines()
+                .any(|l| l == format!("R.API_MIN = {lowest}")),
+            "Mods.lua's R.API_MIN is core.json's apiMin ({lowest})"
+        );
+        let toc_lowest = crate::addon_store::toc_field(&core_toc, crate::addon_store::TOC_API_MIN);
+        assert_eq!(toc_lowest, Some(lowest.to_string()), "{ADDON_NAME}.toc");
         for m in bundled() {
             assert_eq!(
                 m.version, core.version,
@@ -408,8 +444,8 @@ mod tests {
                 );
                 assert_eq!(toc_level(&toc), m.requires.api, "{folder}.toc X-Ryna-API");
                 assert!(
-                    m.requires.api <= Some(level),
-                    "{}: a level this core has",
+                    m.requires.api <= Some(level) && m.requires.api >= Some(lowest),
+                    "{}: a level this core serves",
                     m.id
                 );
             }
@@ -465,6 +501,42 @@ mod tests {
             path: dir.join("_forever_"),
             flavor: Some("wowf".into()),
         }
+    }
+
+    #[test]
+    fn an_installed_mod_older_than_the_copy_to_install_needs_an_update() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = release(dir.path(), "0.5.0");
+        let inst = forever(dir.path());
+        let none = BTreeMap::new();
+        assert!(!needs_update(&inst, &source, &none), "no core addon there");
+        addon_install::install(&source, &inst).unwrap();
+        apply(&inst, &source, &none, None).unwrap();
+        assert!(
+            !needs_update(&inst, &source, &none),
+            "all as new as the source"
+        );
+
+        // Chronicle (on by default) moves on alone; the core stays where it is.
+        let toc = dir.path().join("release/Ryna_Chronicle/Ryna_Chronicle.toc");
+        std::fs::write(&toc, "## Version: 0.5.1\n").unwrap();
+        assert!(needs_update(&inst, &source, &none));
+        // A mod that is off, or on and not installed, never asks for one.
+        let off = BTreeMap::from([("chronicle".to_string(), false)]);
+        assert!(!needs_update(&inst, &source, &off));
+        let meter = dir.path().join("release/Ryna_Meter/Ryna_Meter.toc");
+        std::fs::write(&meter, "## Version: 9.0.0\n").unwrap();
+        let meter_on = BTreeMap::from([
+            ("chronicle".to_string(), false),
+            ("meter".to_string(), true),
+        ]);
+        assert!(
+            !needs_update(&inst, &source, &meter_on),
+            "not installed yet"
+        );
+        // And once brought up to date it is quiet again.
+        apply(&inst, &source, &none, None).unwrap();
+        assert!(!needs_update(&inst, &source, &none));
     }
 
     #[test]

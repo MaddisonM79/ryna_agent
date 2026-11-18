@@ -484,6 +484,9 @@ local function modHelp(m)
   if m.api and m.api > ns.API_LEVEL then
     -- Its files load nothing on this core (each mod's Mod.lua checks the level first).
     state = L["Needs a newer Ryna Core: update Ryna Core, then reload."]
+  elseif m.api and m.api < ns.API_MIN then
+    -- Written for a level this core no longer serves: the same, the other way round.
+    state = L["Needs a newer version of this mod: update it, then reload."]
   elseif loaded and enabled then
     state = L["On."]
   elseif loaded then

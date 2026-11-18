@@ -5,6 +5,7 @@
 ## Version: 0.5.0
 ## SavedVariables: RynaDB
 ## X-Ryna-API: 2
+## X-Ryna-API-Min: 2
 
 Core.lua
 Locales\enUS.lua

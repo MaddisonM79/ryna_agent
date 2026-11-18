@@ -118,7 +118,8 @@ impl Source {
         }
     }
 
-    fn get(
+    /// The bytes of `file` from this source (at most [`MAX_BYTES`]).
+    pub fn get(
         &self,
         file: &str,
         progress: &mut dyn FnMut(u64, Option<u64>),
@@ -191,6 +192,28 @@ pub fn verify(
             }
             _ => {}
         }
+    }
+    Ok(())
+}
+
+/// As [`verify`], for a file that has no version of its own (the addon index, 6.2): the trusted
+/// comment must name `file:<file>`, so nothing else this key ever signed can stand in for it.
+pub fn verify_file(bytes: &[u8], sig: &str, pubkey: &str, file: &str) -> Result<(), PackageError> {
+    let key = minisign_verify::PublicKey::decode(&b64_text("public key", pubkey)?)
+        .map_err(|e| PackageError::Signature(format!("the public key: {e}")))?;
+    let signature = minisign_verify::Signature::decode(&b64_text("signature", sig)?)
+        .map_err(|e| PackageError::Signature(e.to_string()))?;
+    key.verify(bytes, &signature, true)
+        .map_err(|e| PackageError::Signature(e.to_string()))?;
+    let named = signature
+        .trusted_comment()
+        .split('\t')
+        .filter_map(|pair| pair.split_once(':'))
+        .any(|(k, v)| k == "file" && v.trim() == file);
+    if !named {
+        return Err(PackageError::Signature(format!(
+            "it wasn't signed as {file}"
+        )));
     }
     Ok(())
 }

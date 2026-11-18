@@ -303,6 +303,17 @@ install, start the new version) and **Later** (hides it until a newer one, or a 
 Settings). Settings has **Check for updates**. Each finding goes to the activity log. The app
 carries the addon, so an app update is also the addon update: the Installs list then offers it.
 
+**Addons between app releases** (design note 6.2). The app also reads a signed addon index
+(`addons.json` on the latest release of [Ryna-Mods/ryna](https://github.com/Ryna-Mods/ryna)) at
+launch and every hour, and takes any addon in it that is newer than the copy the app carries. The
+index is checked against its own key (`app/addons.pub`, never the updater's) before anything in it is read; each zip is checked
+against the hash the index names, must hold exactly its own addon folder, and must say the version
+the index says, or nothing is kept. A newer core and the mods that need it arrive together or not
+at all. What is fetched lives under the state folder's `addons/`; installing follows the same rules
+as the app's own copy (only where the addon already is, never over a newer one, never while the
+game runs). Until the first index is published there is nothing to read and the app installs what
+it carries. `RYNA_ADDON_INDEX` points it at a folder or another https URL for development.
+
 The same banner shows the API's judgment of this version (How it runs, "Supported versions"):
 behind is the line above; reduced is amber and unsupported red, each with Maddison's sentence
 ("This version of Ryna is getting old. ..." / "This version of Ryna is no longer supported, so

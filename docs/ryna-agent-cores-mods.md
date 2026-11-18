@@ -219,6 +219,106 @@ range), which stops meaning anything once each addon has its own version line.
   must have. A mod then says one number about the core, and CI can test each mod against the oldest
   core at its level.
 
+### 6.2 Addons that are fetched: each addon its own release (decided 2026-11-17)
+
+After 0.5.0 each addon gets its own repository in the organisation
+[Ryna-Mods](https://github.com/Ryna-Mods) (`core`, `meter`, `automation`, `prices`, `chronicle`,
+`fights`), its own version line and its own `vX.Y.Z` tags. Each new repository starts with one signed
+commit that names the `ryna_agent` commit it came from; the history stays here. `Ryna-Mods/ryna` is
+the bundle: one zip of every addon for an addon manager that installs no dependencies (WowUp's Hub).
+The agent stays in this repository.
+
+Maddison's order (2026-11-17): **the app first, then the other hubs.** The app must install and
+update addons one by one before any addon leaves this repository, and before anything is listed on
+an outside site. So: (1) the app learns this section, with the addons still here; (2) Meter moves
+out as the pilot; (3) the core, then the rest, Chronicle and Prices last; (4) the bundle; (5) WowUp,
+then CurseForge and Wago.
+
+**The app fetches; it also still carries.** Every build of the app carries a copy of every addon
+(as today), so a first run, an offline run and a day GitHub is down all work. Between app releases
+it reads one signed file, the **addon index**, and takes any addon in it that is newer than the copy
+it carries. A fix to Meter reaches people without a release of the app.
+
+**The index** is `addons.json` and `addons.json.sig` on the latest release of `Ryna-Mods/ryna`
+(`https://github.com/Ryna-Mods/ryna/releases/latest/download/addons.json`). Every addon release
+makes a new bundle release, so the index and the bundle zip are always one release, and a published
+release is never changed.
+
+```jsonc
+{
+  "schema": 1,
+  "serial": 5001,                       // the bundle's version (0.5.1); goes up with every index; the app refuses one lower than the last it took
+  "generated": "2026-11-17T23:52:54Z",
+  "addons": [
+    { "folder": "Ryna_Core", "version": "0.5.1",
+      "api": 2, "apiMin": 2,            // the core: the level it offers, and the lowest level it still serves
+      "minApp": "0.5.1",                // the oldest app that can read what this addon writes; absent: any
+      "url": "https://github.com/Ryna-Mods/core/releases/download/v0.5.1/Ryna_Core-0.5.1.zip",
+      "sha256": "…", "size": 412345 },
+    { "folder": "Ryna_Meter", "version": "1.0.1",
+      "api": 2,                         // a mod: the level it needs
+      "url": "https://github.com/Ryna-Mods/meter/releases/download/v1.0.1/Ryna_Meter-1.0.1.zip",
+      "sha256": "…", "size": 51234 }
+  ]
+}
+```
+
+- **Trust.** The signature is minisign, checked the way an app update and a fetched core package
+  are (13.3), against **a key of its own** (`agent/app/addons.pub`; Maddison's call, 2026-11-17):
+  the secret that publishes addons lives in `Ryna-Mods/ryna`'s `release` environment
+  (`ADDONS_SIGNING_PRIVATE_KEY` and `ADDONS_SIGNING_PRIVATE_KEY_PASSWORD`) and can't sign an app
+  update, and the updater's key can't sign an index. Its trusted comment names `file:addons.json`. The
+  zips aren't signed one by one: the signed index names each one's SHA-256 and size, and a zip that
+  differs is thrown away. Nothing is read from an index before its signature is good.
+- **What an entry may be.** Only a folder this build of the app already knows (the core's, or a
+  bundled addon mod's): the index can update an addon, never introduce one. Only an `https://` URL
+  under `https://github.com/Ryna-Mods/`. Anything else in an entry (an unknown folder, another host,
+  a bad hash, a version that doesn't parse) drops that entry and keeps the rest.
+- **The zip** holds exactly one top folder, the entry's, with its `<Folder>.toc`; a path that would
+  land outside it, a link, or more than the size cap refuses the zip. After unpacking, the TOC's
+  `## Version` and `## X-Ryna-API` must be the entry's, or it is thrown away.
+- **What it picks** (`addon_index::choose`, one pure function). For each folder the candidates are
+  the copy the app carries and the index's entry; an entry is a candidate only when it is newer
+  than the carried copy and the app is at least its `minApp`. The newest core is taken unless it
+  would leave a mod with no version that fits it (a mod fits a core when
+  `core.apiMin <= mod.api <= core.api`); then the carried core is kept, and the carried mods fit it
+  by construction. Then each mod takes its newest version that fits the chosen core. Nothing is
+  ever chosen that is older than what the app carries.
+- **Where it keeps them.** `<state>/addons/fetched/<Folder>/` (one version of each, replaced whole
+  through a temporary folder), `<state>/addons/index.json` (the last serial taken and what was
+  chosen), and `<state>/addons/current/`, the folder the installer copies from when anything is
+  fetched: each addon's chosen copy side by side, as the app's own resources are laid out. With
+  nothing fetched the installer copies from the app's resources, as before.
+- **When.** At launch and every hour. A failure (no network, no index yet, a bad signature) changes
+  nothing and is tried again; until the first bundle release exists the index is a 404, which is
+  the same as "nothing newer". Putting files into the game folder keeps today's rules: only where
+  the addon already is, never over a newer copy, never while the game runs. An install is brought
+  up to date when its core is older than the chosen one **or any mod that is on is**.
+- **The core's lowest level** is new with this section: `apiMin` in `core.json`, `Ryna.API_MIN` in
+  `Mods.lua`, `## X-Ryna-API-Min` in the core's TOC (2 today). A core that removes or changes
+  something raises both numbers; one that only adds raises `api` alone. In the game, a mod's
+  `Mod.lua` loads nothing on a core whose `API_MIN` is above its level, and the Mods tab says
+  "Needs a newer version of this mod". (The mods released as 0.5.0 don't make that check; the
+  app's choice and the bundle keep them from ever meeting such a core.)
+- **`RYNA_ADDON_INDEX`** points the app at a folder or another https URL holding `addons.json`,
+  its `.sig` and the zips, for development and tests; `RYNA_CORE_PUBKEY` replaces the key in a
+  debug build only, as for core packages.
+
+**The publisher** is in `Ryna-Mods/ryna` (its `RELEASING.md`): `bundle.json` names the release of
+each addon the next bundle holds, each zip pinned by SHA-256, and a signed tag `vX.Y.Z` builds
+`Ryna-X.Y.Z-forever.zip` and the index. The bundle's version is its own, on the 0.5 line (Maddison,
+2026-11-17: no 1.0), and gives the index its `serial` (0.5.1 is 5001). The build holds every zip to the rules above
+before the index is signed, refuses a bundle whose mods its core doesn't serve, and never lets an
+entry go back a version or drop out. An addon gets an entry only once it has a repository of its
+own; until then it comes out of this repository's `Ryna-<version>.zip`, is only in the bundle, and
+the app carries it. So the first index is empty.
+
+Not in this stage, and written down so they aren't lost: the version marks (9.1) judge one shared
+version today and must judge each addon's own line once the lines part; the CLI installs only what
+it carries; and when an addon manager owns the folders (WowUp's bundle installs every mod, the app
+removes a mod that is off), the app has to stand down for that install. That last one is designed
+with the bundle.
+
 ## 7. The data layer
 
 The thing only an agent can do: bring data *into* the game. Addons can't fetch, but they load files at
@@ -1371,9 +1471,8 @@ API admits the agent's one token for every core its person is provisioned for.
   updater's `latest.json`.
 - **Cores**: bundled in the agent and versioned with it while they're ours (option A). A core's
   manifest version is what the API's heartbeat reports.
-- **Mods**: bundled ones version with the agent; fetched ones update when their pinned tag changes in
-  the agent's own list (a release of the agent) or, later, from a mods index the agent reads. Either
-  way: source, tag and hash, shown to the person before the first install.
+- **Mods and the core addon**: a copy of each ships inside the agent; a newer one comes from the
+  signed addon index (6.2), each addon on its own version line once it has its own repository.
 - **Data**: per table, per sync, no release.
 - **The addon**: still inside the agent; a new agent brings the matching addon, as today.
 
