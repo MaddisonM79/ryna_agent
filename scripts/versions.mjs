@@ -37,7 +37,6 @@ export function readVersions(root) {
   const found = {
     "Cargo.toml [workspace.package]": workspaceVersion(read("Cargo.toml")),
     "agent/app/package.json": JSON.parse(read("agent/app/package.json")).version ?? null,
-    "cores/wow/addon/Ryna_Core/Ryna_Core.toc": tocVersion(read("cores/wow/addon/Ryna_Core/Ryna_Core.toc")),
     // A core's manifest version is what its heartbeat reports; bundled cores take the agent's.
     "cores/wow/core.json": JSON.parse(read("cores/wow/core.json")).version ?? null,
     "cores/satisfactory/core.json": JSON.parse(read("cores/satisfactory/core.json")).version ?? null,
@@ -46,6 +45,8 @@ export function readVersions(root) {
     "cores/palworld/core.json": JSON.parse(read("cores/palworld/core.json")).version ?? null,
     "cores/palworld/package.json": JSON.parse(read("cores/palworld/package.json")).version ?? null,
   };
+  // The core's addon (Ryna_Core) is kept in a repository of its own and has its own version
+  // (cores/wow/addon/pin.json): pinProblems holds it to its pin.
   // Each bundled mod (mods/wow/<id>/mod.json, `kind: "addon"` or `kind: "agent"`) versions with the
   // agent, and so does each addon folder it installs (its TOC; an agent mod has none). A mod kept in
   // a repository of its own (it has a pin.json) has its own version: pinProblems holds it to its pin.
@@ -79,22 +80,35 @@ export function modVersions(root) {
 }
 
 /**
- * What is off about the mods kept in repositories of their own (mods/wow/<id>/pin.json): each one's
- * mod.json says the version its pin's tag names, and so does its TOC once the folder is fetched
- * (scripts/fetch-addons.mjs). Their versions are their own, never the release's.
+ * What is off about the addons kept in repositories of their own (cores/wow/addon/pin.json,
+ * mods/wow/<id>/pin.json). Their versions are their own, never the release's. A pinned mod's
+ * mod.json says the version its pin's tag names. Once a folder is fetched (scripts/fetch-addons.mjs)
+ * its TOC says that version too, and the core's TOC names the API levels cores/wow/core.json does
+ * (`api`, `apiMin`): the app reads core.json, the game reads the addon.
  */
 export function pinProblems(root) {
   const problems = [];
-  for (const { id, pin, dir } of pins(root)) {
-    const manifest = join("mods", "wow", id, "mod.json");
-    const m = existsSync(join(root, manifest)) ? JSON.parse(readFileSync(join(root, manifest), "utf8")) : null;
-    if (!m) problems.push(`mods/wow/${id}/pin.json: there is no ${manifest} beside it`);
-    else if (m.version !== pin.version) problems.push(`${manifest} says ${m.version}, its pin's tag is ${pin.tag}`);
-    else if (JSON.stringify(m.addons) !== JSON.stringify([pin.folder])) problems.push(`${manifest}'s addons aren't its pin's folder (${pin.folder})`);
+  const tocField = (text, key) => new RegExp(`^##\\s*${key}:\\s*(\\S+)\\s*$`, "m").exec(text)?.[1] ?? null;
+  for (const { id, core, pin, dir } of pins(root)) {
+    const at = core ? "cores/wow/addon" : `mods/wow/${id}/addon`;
+    if (!core) {
+      const manifest = join("mods", "wow", id, "mod.json");
+      const m = existsSync(join(root, manifest)) ? JSON.parse(readFileSync(join(root, manifest), "utf8")) : null;
+      if (!m) problems.push(`mods/wow/${id}/pin.json: there is no ${manifest} beside it`);
+      else if (m.version !== pin.version) problems.push(`${manifest} says ${m.version}, its pin's tag is ${pin.tag}`);
+      else if (JSON.stringify(m.addons) !== JSON.stringify([pin.folder])) problems.push(`${manifest}'s addons aren't its pin's folder (${pin.folder})`);
+    }
     const toc = join(dir, `${pin.folder}.toc`);
-    if (existsSync(toc)) {
-      const v = tocVersion(readFileSync(toc, "utf8"));
-      if (v !== pin.version) problems.push(`mods/wow/${id}/addon/${pin.folder}/${pin.folder}.toc says ${v}, its pin's tag is ${pin.tag}: run node scripts/fetch-addons.mjs`);
+    if (!existsSync(toc)) continue;
+    const text = readFileSync(toc, "utf8");
+    const v = tocVersion(text);
+    if (v !== pin.version) problems.push(`${at}/${pin.folder}/${pin.folder}.toc says ${v}, its pin's tag is ${pin.tag}: run node scripts/fetch-addons.mjs`);
+    if (core) {
+      const manifest = JSON.parse(readFileSync(join(root, "cores", "wow", "core.json"), "utf8"));
+      for (const [key, field] of [["api", "X-Ryna-API"], ["apiMin", "X-Ryna-API-Min"]]) {
+        const have = tocField(text, field);
+        if (have !== String(manifest[key])) problems.push(`cores/wow/core.json's ${key} is ${manifest[key]}, the pinned core's ${field} is ${have}`);
+      }
     }
   }
   return problems;
@@ -118,9 +132,13 @@ export function luaVersions(root) {
       }
     }
   };
-  walk(join("cores", "wow", "addon"));
+  // A folder fetched from a pinned release (the core's, a pinned mod's) is its own repository's to
+  // check: its version is not this release's.
+  if (!existsSync(join(root, "cores", "wow", "addon", "pin.json"))) walk(join("cores", "wow", "addon"));
   const mods = join("mods", "wow");
-  if (existsSync(join(root, mods))) for (const id of readdirSync(join(root, mods)).sort()) walk(join(mods, id, "addon"));
+  if (existsSync(join(root, mods))) {
+    for (const id of readdirSync(join(root, mods)).sort()) if (!existsSync(join(root, mods, id, "pin.json"))) walk(join(mods, id, "addon"));
+  }
   return out;
 }
 

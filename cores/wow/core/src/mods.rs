@@ -8,9 +8,9 @@
 //! `mods/wow/<id>/mod.json`, [`BUNDLED_MOD_JSON`]), so they version with the agent; a test holds the
 //! list to the folders in `mods/wow`. Their addon folders come with the core's addon: the app carries
 //! them beside `addon/Ryna_Core` (`addon/Ryna_Chronicle`), the release zip beside `Ryna`, and a checkout in
-//! `mods/wow/<id>/addon/`. A mod kept in a repository of its own (it has a `pin.json`; Meter) has
-//! its folder fetched to that same place from its pinned release (`scripts/fetch-addons.mjs`), and
-//! its version is its own.
+//! `mods/wow/<id>/addon/`. An addon kept in a repository of its own (it has a `pin.json`: the core's,
+//! `cores/wow/addon/pin.json`, and Meter) has its folder fetched to that same place from its pinned
+//! release (`scripts/fetch-addons.mjs`), and its version is its own.
 //!
 //! A mod is on when the person turned it on, else when its manifest says `defaultOn`. Installing the
 //! core's addon also installs every mod that's on and removes every mod that's off
@@ -390,34 +390,42 @@ mod tests {
         );
         let core = crate::wow_core::manifest();
         // The core's API level is written three times, and each must say the same: core.json, the
-        // addon's Mods.lua (what a mod reads in the game) and the addon's TOC.
+        // addon's Mods.lua (what a mod reads in the game) and the addon's TOC. The addon is kept in
+        // a repository of its own (cores/wow/addon/pin.json) and is here only once
+        // scripts/fetch-addons.mjs has run; that repository holds its Mods.lua and TOC together,
+        // and scripts/check-versions.mjs holds the fetched TOC to core.json as this does.
         let level = core.api.expect("core.json names the API level");
-        let core_addon = root().join("cores/wow/addon").join(ADDON_NAME);
-        let mods_lua = std::fs::read_to_string(core_addon.join("Mods.lua")).unwrap();
-        // By line, never by "\n": a Windows checkout has CRLF endings.
-        assert!(
-            mods_lua.lines().any(|l| l == format!("R.API = {level}")),
-            "Mods.lua's R.API is core.json's api ({level})"
-        );
+        let lowest = core.api_min.expect("core.json names the lowest level");
+        assert!((1..=level).contains(&lowest));
         let toc_level = |toc: &str| -> Option<u32> {
             toc.lines()
                 .find_map(|l| l.strip_prefix("## X-Ryna-API:"))
                 .and_then(|v| v.trim().parse().ok())
         };
-        let core_toc =
-            std::fs::read_to_string(core_addon.join(format!("{ADDON_NAME}.toc"))).unwrap();
-        assert_eq!(toc_level(&core_toc), Some(level), "{ADDON_NAME}.toc");
-        // The lowest level it serves, the same three places (docs 6.2).
-        let lowest = core.api_min.expect("core.json names the lowest level");
-        assert!((1..=level).contains(&lowest));
+        let core_addon = root().join("cores/wow/addon").join(ADDON_NAME);
         assert!(
-            mods_lua
-                .lines()
-                .any(|l| l == format!("R.API_MIN = {lowest}")),
-            "Mods.lua's R.API_MIN is core.json's apiMin ({lowest})"
+            root().join("cores/wow/addon/pin.json").is_file(),
+            "the core's addon is pinned"
         );
-        let toc_lowest = crate::addon_store::toc_field(&core_toc, crate::addon_store::TOC_API_MIN);
-        assert_eq!(toc_lowest, Some(lowest.to_string()), "{ADDON_NAME}.toc");
+        if let Ok(mods_lua) = std::fs::read_to_string(core_addon.join("Mods.lua")) {
+            // By line, never by "\n": a Windows checkout has CRLF endings.
+            assert!(
+                mods_lua.lines().any(|l| l == format!("R.API = {level}")),
+                "Mods.lua's R.API is core.json's api ({level})"
+            );
+            assert!(
+                mods_lua
+                    .lines()
+                    .any(|l| l == format!("R.API_MIN = {lowest}")),
+                "Mods.lua's R.API_MIN is core.json's apiMin ({lowest})"
+            );
+            let core_toc =
+                std::fs::read_to_string(core_addon.join(format!("{ADDON_NAME}.toc"))).unwrap();
+            assert_eq!(toc_level(&core_toc), Some(level), "{ADDON_NAME}.toc");
+            let toc_lowest =
+                crate::addon_store::toc_field(&core_toc, crate::addon_store::TOC_API_MIN);
+            assert_eq!(toc_lowest, Some(lowest.to_string()), "{ADDON_NAME}.toc");
+        }
         for m in bundled() {
             // A mod kept in a repository of its own has a pin.json: its version is its pin's tag, and
             // its folder is here only once scripts/fetch-addons.mjs has run (CI's addon checks and

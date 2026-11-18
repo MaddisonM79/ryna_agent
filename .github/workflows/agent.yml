@@ -45,11 +45,12 @@ jobs:
       # The release scripts' tests, and that the versions agree (the tag is checked at release).
       - if: runner.os == 'Linux'
         run: node --test scripts/release.test.mjs
-      # What's new: the note file is well formed and the game's and the app's copies are what it makes.
+      # What's new: the note file is well formed and the app's copy is what it makes.
       - if: runner.os == 'Linux'
         run: node --test scripts/whats-new.test.mjs
-      # The mods kept in repositories of their own (mods/wow/<id>/pin.json): the fetch's own tests,
-      # the pinned releases themselves, and that each agrees with its pin.
+      # The addons kept in repositories of their own (the core's, cores/wow/addon/pin.json; a mod's,
+      # mods/wow/<id>/pin.json): the fetch's own tests, the pinned releases themselves, and that each
+      # agrees with its pin (the core's API levels with cores/wow/core.json too).
       - if: runner.os == 'Linux'
         run: node --test scripts/fetch-addons.test.mjs
       - if: runner.os == 'Linux'

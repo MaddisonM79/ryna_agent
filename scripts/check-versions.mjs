@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Refuses a release whose versions disagree: the addon's TOC, each bundled mod's mod.json and TOC
-// (the Settings mod has a mod.json and no addon folder; a mod with a pin.json has its own version,
-// held to its pin), the WoW core's manifest, the Palworld
+// Refuses a release whose versions disagree: each bundled mod's mod.json and TOC (the Settings mod
+// has a mod.json and no addon folder), the WoW core's manifest, the Palworld
 // core's manifest and package.json, the app's package.json, the cargo workspace (so every crate),
 // Cargo.lock, and the tag.
 //
@@ -18,7 +17,8 @@ const i = process.argv.indexOf("--tag");
 const tag = i > 0 ? process.argv[i + 1] || null : null;
 
 const { version, problems } = agree(readVersions(root), tag);
-// A mod in a repository of its own isn't on the release's version; it is held to its pin instead.
+// An addon in a repository of its own (the core's, a pinned mod's) isn't on the release's version:
+// it is held to its pin instead, and the core's API levels to cores/wow/core.json.
 problems.push(...pinProblems(root));
 if (problems.length) {
   for (const p of problems) console.error(`::error::${p.split("\n")[0]}\n${p}`);

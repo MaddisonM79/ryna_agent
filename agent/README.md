@@ -347,12 +347,12 @@ without a key.
 ## Releasing
 
 1. Bump the version everywhere: `version` in the root `Cargo.toml` (`[workspace.package]`, every
-   crate takes it), `version` in `app/package.json`, `## Version:` in `cores/wow/addon/Ryna_Core/Ryna_Core.toc`, `version` in `cores/wow/core.json`,
-   and each bundled mod's `version` in `mods/wow/<id>/mod.json` and `## Version:` in its addon's TOC
-   (Chronicle: `mods/wow/chronicle/addon/Ryna_Chronicle/Ryna_Chronicle.toc`). No Lua carries the
-   version: every addon reads its own TOC in game, and the check refuses a copy that disagrees.
-   A mod kept in a repository of its own (it has a `pin.json`; Meter) is not bumped: its version is
-   its own, and the check holds its `mod.json` and fetched TOC to the pin's tag instead.
+   crate takes it), `version` in `app/package.json`, `version` in `cores/wow/core.json`,
+   and the Settings mod's `version` in `mods/wow/settings/mod.json`.
+   An addon is not bumped: every one (Ryna Core and each mod) is kept in a repository of its own
+   and has a `pin.json` here; its version is its own, and the check holds it (a mod's `mod.json`,
+   each fetched TOC) to the pin's tag instead. Only the Settings mod, which has no addon, takes the
+   release's version. The app's What's new (`whats-new.json`) covers the app; an addon's is its own.
    A mod's `requires.api` (and `## X-Ryna-API` in its TOC) names the core API level it needs; a change
    to the mod API that could break a mod raises the level (`Ryna.API` in `Mods.lua`, `api` in
    `core.json`, `## X-Ryna-API` in the core's TOC), and a test holds them to each other.
@@ -360,9 +360,10 @@ without a key.
    and names each file when they disagree (CI runs it on every push too).
    In the same change, say what's new: in `whats-new.json` (repository root) give the release its
    note, renaming the one marked `"next"` to the version (a headline and a few plain lines, written
-   for a player), then run `node scripts/whats-new.mjs`, which writes the game's copy
-   (`cores/wow/addon/Ryna_Core/WhatsNew.lua`) and the app's (`agent/app/src/whatsNewData.ts`). The
-   release workflow refuses a tag with no note, or with one still marked `"next"`.
+   for the person using the app, about the app: an addon says what's new in the game, from its own
+   repository's notes), then run `node scripts/whats-new.mjs`, which writes the app's copy
+   (`agent/app/src/whatsNewData.ts`). The release workflow refuses a tag with no note, or with one
+   still marked `"next"`.
 2. Commit, then tag and push the tag: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/release.yml` checks the tag against the files (a mismatch stops it before
    anything builds), then builds and attaches to one GitHub Release, with generated notes:

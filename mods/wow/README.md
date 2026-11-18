@@ -1,3 +1,11 @@
+> **Every mod's addon is kept in a repository of its own**: [automation](https://github.com/Ryna-Mods/automation),
+> [chronicle](https://github.com/Ryna-Mods/chronicle), [fights](https://github.com/Ryna-Mods/fights),
+> [meter](https://github.com/Ryna-Mods/meter) and [prices](https://github.com/Ryna-Mods/prices), each with
+> its tests and its own version. Here a mod is its `mod.json` (the manifest the app compiles in) and a
+> `pin.json` (the release the app carries, by tag and SHA-256); `node scripts/fetch-addons.mjs` unpacks
+> that release at `<id>/addon/<Folder>`, which git ignores. To change a mod: change and release it
+> there, then move the pin and `mod.json`'s `version`. What follows describes the mods themselves.
+
 # WoW mods
 
 Mods for the World of Warcraft: Forever core, one folder each with its `mod.json`

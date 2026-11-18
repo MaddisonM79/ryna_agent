@@ -173,20 +173,22 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
 - `cores/`: the games (`cores/README.md`). `cores/wow` is World of Warcraft: Forever: its manifest
   `core.json`; the Rust core `cores/wow/core` (crate `ryna-wow-core`: the SavedVariables reader,
   install discovery, the combat-log tailer and fight parser, the pusher, the watch loop and the addon
-  installer); the in-game addon `cores/wow/addon/Ryna_Core`, tagged for Forever, the plumbing its mods
+  installer); the in-game addon `cores/wow/addon/Ryna_Core` (kept in [Ryna-Mods/core](https://github.com/Ryna-Mods/core) and fetched here from a pinned release), tagged for Forever, the plumbing its mods
   build on (`cores/wow/addon/README.md`: what is recorded, settings, your own `/who`, translations,
   the mod API); and the scrubbed test fixtures in `cores/wow/fixtures`. Its mods are in `mods/wow`:
   Chronicle (`mods/wow/chronicle`), everything recorded about a character, Automation
   (`mods/wow/automation`), the chores (quests, vendors, trainers, mail, rolls, invites and the like),
   each off until ticked, Prices (`mods/wow/prices`), vendor prices on item tooltips, Fights
   (`mods/wow/fights`), the Fights section from the app's reading of the combat log, Meter
-  (`mods/wow/meter`; its source is in [Ryna-Mods/meter](https://github.com/Ryna-Mods/meter), carried from a pinned release), the live meter and threat bar read from the game, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
+  (`mods/wow/meter`), the live meter and threat bar read from the game, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
   core's `settings` module), addon settings copied between characters and backed up encrypted.
   `cores/palworld` is the Palworld core (Node, macOS): it reads the Mac App Store build's saves
   and pushes them, run by the agent as a sidecar and fetched as a signed core package only for
   people set up for it. Its save parser is a port of palworld-save-tools (MIT), and it reads
   the saves' compression with kraken-decode (MIT, our own); `cores/palworld/NOTICE.md` has both.
-- `mods/`: each core's mods (`mods/wow`), from stage 2 of the design.
+- `mods/`: each core's mods (`mods/wow`), from stage 2 of the design. Every WoW addon's source (Ryna Core and
+  each mod) is in a repository of its own in the [Ryna-Mods](https://github.com/Ryna-Mods) org; here
+  each is a `pin.json` naming a release, fetched by `node scripts/fetch-addons.mjs`.
 - `scripts/`: version checks, the release manifest, the CLI smoke test, `core-package.mjs` (a
   fetched core's package), and `capture.sh`, which turns a real `Ryna_Core.lua` into a scrubbed test
   fixture.
