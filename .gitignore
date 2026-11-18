@@ -10,3 +10,6 @@ target/
 .env.*
 # The core packages scripts/core-package.mjs builds by default.
 dist-core/
+# A mod kept in a repository of its own: its addon folder is fetched from the release its pin.json
+# names (scripts/fetch-addons.mjs), never committed here.
+mods/wow/meter/addon/

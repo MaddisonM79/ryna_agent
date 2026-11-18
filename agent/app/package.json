@@ -7,8 +7,8 @@
   "type": "module",
   "packageManager": "pnpm@11.28.10",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "dev": "node ../../scripts/fetch-addons.mjs && vite",
+    "build": "node ../../scripts/fetch-addons.mjs && vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "tauri": "node scripts/tauri.mjs",

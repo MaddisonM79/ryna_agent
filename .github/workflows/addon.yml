@@ -3,9 +3,9 @@ name: addon
 on:
   push:
     branches: [main]
-    paths: ["cores/wow/addon/**", "mods/wow/**", ".github/workflows/addon.yml"]
+    paths: ["cores/wow/addon/**", "mods/wow/**", "scripts/fetch-addons.mjs", "scripts/zip.mjs", ".github/workflows/addon.yml"]
   pull_request:
-    paths: ["cores/wow/addon/**", "mods/wow/**", ".github/workflows/addon.yml"]
+    paths: ["cores/wow/addon/**", "mods/wow/**", "scripts/fetch-addons.mjs", "scripts/zip.mjs", ".github/workflows/addon.yml"]
 
 permissions:
   contents: read
@@ -23,6 +23,11 @@ jobs:
           sudo luarocks install argparse 0.7.2-1
           sudo luarocks install luafilesystem 1.9.0-1
           sudo luarocks install luacheck 1.2.0-1
+      # A mod kept in a repository of its own (mods/wow/<id>/pin.json) is fetched to where its source
+      # was, so every check below reads it against this core as it always did.
+      - run: node scripts/fetch-addons.mjs
+      - id: meter
+        run: echo "tag=$(node -p 'require("./mods/wow/meter/pin.json").tag')" >> "$GITHUB_OUTPUT"
       # Both addons: the core's and every mod's (Ryna_Chronicle first).
       - run: luacheck cores/wow/addon/ mods/wow/ --config cores/wow/addon/.luacheckrc --no-color
       - name: Every addon file parses as Lua 5.1
@@ -39,5 +44,22 @@ jobs:
         run: |
           shopt -s nullglob
           for t in cores/wow/addon/test/*_test.lua mods/wow/*/test/*_test.lua; do
+            lua5.1 "$t" || exit 1
+          done
+      # Meter's tests live with it (Ryna-Mods/meter), where they run against the oldest core it
+      # supports; here the pinned release's tests run against this core, the newest.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Ryna-Mods/meter
+          ref: ${{ steps.meter.outputs.tag }}
+          path: .pinned/meter
+          persist-credentials: false
+      - name: The pinned Meter's tests, against this core
+        working-directory: .pinned/meter
+        env:
+          RYNA_CORE: ${{ github.workspace }}/cores/wow/addon/Ryna_Core
+        run: |
+          shopt -s nullglob
+          for t in test/*_test.lua; do
             lua5.1 "$t" || exit 1
           done

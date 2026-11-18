@@ -2,6 +2,7 @@
 // check-versions.mjs is the command.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pins } from "./fetch-addons.mjs";
 
 /** `## Version: x.y.z` from a TOC. */
 export function tocVersion(text) {
@@ -46,7 +47,8 @@ export function readVersions(root) {
     "cores/palworld/package.json": JSON.parse(read("cores/palworld/package.json")).version ?? null,
   };
   // Each bundled mod (mods/wow/<id>/mod.json, `kind: "addon"` or `kind: "agent"`) versions with the
-  // agent, and so does each addon folder it installs (its TOC; an agent mod has none).
+  // agent, and so does each addon folder it installs (its TOC; an agent mod has none). A mod kept in
+  // a repository of its own (it has a pin.json) has its own version: pinProblems holds it to its pin.
   for (const [where, version] of modVersions(root)) found[where] = version;
   // An addon reads its version from its TOC in game. A copy written into its Lua has to agree too.
   for (const [where, version] of luaVersions(root)) found[where] = version;
@@ -65,7 +67,7 @@ export function modVersions(root) {
   if (!existsSync(mods)) return out;
   for (const id of readdirSync(mods).sort()) {
     const manifest = join("mods", "wow", id, "mod.json");
-    if (!existsSync(join(root, manifest))) continue;
+    if (!existsSync(join(root, manifest)) || existsSync(join(root, "mods", "wow", id, "pin.json"))) continue;
     const m = JSON.parse(readFileSync(join(root, manifest), "utf8"));
     out.push([manifest, m.version ?? null]);
     for (const folder of m.addons ?? []) {
@@ -74,6 +76,28 @@ export function modVersions(root) {
     }
   }
   return out;
+}
+
+/**
+ * What is off about the mods kept in repositories of their own (mods/wow/<id>/pin.json): each one's
+ * mod.json says the version its pin's tag names, and so does its TOC once the folder is fetched
+ * (scripts/fetch-addons.mjs). Their versions are their own, never the release's.
+ */
+export function pinProblems(root) {
+  const problems = [];
+  for (const { id, pin, dir } of pins(root)) {
+    const manifest = join("mods", "wow", id, "mod.json");
+    const m = existsSync(join(root, manifest)) ? JSON.parse(readFileSync(join(root, manifest), "utf8")) : null;
+    if (!m) problems.push(`mods/wow/${id}/pin.json: there is no ${manifest} beside it`);
+    else if (m.version !== pin.version) problems.push(`${manifest} says ${m.version}, its pin's tag is ${pin.tag}`);
+    else if (JSON.stringify(m.addons) !== JSON.stringify([pin.folder])) problems.push(`${manifest}'s addons aren't its pin's folder (${pin.folder})`);
+    const toc = join(dir, `${pin.folder}.toc`);
+    if (existsSync(toc)) {
+      const v = tocVersion(readFileSync(toc, "utf8"));
+      if (v !== pin.version) problems.push(`mods/wow/${id}/addon/${pin.folder}/${pin.folder}.toc says ${v}, its pin's tag is ${pin.tag}: run node scripts/fetch-addons.mjs`);
+    }
+  }
+  return problems;
 }
 
 /**

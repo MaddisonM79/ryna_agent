@@ -48,6 +48,12 @@ jobs:
       # What's new: the note file is well formed and the game's and the app's copies are what it makes.
       - if: runner.os == 'Linux'
         run: node --test scripts/whats-new.test.mjs
+      # The mods kept in repositories of their own (mods/wow/<id>/pin.json): the fetch's own tests,
+      # the pinned releases themselves, and that each agrees with its pin.
+      - if: runner.os == 'Linux'
+        run: node --test scripts/fetch-addons.test.mjs
+      - if: runner.os == 'Linux'
+        run: node scripts/fetch-addons.mjs
       - if: runner.os == 'Linux'
         run: node scripts/check-versions.mjs
 
@@ -85,7 +91,8 @@ jobs:
         working-directory: agent/app
       - run: pnpm test
         working-directory: agent/app
-      # vue-tsc, then vite: the app crate embeds agent/app/dist, so it must exist before cargo runs.
+      # The pinned mods' folders (scripts/fetch-addons.mjs), then vue-tsc, then vite: the app crate
+      # embeds agent/app/dist and carries every addon folder, so all of it must exist before cargo runs.
       - run: pnpm build
         working-directory: agent/app
       - run: cargo fmt -p ryna-wow-app --check
