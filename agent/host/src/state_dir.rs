@@ -179,14 +179,11 @@ mod tests {
             drop(inherited);
         });
         std::thread::sleep(Duration::from_millis(20));
-        let started = Instant::now();
+        // Taken at all means taken within the grace: once it runs out, a held lock is refused.
+        // No bound on the clock here: a loaded CI runner can stall this thread for longer than
+        // the grace after the lock is already free (526 ms on Windows, 2026-11-17).
         let taken = try_lock(dir.path()).unwrap();
         assert!(taken.is_ok(), "refused as busy: {:?}", taken.as_ref().err());
-        assert!(
-            started.elapsed() < GRACE,
-            "waited the whole grace: {:?}",
-            started.elapsed()
-        );
         lingering.join().unwrap();
     }
 
