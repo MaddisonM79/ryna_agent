@@ -247,7 +247,7 @@ release is never changed.
 ```jsonc
 {
   "schema": 1,
-  "serial": 12,                         // goes up with every index; the app refuses one lower than the last it took
+  "serial": 5001,                       // the bundle's version (0.5.1); goes up with every index; the app refuses one lower than the last it took
   "generated": "2026-11-17T23:52:54Z",
   "addons": [
     { "folder": "Ryna_Core", "version": "0.5.1",
@@ -305,8 +305,9 @@ release is never changed.
   debug build only, as for core packages.
 
 **The publisher** is in `Ryna-Mods/ryna` (its `RELEASING.md`): `bundle.json` names the release of
-each addon the next bundle holds, each zip pinned by SHA-256, and a signed tag `v<N>` builds
-`Ryna-v<N>-forever.zip` and the index with `serial` N. The build holds every zip to the rules above
+each addon the next bundle holds, each zip pinned by SHA-256, and a signed tag `vX.Y.Z` builds
+`Ryna-X.Y.Z-forever.zip` and the index. The bundle's version is its own, on the 0.5 line (Maddison,
+2026-11-17: no 1.0), and gives the index its `serial` (0.5.1 is 5001). The build holds every zip to the rules above
 before the index is signed, refuses a bundle whose mods its core doesn't serve, and never lets an
 entry go back a version or drop out. An addon gets an entry only once it has a repository of its
 own; until then it comes out of this repository's `Ryna-<version>.zip`, is only in the bundle, and
