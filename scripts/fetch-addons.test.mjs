@@ -143,6 +143,6 @@ test("this repository's pinned addons are out of the release's versions and agre
     assert.ok(!Object.keys(found).some((k) => k.startsWith(under)), id);
   }
   // Every addon is in a repository of its own; the Settings mod runs in the agent and has no folder.
-  assert.deepEqual(pins(root).map((p) => p.id), ["core", "automation", "chronicle", "fights", "meter", "prices"]);
+  assert.deepEqual(pins(root).map((p) => p.id), ["core", "automation", "chronicle", "cleanse", "fights", "meter", "prices"]);
   assert.deepEqual(pinProblems(root), []);
 });

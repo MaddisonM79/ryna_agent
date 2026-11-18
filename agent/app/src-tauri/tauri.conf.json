@@ -55,7 +55,8 @@
       "../../../mods/wow/automation/addon/Ryna_Automation": "addon/Ryna_Automation/",
       "../../../mods/wow/prices/addon/Ryna_Prices": "addon/Ryna_Prices/",
       "../../../mods/wow/fights/addon/Ryna_Fights": "addon/Ryna_Fights/",
-      "../../../mods/wow/meter/addon/Ryna_Meter": "addon/Ryna_Meter/"
+      "../../../mods/wow/meter/addon/Ryna_Meter": "addon/Ryna_Meter/",
+      "../../../mods/wow/cleanse/addon/Ryna_Cleanse": "addon/Ryna_Cleanse/"
     },
     "windows": {
       "nsis": {

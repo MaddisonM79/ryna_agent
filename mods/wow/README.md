@@ -1,5 +1,5 @@
 > **Every mod's addon is kept in a repository of its own**: [automation](https://github.com/Ryna-Mods/automation),
-> [chronicle](https://github.com/Ryna-Mods/chronicle), [fights](https://github.com/Ryna-Mods/fights),
+> [chronicle](https://github.com/Ryna-Mods/chronicle), [cleanse](https://github.com/Ryna-Mods/cleanse), [fights](https://github.com/Ryna-Mods/fights),
 > [meter](https://github.com/Ryna-Mods/meter) and [prices](https://github.com/Ryna-Mods/prices), each with
 > its tests and its own version. Here a mod is its `mod.json` (the manifest the app compiles in) and a
 > `pin.json` (the release the app carries, by tag and SHA-256); `node scripts/fetch-addons.mjs` unpacks
@@ -168,6 +168,15 @@ is the whole of it).
   `node scripts/fetch-addons.mjs` unpacks that release at `meter/addon/Ryna_Meter`, which git
   ignores, and the app's build, the release zip and the checks here read it from there. To change
   Meter: change and release it in its repository, then move the pin and `mod.json`'s `version`.
+- `cleanse/`: **Cleanse**, off by default (`defaultOn: false`, `actsInGame: false`), the first mod written
+  in a repository of its own ([Ryna-Mods/cleanse](https://github.com/Ryna-Mods/cleanse), whose README
+  describes it): a small window with a row for each member of the group or raid, lit in the colour of
+  what afflicts them when this character's class can cure it (the game's own `"HARMFUL|RAID"` aura
+  filter decides), and a click that casts the cure: the left button the class's first single cure, the
+  right its second, Shift the area ones. The rows are secure buttons, so nothing about them changes
+  during a fight. It casts only from the player's click. `/ryna cleanse`; a Cleanse tab; settings
+  `cleanseShow` and `cleanseAlone`; the window's place in `RynaDB.cleanse`. Nothing in chat, nothing
+  sent. What the client allows it is in docs/forever-client-api.md, "Auras and dispels".
 - `settings/`: **Settings**, off by default (`kind: "agent"`, `defaultOn: false`, `actsInGame:
   false`; docs/ryna-agent-cores-mods.md 7.2): addon settings copied between characters and backed
   up to ryna.io, encrypted on this machine (the API's docs/wow.md section 15). All of it is the core's

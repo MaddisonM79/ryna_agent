@@ -1,0 +1,13 @@
+{
+  "id": "cleanse",
+  "core": "wow",
+  "name": "Cleanse",
+  "version": "0.1.0",
+  "summary": "A small window with a row for each member of your group, or your raid. A row lights up, in the colour of what afflicts them, when that person has something your class can cure: click it to cast your cure, right-click for your second one, Shift-click for your class's area cure. It casts only when you click, never by itself. During a fight the window can't be moved, shown or hidden, because the game protects anything that casts from a click. It needs nothing from the Ryna app, keeps nothing but where you put its window, and sends nothing to Ryna. Nothing in chat.",
+  "kind": "addon",
+  "actsInGame": false,
+  "source": { "kind": "bundled" },
+  "requires": { "api": 2 },
+  "defaultOn": false,
+  "addons": ["Ryna_Cleanse"]
+}
