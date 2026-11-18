@@ -823,7 +823,7 @@ fn refresh_addon_index(app: &AppHandle) -> bool {
     else {
         return false;
     };
-    let key = ryna_agent::package::public_key(crate::cores::UPDATER_PUB);
+    let key = ryna_agent::package::public_key(ADDONS_PUB);
     let done = addon_store::index_source().and_then(|source| {
         addon_store::refresh(&state, &source, &key, &carried, env!("CARGO_PKG_VERSION"))
     });
@@ -949,6 +949,10 @@ pub struct AddonUpdated {
 const ADDON_UPDATE_DELAY: Duration = Duration::from_secs(5);
 /// How often it looks again while the game is running.
 const ADDON_UPDATE_WAIT: Duration = Duration::from_secs(30);
+/// The key the addon index is signed with (docs 6.2): its own, not the updater's, so the secret
+/// that publishes addons can't sign an app update. Its private half is a secret of the bundle
+/// repository's release environment.
+const ADDONS_PUB: &str = include_str!("../../addons.pub");
 /// How often the addon index is read.
 const ADDON_INDEX_EVERY: Duration = Duration::from_secs(60 * 60);
 
@@ -1110,6 +1114,21 @@ pub fn set_mod_enabled(app: &AppHandle, id: &str, on: bool) -> Result<ModToggleR
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_addons_key_is_a_minisign_key_of_its_own() {
+        // A signature that isn't one is what's wrong here, never the key.
+        let err =
+            ryna_agent::package::verify_file(b"index", "bm90IGEgc2lnbmF0dXJl", ADDONS_PUB, "f")
+                .unwrap_err()
+                .to_string();
+        assert!(!err.contains("public key"), "{err}");
+        assert_ne!(
+            ADDONS_PUB.trim(),
+            include_str!("../../updater.pub").trim(),
+            "never the updater's key"
+        );
+    }
     use ryna_agent::core::{CoreHeartbeat, CoreManifest};
     use ryna_wow_core::watch::WatchEvent;
     use ryna_wow_core::wow_core::activity;

@@ -263,8 +263,11 @@ release is never changed.
 }
 ```
 
-- **Trust.** The signature is minisign, checked against a key the app carries, exactly as an app
-  update and a fetched core package are (13.3); its trusted comment names `file:addons.json`. The
+- **Trust.** The signature is minisign, checked the way an app update and a fetched core package
+  are (13.3), against **a key of its own** (`agent/app/addons.pub`; Maddison's call, 2026-11-17):
+  the secret that publishes addons lives in `Ryna-Mods/ryna`'s `release` environment
+  (`ADDONS_SIGNING_PRIVATE_KEY` and `ADDONS_SIGNING_PRIVATE_KEY_PASSWORD`) and can't sign an app
+  update, and the updater's key can't sign an index. Its trusted comment names `file:addons.json`. The
   zips aren't signed one by one: the signed index names each one's SHA-256 and size, and a zip that
   differs is thrown away. Nothing is read from an index before its signature is good.
 - **What an entry may be.** Only a folder this build of the app already knows (the core's, or a

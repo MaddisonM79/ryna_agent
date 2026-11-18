@@ -306,7 +306,7 @@ carries the addon, so an app update is also the addon update: the Installs list 
 **Addons between app releases** (design note 6.2). The app also reads a signed addon index
 (`addons.json` on the latest release of [Ryna-Mods/ryna](https://github.com/Ryna-Mods/ryna)) at
 launch and every hour, and takes any addon in it that is newer than the copy the app carries. The
-index is checked against the updater's key before anything in it is read; each zip is checked
+index is checked against its own key (`app/addons.pub`, never the updater's) before anything in it is read; each zip is checked
 against the hash the index names, must hold exactly its own addon folder, and must say the version
 the index says, or nothing is kept. A newer core and the mods that need it arrive together or not
 at all. What is fetched lives under the state folder's `addons/`; installing follows the same rules
