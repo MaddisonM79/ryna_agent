@@ -304,6 +304,14 @@ release is never changed.
   its `.sig` and the zips, for development and tests; `RYNA_CORE_PUBKEY` replaces the key in a
   debug build only, as for core packages.
 
+**The publisher** is in `Ryna-Mods/ryna` (its `RELEASING.md`): `bundle.json` names the release of
+each addon the next bundle holds, each zip pinned by SHA-256, and a signed tag `v<N>` builds
+`Ryna-v<N>-forever.zip` and the index with `serial` N. The build holds every zip to the rules above
+before the index is signed, refuses a bundle whose mods its core doesn't serve, and never lets an
+entry go back a version or drop out. An addon gets an entry only once it has a repository of its
+own; until then it comes out of this repository's `Ryna-<version>.zip`, is only in the bundle, and
+the app carries it. So the first index is empty.
+
 Not in this stage, and written down so they aren't lost: the version marks (9.1) judge one shared
 version today and must judge each addon's own line once the lines part; the CLI installs only what
 it carries; and when an addon manager owns the folders (WowUp's bundle installs every mod, the app
