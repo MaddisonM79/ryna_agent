@@ -66,17 +66,18 @@ test("no addon in this repository carries its own copy of the version", () => {
   assert.deepEqual(luaVersions(join(import.meta.dirname, "..")), []);
 });
 
-test("this repository's versions include Chronicle's, the Settings mod's and the Palworld and Satisfactory cores'", () => {
+test("this repository's versions include the Settings mod's and the Palworld and Satisfactory cores', and no addon's", () => {
   const found = readVersions(join(import.meta.dirname, ".."));
   assert.ok("cores/satisfactory/core.json" in found);
   assert.ok("Cargo.lock ryna-satisfactory-core" in found);
   assert.ok("cores/palworld/core.json" in found);
   assert.ok("cores/palworld/package.json" in found);
-  assert.ok("mods/wow/chronicle/mod.json" in found);
-  assert.ok("mods/wow/chronicle/addon/Ryna_Chronicle/Ryna_Chronicle.toc" in found);
-  // An agent mod (no addon folder) has a manifest to agree and no TOC.
+  // An agent mod (no addon folder) versions with the agent: a manifest to agree and no TOC.
   assert.ok("mods/wow/settings/mod.json" in found);
-  assert.ok(!Object.keys(found).some((k) => k.startsWith("mods/wow/settings/addon")));
+  // Every addon (the core's, each mod's) is in a repository of its own, with a version of its own,
+  // held to its pin instead (fetch-addons.test.mjs).
+  assert.ok(!Object.keys(found).some((k) => k.includes("/addon/") || k.endsWith(".toc")));
+  assert.ok(!("mods/wow/chronicle/mod.json" in found));
 });
 
 test("refuses versions that disagree, or a tag that doesn't match", () => {

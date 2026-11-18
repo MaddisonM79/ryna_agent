@@ -88,10 +88,61 @@ test("a pinned mod is held to its pin, not to the release's version", () => {
   assert.match(pinProblems(repo(zip, { addons: ["Ryna_Other"] }))[0], /addons aren't its pin's folder/);
 });
 
-test("this repository's pinned mods are out of the release's versions and agree with their pins", () => {
+/** A repository root with a pinned core, its folder not fetched yet. */
+function coreRepo(zip, manifest = { api: 2, apiMin: 2 }) {
+  const root = mkdtempSync(join(tmpdir(), "ryna-pins-"));
+  mkdirSync(join(root, "cores", "wow", "addon"), { recursive: true });
+  writeFileSync(join(root, "cores", "wow", "core.json"), JSON.stringify({ id: "wow", version: "0.6.0", ...manifest }));
+  writeFileSync(join(root, "cores", "wow", "addon", "pin.json"), JSON.stringify({ folder: "Ryna_Core", repo: "Ryna-Mods/core", tag: "v0.5.1", sha256: sha(zip) }));
+  return root;
+}
+const coreZip = (version = "0.5.1", api = 2, apiMin = 2) =>
+  writeZip([
+    { name: "Ryna_Core/Ryna_Core.toc", data: Buffer.from(`## Title: Ryna Core\n## Version: ${version}\n## X-Ryna-API: ${api}\n## X-Ryna-API-Min: ${apiMin}\nCore.lua\n`) },
+    { name: "Ryna_Core/Core.lua", data: Buffer.from("-- core") },
+  ]);
+
+test("the core is pinned beside where its folder goes, and only as Ryna_Core", () => {
+  const zip = coreZip();
+  const root = coreRepo(zip);
+  const [p] = pins(root);
+  assert.deepEqual([p.id, p.core, p.pin.url], ["core", true, "https://github.com/Ryna-Mods/core/releases/download/v0.5.1/Ryna_Core-0.5.1.zip"]);
+  assert.equal(p.dir, join(root, "cores", "wow", "addon", "Ryna_Core"));
+  place(p, unpack(zip, p.pin));
+  assert.equal(inPlace(p), true);
+  assert.equal(existsSync(join(root, "cores", "wow", "addon", ".fetched")), true);
+  writeFileSync(join(root, "cores", "wow", "addon", "pin.json"), JSON.stringify({ folder: "Ryna_Meter", repo: "Ryna-Mods/meter", tag: "v0.5.1", sha256: sha(zip) }));
+  assert.throws(() => pins(root), /the core's folder is Ryna_Core/);
+  const meter = meterZip();
+  const modRoot = repo(meter);
+  writeFileSync(join(modRoot, "mods", "wow", "meter", "pin.json"), JSON.stringify({ folder: "Ryna_Core", repo: "Ryna-Mods/core", tag: "v0.5.1", sha256: sha(meter) }));
+  assert.throws(() => pins(modRoot), /Ryna_Core is the core's folder/);
+});
+
+test("the pinned core has its own version, and the API levels core.json names", () => {
+  const zip = coreZip();
+  const root = coreRepo(zip);
+  assert.deepEqual(pinProblems(root), [], "nothing to hold before the folder is fetched");
+  const [p] = pins(root);
+  place(p, unpack(zip, p.pin));
+  assert.deepEqual(pinProblems(root), [], "its version (0.5.1) needn't be the release's (0.6.0)");
+  const raised = coreZip("0.5.1", 3, 2);
+  const off = coreRepo(raised);
+  place(pins(off)[0], unpack(raised, pins(off)[0].pin));
+  assert.match(pinProblems(off)[0], /core\.json's api is 2, the pinned core's X-Ryna-API is 3/);
+  const lowest = coreRepo(zip, { api: 2, apiMin: 1 });
+  place(pins(lowest)[0], unpack(zip, pins(lowest)[0].pin));
+  assert.match(pinProblems(lowest)[0], /core\.json's apiMin is 1, the pinned core's X-Ryna-API-Min is 2/);
+});
+
+test("this repository's pinned addons are out of the release's versions and agree with their pins", () => {
   const root = join(import.meta.dirname, "..");
   const found = readVersions(root);
-  for (const { id } of pins(root)) assert.ok(!Object.keys(found).some((k) => k.startsWith(`mods/wow/${id}/`)), id);
-  assert.ok(pins(root).some((p) => p.id === "meter"));
+  for (const { id, core } of pins(root)) {
+    const under = core ? "cores/wow/addon/" : `mods/wow/${id}/`;
+    assert.ok(!Object.keys(found).some((k) => k.startsWith(under)), id);
+  }
+  // Every addon is in a repository of its own; the Settings mod runs in the agent and has no folder.
+  assert.deepEqual(pins(root).map((p) => p.id), ["core", "automation", "chronicle", "fights", "meter", "prices"]);
   assert.deepEqual(pinProblems(root), []);
 });

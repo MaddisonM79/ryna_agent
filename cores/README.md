@@ -8,7 +8,8 @@ and `writes`, and where its `mods` live), which the agent reads at start; the ag
 through one interface, `ryna_agent::core::Core` in `agent/host`. There are three:
 
 - `wow/`, builtin: the Rust core (`wow/core`, crate `ryna-wow-core`), its in-game addon
-  (`wow/addon/Ryna_Core`, the plumbing its mods build on), and the test fixtures; its mods (Chronicle
+  (`wow/addon/Ryna_Core`, the plumbing its mods build on; its source is in
+  [Ryna-Mods/core](https://github.com/Ryna-Mods/core) and it is fetched here from a pinned release), and the test fixtures; its mods (Chronicle
   first) are in `mods/wow`.
 - `palworld/`, a sidecar (Node, macOS only for now): the Mac App Store build's save parser, the
   snapshot and the push, which the agent starts as `node agent.mjs serve` and drives over

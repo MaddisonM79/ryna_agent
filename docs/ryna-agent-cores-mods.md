@@ -322,7 +322,29 @@ build, the release's addon zip and the addon checks run it first, so what the ap
 the index offers are the same file from the same release. The mod's version is its own: the release's
 version check leaves it out and holds its `mod.json` and TOC to the pin. Its tests live with it and
 run there against the oldest core it supports; the addon checks here also run the pinned release's
-tests against this core, the newest.
+tests against the core the app carries.
+
+**The core's addon is carried the same way** (2026-11-18): `Ryna-Mods/core` holds `Ryna_Core`, its
+tests, the fake client they run against, and its version, which is its own from 0.5.1.
+`cores/wow/addon/pin.json` names the release, and the folder is fetched to
+`cores/wow/addon/Ryna_Core`. What stays here is what the app needs to agree with: `api` and `apiMin`
+in `cores/wow/core.json` are the levels the pinned core's TOC names (the version check refuses a pin
+that says otherwise), and the mods still kept here are tested against the pinned core. `core.json`'s
+`version` is the agent-side core's, with the app's; it no longer says anything of the addon.
+
+**Every mod followed the same day** (Maddison: "do all the addons"): `Ryna-Mods/automation`,
+`chronicle`, `fights` and `prices` beside `meter`, each released as 0.5.1 with the level check from
+6.2 (Meter is at 0.5.2). Nothing of an addon's source is left here. `scripts/pinned-tests.sh` clones
+each mod at its pinned tag and runs its tests against the pinned core. One file crosses the line:
+`mods/wow/fights/test/fixtures/fights.lua` is the app's own output (`fights_data`'s test keeps it
+current), so it stays here, the pinned Fights' tests are run against this copy, and the Fights
+repository takes a copy when it changes.
+
+**What's new parted with it** (Maddison, 2026-11-18). The in-game popup is the core's, made from
+the core repository's `whats-new.json` and shown for the core's version; each addon brings its own
+notes, so a mod hands the core its notes keyed by the mod's version (not built yet: until it is, a
+mod-only release shows no popup). The app's dialog is made from `whats-new.json` here and covers the
+app and the cores that aren't addons; a note after 0.5.0 that names an addon is refused.
 
 Not in this stage, and written down so they aren't lost: the version marks (9.1) judge one shared
 version today and must judge each addon's own line once the lines part; the CLI installs only what

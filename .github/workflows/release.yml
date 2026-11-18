@@ -354,8 +354,8 @@ jobs:
       # --from` finds the mods beside Ryna_Core. One zip per addon would let someone install the core
       # alone, which records nothing. A folder that's there is still only loaded if the game's AddOns
       # list has it on; the app's toggle is what keeps an off mod's folder out.
-      # A mod kept in a repository of its own comes from the release its pin.json names, held to
-      # the pinned SHA-256, into the same place a mod kept here has its source.
+      # An addon kept in a repository of its own (the core, Meter) comes from the release its
+      # pin.json names, held to the pinned SHA-256, into the place its source used to be.
       - run: node scripts/fetch-addons.mjs
       - name: The addon zip (Ryna_Core and every bundled mod's folders, as the app carries them)
         run: |

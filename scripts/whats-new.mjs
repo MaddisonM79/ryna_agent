@@ -1,19 +1,20 @@
 #!/usr/bin/env node
-// What's new: the note a player sees once after an update, in the game (a popup at login) and in the
-// app (a dialog at first launch). The words are written by hand in whats-new.json at the repository
-// root, newest release first; this script makes the two copies from it, so they can't disagree
-// (no dependencies; Node 18+). From the repository root:
+// What's new: the note a person sees once in the app after an update (a dialog at first launch).
+// The words are written by hand in whats-new.json at the repository root, newest release first; this
+// script makes the app's copy from it (no dependencies; Node 18+). From the repository root:
 //
-//   node scripts/whats-new.mjs                  write the two copies
-//   node scripts/whats-new.mjs --check          exit 1 when a copy isn't what the file makes (CI)
-//   node scripts/whats-new.mjs --require 0.5.0  exit 1 unless that release has a note and none is
+//   node scripts/whats-new.mjs                  write the app's copy
+//   node scripts/whats-new.mjs --check          exit 1 when it isn't what the file makes (CI)
+//   node scripts/whats-new.mjs --require 0.5.1  exit 1 unless that release has a note and none is
 //                                               still marked "next" (the release workflow)
 //
-// A note: { version, headline, items: [{ where, text, new? }] }. `version` is the release's ("0.5.0"),
+// A note: { version, headline, items: [{ where, text, new? }] }. `version` is the release's ("0.5.1"),
 // or "next" while the release has no number yet: rename it in the change that sets the version.
-// `where` says whose change it is: "core" (the addon itself), a WoW mod's id, "app", or another core's
-// id; the game shows the core's and the mods', the app shows them all. `new` marks the item that
-// introduces a mod, so the note can offer it to someone who doesn't have it on.
+// `where` says whose change it is: "app", "settings" (the agent's own mod), or another core's id.
+// The addons' changes are no longer written here (Maddison, 2026-11-18): each addon has a version
+// and a repository of its own, and says what's new in the game, from its own notes (Ryna Core's
+// whats-new.json makes the popup). The notes up to 0.5.0, from when every addon shared the app's
+// release, keep their addon lines; a newer note that names an addon is refused.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -21,13 +22,19 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SOURCE = join(ROOT, "whats-new.json");
-export const LUA = join(ROOT, "cores", "wow", "addon", "Ryna_Core", "WhatsNew.lua");
 export const TS = join(ROOT, "agent", "app", "src", "whatsNewData.ts");
 
-// Where a change can be, and whether the game shows it.
+// Where a change can be, and whether it is an addon's (true): only the notes up to LAST_SHARED,
+// the last release every addon shared with the app, may still name one.
 export const WHERE = {
   core: true, chronicle: true, automation: true, prices: true, fights: true, meter: true,
   settings: false, app: false, palworld: false, satisfactory: false,
+};
+export const LAST_SHARED = "0.5.0";
+const newer = (version) => {
+  if (version === "next") return true;
+  const [a, b] = [version, LAST_SHARED].map((v) => v.split(".").map(Number));
+  return a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];
 };
 const VERSION = /^\d+\.\d+\.\d+$/;
 
@@ -49,37 +56,14 @@ export function parse(text) {
     n.items.forEach((it, j) => {
       const here = `${at}, item ${j + 1}`;
       if (!(it.where in WHERE)) throw new Error(`${here}: unknown "where" ${JSON.stringify(it.where)}`);
+      if (WHERE[it.where] && newer(n.version)) {
+        throw new Error(`${here}: "${it.where}" is an addon, and an addon's changes are in its own repository's notes since ${LAST_SHARED}`);
+      }
       if (typeof it.text !== "string" || !it.text.trim()) throw new Error(`${here}: no text`);
       if (it.new !== undefined && typeof it.new !== "boolean") throw new Error(`${here}: "new" must be true or false`);
     });
   });
   return notes;
-}
-
-const luaString = (s) => JSON.stringify(s).replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)));
-
-/** The game's copy: the notes with something the game shows, as a Lua table on the core's namespace. */
-export function toLua(notes) {
-  const out = [
-    "-- WhatsNew: the notes News.lua shows after an update. Written by scripts/whats-new.mjs from",
-    "-- whats-new.json at the repository root: change that file and run the script, never this one.",
-    "-- luacheck: ignore 631",
-    "",
-    "local _, ns = ...",
-    "",
-    "ns.NEWS = {",
-  ];
-  for (const n of notes) {
-    const items = n.items.filter((it) => WHERE[it.where]);
-    if (items.length === 0) continue;
-    out.push("  {", `    version = ${luaString(n.version)},`, `    headline = ${luaString(n.headline)},`, "    items = {");
-    for (const it of items) {
-      out.push(`      { where = ${luaString(it.where)},${it.new ? " new = true," : ""} text = ${luaString(it.text)} },`);
-    }
-    out.push("    },", "  },");
-  }
-  out.push("}", "");
-  return out.join("\n");
 }
 
 /** The app's copy: every note, typed. */
@@ -118,7 +102,7 @@ export function refusal(notes, version) {
 
 function main(argv) {
   const notes = parse(readFileSync(SOURCE, "utf8"));
-  const made = [[LUA, toLua(notes)], [TS, toTs(notes)]];
+  const made = [[TS, toTs(notes)]];
   const need = argv.indexOf("--require");
   if (need >= 0) {
     const why = refusal(notes, argv[need + 1] ?? "");
@@ -138,11 +122,11 @@ function main(argv) {
       }
     }
     if (stale) return 1;
-    console.log(`whats-new: ${notes.length} note${notes.length === 1 ? "" : "s"}, both copies current`);
+    console.log(`whats-new: ${notes.length} note${notes.length === 1 ? "" : "s"}, the app's copy current`);
     return 0;
   }
   for (const [path, text] of made) writeFileSync(path, text);
-  console.log(`whats-new: wrote ${made.length} copies of ${notes.length} note${notes.length === 1 ? "" : "s"}`);
+  console.log(`whats-new: wrote the app's copy of ${notes.length} note${notes.length === 1 ? "" : "s"}`);
   return 0;
 }
 

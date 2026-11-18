@@ -10,6 +10,10 @@ target/
 .env.*
 # The core packages scripts/core-package.mjs builds by default.
 dist-core/
-# A mod kept in a repository of its own: its addon folder is fetched from the release its pin.json
+# An addon kept in a repository of its own (the core, a mod): its folder is fetched from the release its pin.json
 # names (scripts/fetch-addons.mjs), never committed here.
-mods/wow/meter/addon/
+mods/wow/*/addon/
+cores/wow/addon/Ryna_Core/
+cores/wow/addon/.fetched
+# The pinned mods' repositories, cloned by scripts/pinned-tests.sh.
+.pinned/

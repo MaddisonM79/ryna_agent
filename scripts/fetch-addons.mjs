@@ -1,15 +1,17 @@
 #!/usr/bin/env node
-// Brings in the addon folders of mods kept in a repository of their own (docs/ryna-agent-cores-mods.md
-// 6.2). Such a mod has `mods/wow/<id>/pin.json` beside its mod.json:
+// Brings in the addon folders kept in repositories of their own (docs/ryna-agent-cores-mods.md 6.2):
+// the core's (`cores/wow/addon/pin.json`) and a mod's (`mods/wow/<id>/pin.json`, beside its mod.json):
 //
 //   { "folder": "Ryna_Meter", "repo": "Ryna-Mods/meter", "tag": "v0.5.2", "sha256": "…" }
 //
-// and its addon folder (`mods/wow/<id>/addon/<folder>`, where a mod kept here has its source) is not
-// committed: this script downloads the release's zip, holds it to the pinned SHA-256, and unpacks it
-// there, so the app's build, the release zip and the tests find it where they always did.
+// Such a folder (`cores/wow/addon/Ryna_Core`, `mods/wow/<id>/addon/<folder>`: where its source was)
+// is not committed: this script downloads the release's zip, holds it to the pinned SHA-256, and
+// unpacks it there, so the app's build, the release zip and the tests find it where they always did.
 //
-//   node scripts/fetch-addons.mjs            fetch what is missing or pinned to something else
-//   node scripts/fetch-addons.mjs --check    no network: exit 1 unless every pinned folder is in place
+//   node scripts/fetch-addons.mjs               fetch what is missing or pinned to something else
+//   node scripts/fetch-addons.mjs --check       no network: exit 1 unless every pinned folder is in place
+//   node scripts/fetch-addons.mjs --from <dir>  take each zip from <dir> (by its asset's name) instead
+//                                               of the network; the pinned SHA-256 still decides
 //
 // A folder already unpacked from the pinned zip is left alone (its `.fetched` stamp says which zip),
 // so a second run needs no network. No dependencies; Node 22+.
@@ -45,16 +47,29 @@ export function readPin(json, where = "pin.json") {
   };
 }
 
-/** Every pinned mod under `root`: its id, its pin, and where its addon folder goes. */
+/** The core's folder, which a pin there must name. */
+export const CORE_FOLDER = "Ryna_Core";
+
+/**
+ * Everything pinned under `root`: the core (`id` "core", `core` true) and each pinned mod, with its
+ * pin, where its addon folder goes, and the stamp that says which zip is unpacked there.
+ */
 export function pins(root) {
-  const mods = join(root, "mods", "wow");
   const out = [];
+  const coreDir = join(root, "cores", "wow", "addon");
+  if (existsSync(join(coreDir, "pin.json"))) {
+    const pin = readPin(readFileSync(join(coreDir, "pin.json"), "utf8"), "cores/wow/addon/pin.json");
+    if (pin.folder !== CORE_FOLDER) throw new Error(`cores/wow/addon/pin.json: the core's folder is ${CORE_FOLDER}, not ${pin.folder}`);
+    out.push({ id: "core", core: true, pin, dir: join(coreDir, pin.folder), stamp: join(coreDir, STAMP) });
+  }
+  const mods = join(root, "mods", "wow");
   if (!existsSync(mods)) return out;
   for (const id of readdirSync(mods).sort()) {
     const file = join(mods, id, "pin.json");
     if (!existsSync(file)) continue;
     const pin = readPin(readFileSync(file, "utf8"), `mods/wow/${id}/pin.json`);
-    out.push({ id, pin, dir: join(mods, id, "addon", pin.folder), stamp: join(mods, id, "addon", STAMP) });
+    if (pin.folder === CORE_FOLDER) throw new Error(`mods/wow/${id}/pin.json: ${CORE_FOLDER} is the core's folder`);
+    out.push({ id, core: false, pin, dir: join(mods, id, "addon", pin.folder), stamp: join(mods, id, "addon", STAMP) });
   }
   return out;
 }
@@ -122,6 +137,9 @@ async function download(url) {
 async function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const check = process.argv.includes("--check");
+  const at = process.argv.indexOf("--from");
+  const from = at > 0 ? process.argv[at + 1] : null;
+  if (at > 0 && !from) throw new Error("--from needs a folder");
   let missing = 0;
   for (const p of pins(root)) {
     const what = `${p.pin.folder} ${p.pin.version} (${p.pin.repo})`;
@@ -131,7 +149,8 @@ async function main() {
       console.error(`${what}: not in place; run node scripts/fetch-addons.mjs`);
       missing++;
     } else {
-      const files = unpack(await download(p.pin.url), p.pin);
+      const zip = from ? readFileSync(join(from, p.pin.asset)) : await download(p.pin.url);
+      const files = unpack(zip, p.pin);
       place(p, files);
       console.log(`${what}: fetched, ${files.length} files`);
     }

@@ -1,3 +1,9 @@
+> **Ryna Core's source is in [Ryna-Mods/core](https://github.com/Ryna-Mods/core)**, with its tests and
+> its own version. This folder holds `pin.json` (the release the app carries, by tag and SHA-256),
+> the strings tool and lint config the mods kept here still use, and this description of the addon.
+> `node scripts/fetch-addons.mjs` unpacks the pinned release at `cores/wow/addon/Ryna_Core`, which
+> git ignores. To change the core: change and release it there, then move the pin.
+
 # Ryna (addon)
 
 World of Warcraft: Forever addons that record what your characters have and do into one

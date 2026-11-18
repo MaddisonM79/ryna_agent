@@ -13,11 +13,19 @@ live elsewhere. `README.md` covers installing; `docs/ryna-agent-cores-mods.md` c
 - `cores/satisfactory/core`: the Satisfactory core in Rust, a relay: one outbound WebSocket to the API,
   answered from the Ficsit Remote Monitoring mod on `127.0.0.1` (docs section 14). Shown only to the
   factory's host, off until turned on there. `src/frm.rs` is the security boundary: test every limit.
-- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `fights`, `meter`, `prices`, `settings`), each with `addon/`,
-  `mod.json` and `test/*_test.lua`. Meter is kept in a repository of its own (`Ryna-Mods/meter`): here it
-  has only `mod.json` and `pin.json` (its release, by tag and SHA-256), and `node scripts/fetch-addons.mjs`
-  puts that release's folder at `mods/wow/meter/addon/Ryna_Meter` (ignored by git). Change Meter there,
-  release it, then move the pin and `mod.json`'s version here. Never edit the fetched folder.
+- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `fights`, `meter`, `prices`, `settings`), each a
+  `mod.json` (the manifest the app compiles in). Settings runs in the agent and has no addon.
+- **Every addon is kept in a repository of its own** in the org `Ryna-Mods`: `core` (Ryna Core) and one
+  per mod. Here each has only a `pin.json` (its release, by tag and SHA-256: `cores/wow/addon/pin.json`,
+  `mods/wow/<id>/pin.json`), and `node scripts/fetch-addons.mjs` puts that release's folder where the
+  source was (`cores/wow/addon/Ryna_Core`, `mods/wow/<id>/addon/<Folder>`; ignored by git). To change
+  an addon: change and release it in its repository, then move its pin here (a mod's `mod.json`
+  version with it; for the core, `api` and `apiMin` in `cores/wow/core.json` when its levels move).
+  Never edit a fetched folder. An addon's tests live with it; `scripts/pinned-tests.sh` runs each
+  pinned mod's against the pinned core. `mods/wow/fights/test/fixtures/fights.lua` stays here: it is
+  the app's own output, kept current by a Rust test, and copied to the Fights repository when it
+  changes. In-game What's new is the core's own (`whats-new.json` there); the one here is the app's
+  dialog and may not name an addon.
 - `agent/cli`, `agent/host`: Rust crates. `agent/app`: the desktop app (Vue 3, pnpm, vitest, Tauri 2).
 - `scripts/`: release helpers, the version check and the CLI smoke test.
 
@@ -35,7 +43,8 @@ probe in game contradicts the doc, fix the doc in the same change.
 
 ## Checks (what CI runs)
 
-Addon (`.github/workflows/addon.yml`, Lua 5.1). Fetch the pinned mods first; the checks read them:
+Addon (`.github/workflows/addon.yml`, Lua 5.1). Fetch the pinned addons first; every check reads
+them:
 
 ```bash
 node scripts/fetch-addons.mjs
@@ -50,7 +59,7 @@ node cores/wow/addon/tools/strings.mjs
 ```
 
 ```bash
-for t in cores/wow/addon/test/*_test.lua mods/wow/*/test/*_test.lua; do lua5.1 "$t" || exit 1; done
+scripts/pinned-tests.sh
 ```
 
 CI also parses every addon file with `luac5.1 -p`. This Mac may only have a newer `lua`; say so
