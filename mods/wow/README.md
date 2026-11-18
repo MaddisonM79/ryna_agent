@@ -154,8 +154,12 @@ is the whole of it).
   on a Meter tab; a click on the threat bar's first line locks it under or beside a meter window;
   `/ryna meter` turns the meter on or off and `/ryna meter threat`
   shows the threat bar with an example to place it; the places and the meter's view are kept in
-  `RynaDB.meter`. It sends nothing and prints nothing unasked. `test/bars_test.lua` and
-  `test/threat_test.lua` run both against a fake client whose secrets raise when compared.
+  `RynaDB.meter`. It sends nothing and prints nothing unasked. **Its source is not here**: Meter is
+  kept in [Ryna-Mods/meter](https://github.com/Ryna-Mods/meter), with its tests and its own version.
+  This folder holds `mod.json` and `pin.json` (the release the app carries, by tag and SHA-256);
+  `node scripts/fetch-addons.mjs` unpacks that release at `meter/addon/Ryna_Meter`, which git
+  ignores, and the app's build, the release zip and the checks here read it from there. To change
+  Meter: change and release it in its repository, then move the pin and `mod.json`'s `version`.
 - `settings/`: **Settings**, off by default (`kind: "agent"`, `defaultOn: false`, `actsInGame:
   false`; docs/ryna-agent-cores-mods.md 7.2): addon settings copied between characters and backed
   up to ryna.io, encrypted on this machine (the API's docs/wow.md section 15). All of it is the core's

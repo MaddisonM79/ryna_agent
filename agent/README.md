@@ -351,6 +351,8 @@ without a key.
    and each bundled mod's `version` in `mods/wow/<id>/mod.json` and `## Version:` in its addon's TOC
    (Chronicle: `mods/wow/chronicle/addon/Ryna_Chronicle/Ryna_Chronicle.toc`). No Lua carries the
    version: every addon reads its own TOC in game, and the check refuses a copy that disagrees.
+   A mod kept in a repository of its own (it has a `pin.json`; Meter) is not bumped: its version is
+   its own, and the check holds its `mod.json` and fetched TOC to the pin's tag instead.
    A mod's `requires.api` (and `## X-Ryna-API` in its TOC) names the core API level it needs; a change
    to the mod API that could break a mod raises the level (`Ryna.API` in `Mods.lua`, `api` in
    `core.json`, `## X-Ryna-API` in the core's TOC), and a test holds them to each other.

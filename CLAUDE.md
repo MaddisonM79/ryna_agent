@@ -14,7 +14,10 @@ live elsewhere. `README.md` covers installing; `docs/ryna-agent-cores-mods.md` c
   answered from the Ficsit Remote Monitoring mod on `127.0.0.1` (docs section 14). Shown only to the
   factory's host, off until turned on there. `src/frm.rs` is the security boundary: test every limit.
 - `mods/wow/<id>/`: mods (`automation`, `chronicle`, `fights`, `meter`, `prices`, `settings`), each with `addon/`,
-  `mod.json` and `test/*_test.lua`.
+  `mod.json` and `test/*_test.lua`. Meter is kept in a repository of its own (`Ryna-Mods/meter`): here it
+  has only `mod.json` and `pin.json` (its release, by tag and SHA-256), and `node scripts/fetch-addons.mjs`
+  puts that release's folder at `mods/wow/meter/addon/Ryna_Meter` (ignored by git). Change Meter there,
+  release it, then move the pin and `mod.json`'s version here. Never edit the fetched folder.
 - `agent/cli`, `agent/host`: Rust crates. `agent/app`: the desktop app (Vue 3, pnpm, vitest, Tauri 2).
 - `scripts/`: release helpers, the version check and the CLI smoke test.
 
@@ -32,7 +35,11 @@ probe in game contradicts the doc, fix the doc in the same change.
 
 ## Checks (what CI runs)
 
-Addon (`.github/workflows/addon.yml`, Lua 5.1):
+Addon (`.github/workflows/addon.yml`, Lua 5.1). Fetch the pinned mods first; the checks read them:
+
+```bash
+node scripts/fetch-addons.mjs
+```
 
 ```bash
 luacheck cores/wow/addon/ mods/wow/ --config cores/wow/addon/.luacheckrc --no-color

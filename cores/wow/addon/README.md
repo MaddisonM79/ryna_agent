@@ -23,7 +23,7 @@ The core's addon and its mods' addons are installed side by side by the companio
   item and its stack on every item tooltip, and an auction price from one snapshot of the auction
   house per visit (per-item totals, nothing about a seller), with its own Prices tab and
   `/ryna prices` (`mods/wow/README.md`).
-- **Meter by Ryna** (`mods/wow/meter/addon/Ryna_Meter`), off by default: a fight as it happens, from the
+- **Meter by Ryna** (kept in [Ryna-Mods/meter](https://github.com/Ryna-Mods/meter); fetched to `mods/wow/meter/addon/Ryna_Meter`), off by default: a fight as it happens, from the
   game itself: a live meter of the game's own tallies (damage, DPS, healing, HPS and more) and a threat
   bar while the group is fighting, each a small frame of its own, with a Meter tab and `/ryna meter`
   (`mods/wow/README.md`).

@@ -313,6 +313,17 @@ entry go back a version or drop out. An addon gets an entry only once it has a r
 own; until then it comes out of this repository's `Ryna-<version>.zip`, is only in the bundle, and
 the app carries it. So the first index is empty.
 
+**A mod with a repository of its own is still carried**, from its release instead of from source
+here (Meter is the first, 2026-11-18). Its `mods/wow/<id>/` keeps `mod.json` and gains `pin.json`
+(`folder`, `repo`, `tag`, `sha256`); `scripts/fetch-addons.mjs` downloads that release's zip, holds
+it to the SHA-256, to one folder and to the tag's version, and unpacks it at
+`mods/wow/<id>/addon/<Folder>`, where the source used to be and where git now ignores it. The app's
+build, the release's addon zip and the addon checks run it first, so what the app carries and what
+the index offers are the same file from the same release. The mod's version is its own: the release's
+version check leaves it out and holds its `mod.json` and TOC to the pin. Its tests live with it and
+run there against the oldest core it supports; the addon checks here also run the pinned release's
+tests against this core, the newest.
+
 Not in this stage, and written down so they aren't lost: the version marks (9.1) judge one shared
 version today and must judge each addon's own line once the lines part; the CLI installs only what
 it carries; and when an addon manager owns the folders (WowUp's bundle installs every mod, the app

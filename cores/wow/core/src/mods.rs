@@ -8,7 +8,9 @@
 //! `mods/wow/<id>/mod.json`, [`BUNDLED_MOD_JSON`]), so they version with the agent; a test holds the
 //! list to the folders in `mods/wow`. Their addon folders come with the core's addon: the app carries
 //! them beside `addon/Ryna_Core` (`addon/Ryna_Chronicle`), the release zip beside `Ryna`, and a checkout in
-//! `mods/wow/<id>/addon/`.
+//! `mods/wow/<id>/addon/`. A mod kept in a repository of its own (it has a `pin.json`; Meter) has
+//! its folder fetched to that same place from its pinned release (`scripts/fetch-addons.mjs`), and
+//! its version is its own.
 //!
 //! A mod is on when the person turned it on, else when its manifest says `defaultOn`. Installing the
 //! core's addon also installs every mod that's on and removes every mod that's off
@@ -417,14 +419,31 @@ mod tests {
         let toc_lowest = crate::addon_store::toc_field(&core_toc, crate::addon_store::TOC_API_MIN);
         assert_eq!(toc_lowest, Some(lowest.to_string()), "{ADDON_NAME}.toc");
         for m in bundled() {
-            assert_eq!(
-                m.version, core.version,
-                "{}: a bundled mod takes the agent's version",
-                m.id
-            );
+            // A mod kept in a repository of its own has a pin.json: its version is its pin's tag, and
+            // its folder is here only once scripts/fetch-addons.mjs has run (CI's addon checks and
+            // every build of the app do; a bare checkout hasn't).
+            let pin = std::fs::read_to_string(root().join("mods/wow").join(&m.id).join("pin.json"))
+                .ok()
+                .map(|json| serde_json::from_str::<serde_json::Value>(&json).unwrap());
+            match &pin {
+                Some(pin) => assert_eq!(
+                    pin["tag"].as_str(),
+                    Some(format!("v{}", m.version).as_str()),
+                    "{}: a pinned mod's version is its pin's tag",
+                    m.id
+                ),
+                None => assert_eq!(
+                    m.version, core.version,
+                    "{}: a bundled mod takes the agent's version",
+                    m.id
+                ),
+            }
             let source = root().join("cores/wow/addon/Ryna_Core");
             for folder in &m.addons {
-                let dir = addon_source(&source, m, folder).expect(folder);
+                let Some(dir) = addon_source(&source, m, folder) else {
+                    assert!(pin.is_some(), "{folder}: a mod kept here has its folder");
+                    continue;
+                };
                 assert_eq!(
                     addon_install::folder_version_named(&dir, folder).as_deref(),
                     Some(m.version.as_str()),

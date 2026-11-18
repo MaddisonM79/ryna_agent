@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Refuses a release whose versions disagree: the addon's TOC, each bundled mod's mod.json and TOC
-// (the Settings mod has a mod.json and no addon folder), the WoW core's manifest, the Palworld
+// (the Settings mod has a mod.json and no addon folder; a mod with a pin.json has its own version,
+// held to its pin), the WoW core's manifest, the Palworld
 // core's manifest and package.json, the app's package.json, the cargo workspace (so every crate),
 // Cargo.lock, and the tag.
 //
@@ -10,13 +11,15 @@
 // file and its version and exits 1.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { agree, readVersions } from "./versions.mjs";
+import { agree, pinProblems, readVersions } from "./versions.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const i = process.argv.indexOf("--tag");
 const tag = i > 0 ? process.argv[i + 1] || null : null;
 
 const { version, problems } = agree(readVersions(root), tag);
+// A mod in a repository of its own isn't on the release's version; it is held to its pin instead.
+problems.push(...pinProblems(root));
 if (problems.length) {
   for (const p of problems) console.error(`::error::${p.split("\n")[0]}\n${p}`);
   process.exit(1);

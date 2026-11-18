@@ -180,7 +180,7 @@ workspace (`Cargo.toml` at the root) holds the agent and the cores' Rust halves.
   (`mods/wow/automation`), the chores (quests, vendors, trainers, mail, rolls, invites and the like),
   each off until ticked, Prices (`mods/wow/prices`), vendor prices on item tooltips, Fights
   (`mods/wow/fights`), the Fights section from the app's reading of the combat log, Meter
-  (`mods/wow/meter`), the live meter and threat bar read from the game, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
+  (`mods/wow/meter`; its source is in [Ryna-Mods/meter](https://github.com/Ryna-Mods/meter), carried from a pinned release), the live meter and threat bar read from the game, and Settings (`mods/wow/settings`, `kind: "agent"`: no addon folder; the
   core's `settings` module), addon settings copied between characters and backed up encrypted.
   `cores/palworld` is the Palworld core (Node, macOS): it reads the Mac App Store build's saves
   and pushes them, run by the agent as a sidecar and fetched as a signed core package only for
