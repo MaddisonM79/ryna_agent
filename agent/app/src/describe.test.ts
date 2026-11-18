@@ -90,16 +90,16 @@ group("the activity log's words", () => {
 group("the addon's row", () => {
   it("offers an install when it isn't there", () => {
     expect(addonRow(install("notInstalled", null), "0.1.0")).toEqual({
-      text: "Addon not installed",
+      text: "Ryna Core not installed",
       chip: "waiting",
-      action: "Install addon 0.1.0",
+      action: "Install Ryna Core 0.1.0",
       primary: true,
     });
   });
 
   it("offers a reinstall when it's current", () => {
     expect(addonRow(install("current", "0.1.0"), "0.1.0")).toEqual({
-      text: "Addon 0.1.0 installed",
+      text: "Ryna Core 0.1.0 installed",
       chip: "pushed",
       action: "Reinstall",
       primary: false,
@@ -108,7 +108,7 @@ group("the addon's row", () => {
 
   it("offers an update when it's older", () => {
     expect(addonRow(install("older", "0.1.0"), "0.2.0")).toEqual({
-      text: "Addon 0.1.0 installed, 0.2.0 available",
+      text: "Ryna Core 0.1.0 installed, 0.2.0 available",
       chip: "update",
       action: "Update to 0.2.0",
       primary: true,
@@ -117,7 +117,7 @@ group("the addon's row", () => {
 
   it("says so when it's newer than the bundled one", () => {
     expect(addonRow(install("newer", "0.3.0"), "0.2.0")).toEqual({
-      text: "Addon 0.3.0 installed (this app bundles 0.2.0)",
+      text: "Ryna Core 0.3.0 installed (this app bundles 0.2.0)",
       chip: "pushed",
       action: "Reinstall 0.2.0",
       primary: false,
@@ -126,11 +126,11 @@ group("the addon's row", () => {
 
   it("treats an unversioned copy as needing the update, and offers nothing without a bundle", () => {
     expect(addonRow(install("unknown", null), "0.2.0")).toMatchObject({
-      text: "Addon installed (version unknown), 0.2.0 available",
+      text: "Ryna Core installed (version unknown), 0.2.0 available",
       action: "Update to 0.2.0",
     });
     expect(addonRow(install("notInstalled", null), null).action).toBeNull();
-    expect(addonRow(install("unknown", "0.1.0"), null)).toMatchObject({ text: "Addon 0.1.0 installed", action: null });
+    expect(addonRow(install("unknown", "0.1.0"), null)).toMatchObject({ text: "Ryna Core 0.1.0 installed", action: null });
   });
 
   it("says what went in and how the game loads it", () => {

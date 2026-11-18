@@ -163,7 +163,10 @@ export function when(unixSecs: number | null): string {
   return new Date(unixSecs * 1000).toLocaleString();
 }
 
-/** What an install's row says about the addon, and what its button does. */
+/**
+ * What an install's row says about the core's addon, and what its button does. It names Ryna Core:
+ * every addon has a version of its own, and this one is the core's (the Mods tab has each mod's).
+ */
 export interface AddonRow {
   text: string;
   /** The chip's style: ok, waiting, or update (amber). */
@@ -179,28 +182,28 @@ export function addonRow(i: InstallView, bundled: string | null): AddonRow {
   switch (i.addon) {
     case "notInstalled":
       return {
-        text: "Addon not installed",
+        text: "Ryna Core not installed",
         chip: "waiting",
-        action: action(`Install addon ${bundled}`),
+        action: action(`Install Ryna Core ${bundled}`),
         primary: true,
       };
     case "current":
       return {
-        text: `Addon ${i.addonVersion} installed`,
+        text: `Ryna Core ${i.addonVersion} installed`,
         chip: "pushed",
         action: action("Reinstall"),
         primary: false,
       };
     case "older":
       return {
-        text: `Addon ${i.addonVersion} installed, ${bundled} available`,
+        text: `Ryna Core ${i.addonVersion} installed, ${bundled} available`,
         chip: "update",
         action: action(`Update to ${bundled}`),
         primary: true,
       };
     case "newer":
       return {
-        text: `Addon ${i.addonVersion} installed (this app bundles ${bundled})`,
+        text: `Ryna Core ${i.addonVersion} installed (this app bundles ${bundled})`,
         chip: "pushed",
         action: action(`Reinstall ${bundled}`),
         primary: false,
@@ -208,10 +211,10 @@ export function addonRow(i: InstallView, bundled: string | null): AddonRow {
     case "unknown":
       // Installed, but one side names no version: an unversioned copy predates versioning.
       if (i.addonVersion) {
-        return { text: `Addon ${i.addonVersion} installed`, chip: "pushed", action: null, primary: false };
+        return { text: `Ryna Core ${i.addonVersion} installed`, chip: "pushed", action: null, primary: false };
       }
       return {
-        text: bundled ? `Addon installed (version unknown), ${bundled} available` : "Addon installed",
+        text: bundled ? `Ryna Core installed (version unknown), ${bundled} available` : "Ryna Core installed",
         chip: bundled ? "update" : "pushed",
         action: action(`Update to ${bundled}`),
         primary: true,
