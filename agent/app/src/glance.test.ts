@@ -51,11 +51,11 @@ function install(over: Partial<InstallView>): InstallView {
 describe("the Status tab's lines", () => {
   it("says the Forever install and its addon", () => {
     expect(gameLine([install({})], "0.2.0")).toEqual({
-      text: "World of Warcraft: Forever · Addon 0.2.0 installed",
+      text: "World of Warcraft: Forever · Ryna Core 0.2.0 installed",
       chip: "pushed",
     });
     expect(gameLine([install({ path: "/wow/_retail_", flavor: "wow", forever: false, hasAddon: false }), install({})], "0.2.0").text).toBe(
-      "World of Warcraft: Forever · Addon 0.2.0 installed · 1 more",
+      "World of Warcraft: Forever · Ryna Core 0.2.0 installed · 1 more",
     );
     expect(gameLine([], null).chip).toBe("waiting");
   });
