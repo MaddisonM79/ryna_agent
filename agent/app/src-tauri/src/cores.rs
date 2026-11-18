@@ -39,7 +39,7 @@ pub const CORE_FETCH: &str = "core-fetch";
 /// How often the cores answer is asked again while the app is open.
 const HOURLY: Duration = Duration::from_secs(60 * 60);
 /// The updater's public key: a package is trusted exactly as far as an app update is.
-const UPDATER_PUB: &str = include_str!("../../updater.pub");
+pub(crate) const UPDATER_PUB: &str = include_str!("../../updater.pub");
 
 /// How the app runs a core beside WoW.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

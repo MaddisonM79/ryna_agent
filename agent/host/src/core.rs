@@ -39,6 +39,9 @@ pub struct CoreManifest {
     /// break one (the WoW core addon's `Ryna.API`); absent: the core has no such level.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api: Option<u32>,
+    /// The lowest level the core still serves (6.2): a mod below it doesn't fit. Absent: `api`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_min: Option<u32>,
     pub runtime: Runtime,
     /// The resource (RFC 8707) its tokens are for.
     pub resource: String,

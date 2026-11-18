@@ -72,6 +72,8 @@ eq(#did.shown, 0, "no old folder: no dialog")
 check(core.db.mine, "no old folder: this folder's saved file is RynaDB")
 eq(_G.Ryna.API, 2, "the mod API's level")
 eq(core.API_LEVEL, 2, "the level the Mods tab compares with")
+eq(_G.Ryna.API_MIN, 2, "the lowest level the core still serves")
+eq(core.API_MIN, 2, "the lowest level the Mods tab compares with")
 
 -- Whose blocked call it is: this addon under either name, and a mod by its prefix.
 check(core.IsOwnAddon("Ryna_Core"), "the core is ours")
@@ -102,15 +104,18 @@ check(type(_G.StaticPopupDialogs.RYNA_LEGACY_RELOAD.text) == "string", "the dial
 check(#F.chat == 0, "nothing in chat: " .. table.concat(F.chat, " / "))
 eq(core.errors.count, 0, "no errors caught: " .. tostring(core.errors.last))
 
--- A mod on a core below the level its TOC asks for loads nothing; at the level, it loads.
-for _, case in ipairs({ { have = 1, off = true }, { have = 2, off = nil } }) do
-  _G.Ryna = setmetatable({ API = case.have, RegisterMod = function() return true end,
+-- A mod on a core below the level its TOC asks for loads nothing; at the level, it loads. Nor
+-- does it load on a core that no longer serves its level (API_MIN above it); a core from before
+-- API_MIN (0.5.0) has none, and the mod loads.
+for _, case in ipairs({ { have = 1, off = true }, { have = 2, off = nil },
+    { have = 3, min = 2, off = nil }, { have = 3, min = 3, off = true } }) do
+  _G.Ryna = setmetatable({ API = case.have, API_MIN = case.min, RegisterMod = function() return true end,
     Try = function(f, ...) if f then return f(...) end end, L = {} },
     { __index = function() return function() end end })
   local mod = {}
   -- Meter's own file, under the name the fake addon list gives a level 2 mod.
   assert(loadfile("mods/wow/meter/addon/Ryna_Meter/Mod.lua"))("Ryna_Chronicle", mod)
-  eq(mod.off, case.off, "a level 2 mod on a level " .. case.have .. " core")
+  eq(mod.off, case.off, "a level 2 mod on a level " .. case.have .. " core serving from " .. tostring(case.min))
 end
 
 print(string.format("legacy: %d checks, %d failed", checks, failures))

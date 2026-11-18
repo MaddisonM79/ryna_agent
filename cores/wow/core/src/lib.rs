@@ -26,7 +26,9 @@
 //! `ryna-agent` in stage 1; they're re-exported here under their old names, so `crate::auth` and
 //! `ryna_wow_core::auth` still read as they did.
 
+pub mod addon_index;
 pub mod addon_install;
+pub mod addon_store;
 pub mod agent_status;
 pub mod census;
 pub mod combat;

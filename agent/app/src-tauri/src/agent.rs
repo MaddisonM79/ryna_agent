@@ -17,6 +17,7 @@ use ryna_agent::core::{Activity, Core, CoreContext, CoreControl, KeychainTokens,
 use ryna_agent::fix::Fix;
 use ryna_agent::identity::{self, DeviceKey};
 use ryna_wow_core::addon_install;
+use ryna_wow_core::addon_store;
 use ryna_wow_core::discovery::{self, Install};
 use ryna_wow_core::mods::{self as core_mods, ModChange, ModStatus};
 use ryna_wow_core::status::{
@@ -723,11 +724,11 @@ pub fn status(app: &AppHandle) -> Status {
         core_status::status(
             &agent.config,
             install_override.as_deref(),
-            bundled_addon(app).ok().as_deref(),
+            addon_source(app).ok().as_deref(),
         )
     };
     let wow = WowCore::new(INTERVAL)
-        .with_bundled_addon(bundled_addon(app).ok())
+        .with_bundled_addon(addon_source(app).ok())
         .with_mods(settings.mods.clone());
     let device_key = agent.device_key();
     let device_key_error = device_key.as_ref().err().cloned();
@@ -803,6 +804,46 @@ fn bundled_addon(app: &AppHandle) -> Result<PathBuf, String> {
         .ok_or_else(|| "This build doesn't carry the addon.".to_string())
 }
 
+/// Where the addon and its mods are installed from: the copy this build carries, or, when the
+/// signed addon index has offered something newer and it has been fetched (docs 6.2), the folder
+/// that holds each addon's chosen copy.
+fn addon_source(app: &AppHandle) -> Result<PathBuf, String> {
+    let carried = bundled_addon(app)?;
+    Ok(match ryna_agent::state_dir::state_dir() {
+        Some(state) => addon_store::source_dir(&state, &carried, env!("CARGO_PKG_VERSION")),
+        None => carried,
+    })
+}
+
+/// Read the addon index and fetch what it offers this app (docs 6.2). Quiet when there is nothing
+/// to say: no network, or no index yet, is tried again at the next look. Returns whether what
+/// [`addon_source`] gives may have changed.
+fn refresh_addon_index(app: &AppHandle) -> bool {
+    let (Ok(carried), Some(state)) = (bundled_addon(app), ryna_agent::state_dir::state_dir())
+    else {
+        return false;
+    };
+    let key = ryna_agent::package::public_key(crate::cores::UPDATER_PUB);
+    let done = addon_store::index_source().and_then(|source| {
+        addon_store::refresh(&state, &source, &key, &carried, env!("CARGO_PKG_VERSION"))
+    });
+    match done {
+        Ok(r) => {
+            for (folder, version) in &r.fetched {
+                eprintln!("ryna: fetched {folder} {version}");
+            }
+            for why in &r.dropped {
+                eprintln!("ryna: the addon index has an entry this app can't use ({why})");
+            }
+            r.changed()
+        }
+        Err(e) => {
+            eprintln!("ryna: the addon index wasn't taken: {e:#}");
+            false
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Installed {
@@ -858,7 +899,7 @@ fn targets<'a>(
 /// `ryna install-addon` does.
 pub fn install_addon(app: &AppHandle, only: Option<&str>) -> Result<InstallResult, String> {
     // stage 1: direct; the core interface takes this in stage 2 (installing the core's addon).
-    let source = bundled_addon(app)?;
+    let source = addon_source(app)?;
     let chosen = install_override(app);
     let found = discovery::discover(chosen.as_deref());
     install_into(
@@ -908,6 +949,8 @@ pub struct AddonUpdated {
 const ADDON_UPDATE_DELAY: Duration = Duration::from_secs(5);
 /// How often it looks again while the game is running.
 const ADDON_UPDATE_WAIT: Duration = Duration::from_secs(30);
+/// How often the addon index is read.
+const ADDON_INDEX_EVERY: Duration = Duration::from_secs(60 * 60);
 
 /// What one look at the game folders came to.
 enum AddonUpdate {
@@ -925,11 +968,16 @@ enum AddonUpdate {
 /// addon already is, never a newer or unversioned copy (`addon_install::needs_update`), and
 /// never while the game runs: the game reads an addon's file list at start, so new files under a
 /// running game half-load at the next /reload. It waits for the game to close instead.
+///
+/// Between app releases an addon can be newer than the app's own copy (docs 6.2): each hour, and
+/// at launch, it reads the signed addon index, fetches what that offers, and brings the installs
+/// up to it under the same rules.
 pub fn begin_addon_updates(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(ADDON_UPDATE_DELAY);
-        loop {
+        // Bring the installs up to what is here, waiting out a running game.
+        let settle = || loop {
             match update_addons(&app) {
                 AddonUpdate::Nothing => break,
                 AddonUpdate::GameRunning => std::thread::sleep(ADDON_UPDATE_WAIT),
@@ -942,12 +990,21 @@ pub fn begin_addon_updates(app: &AppHandle) {
                     break;
                 }
             }
+        };
+        loop {
+            // First from what is already here, before the network is asked; then again when the
+            // index brought something.
+            settle();
+            if refresh_addon_index(&app) {
+                settle();
+            }
+            std::thread::sleep(ADDON_INDEX_EVERY);
         }
     });
 }
 
 fn update_addons(app: &AppHandle) -> AddonUpdate {
-    let Ok(source) = bundled_addon(app) else {
+    let Ok(source) = addon_source(app) else {
         return AddonUpdate::Nothing;
     };
     let bundled = addon_install::bundled_addon_version(&source);
@@ -956,9 +1013,13 @@ fn update_addons(app: &AppHandle) -> AddonUpdate {
     let Ok(allowed) = targets(&found.installs, chosen.is_some(), None) else {
         return AddonUpdate::Nothing;
     };
+    let chosen_mods = app.state::<Agent>().live().settings.mods.clone();
     let old: Vec<&Install> = allowed
         .into_iter()
-        .filter(|i| addon_install::needs_update(i, bundled.as_deref()))
+        .filter(|i| {
+            addon_install::needs_update(i, bundled.as_deref())
+                || core_mods::needs_update(i, &source, &chosen_mods)
+        })
         .collect();
     if old.is_empty() {
         return AddonUpdate::Nothing;
@@ -1019,9 +1080,9 @@ pub fn set_mod_enabled(app: &AppHandle, id: &str, on: bool) -> Result<ModToggleR
     let mut waiting_for_addon = Vec::new();
     if !picked.is_empty() {
         let source = if on {
-            Some(bundled_addon(app)?)
+            Some(addon_source(app)?)
         } else {
-            bundled_addon(app).ok()
+            addon_source(app).ok()
         };
         for i in picked {
             if on && !addon_install::has_addon(i) {

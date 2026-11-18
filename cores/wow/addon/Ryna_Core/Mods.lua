@@ -72,7 +72,12 @@ local R = {}
 Ryna = R
 
 R.API = 2
+-- The lowest level this core still serves: a mod written for a level below it loads nothing (its
+-- Mod.lua checks) and the Mods tab says to update the mod. A change that removes or alters
+-- something raises both numbers; one that only adds raises R.API alone.
+R.API_MIN = 2
 ns.API_LEVEL = R.API
+ns.API_MIN = R.API_MIN
 ns.ModAPI = R
 R.VERSION = ns.VERSION
 R.L = ns.L

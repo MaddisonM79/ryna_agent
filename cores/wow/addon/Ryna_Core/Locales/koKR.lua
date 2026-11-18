@@ -118,6 +118,7 @@ L["Later"] = nil
 L["Ryna moved to a new addon folder, Ryna_Core, and the old one is still here. Reload now to "
   .. "finish the move? Everything Ryna recorded comes along."] = nil
 L["Needs a newer Ryna Core: update Ryna Core, then reload."] = nil
+L["Needs a newer version of this mod: update it, then reload."] = nil
 L["type /reload to apply the change."] = nil
 L["the game didn't let Ryna change its addon list; use the AddOns button on the character screen."] = nil
 L["Combat log: %s right now. Mode: %s"] = nil
