@@ -36,6 +36,7 @@ pub const BUNDLED_MOD_JSON: &[&str] = &[
     include_str!("../../../../mods/wow/prices/mod.json"),
     include_str!("../../../../mods/wow/fights/mod.json"),
     include_str!("../../../../mods/wow/meter/mod.json"),
+    include_str!("../../../../mods/wow/cleanse/mod.json"),
     include_str!("../../../../mods/wow/settings/mod.json"),
 ];
 
@@ -496,6 +497,11 @@ mod tests {
         let meter = bundled().iter().find(|m| m.id == "meter").unwrap();
         assert!(!meter.default_on && !meter.acts_in_game);
         assert_eq!(meter.addons, ["Ryna_Meter"]);
+        // Cleanse casts a cure only from the player's own click on a row: off by default, and it
+        // does nothing for the player by itself.
+        let cleanse = bundled().iter().find(|m| m.id == "cleanse").unwrap();
+        assert!(!cleanse.default_on && !cleanse.acts_in_game);
+        assert_eq!(cleanse.addons, ["Ryna_Cleanse"]);
         // Settings runs in the agent: no folder, nothing in the game, off until turned on.
         let settings = bundled().iter().find(|m| m.id == "settings").unwrap();
         assert!(is_agent_mod(settings) && settings.addons.is_empty());
@@ -511,6 +517,7 @@ mod tests {
             "Ryna_Prices",
             "Ryna_Fights",
             "Ryna_Meter",
+            "Ryna_Cleanse",
         ] {
             let a = dir.join("release").join(name);
             std::fs::create_dir_all(&a).unwrap();

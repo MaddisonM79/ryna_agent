@@ -442,6 +442,7 @@ mod tests {
                 "Prices",
                 "Fights",
                 "Meter",
+                "Cleanse",
                 "Settings",
                 "Log",
                 "Fights, last 12 h",

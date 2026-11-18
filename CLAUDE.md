@@ -13,7 +13,7 @@ live elsewhere. `README.md` covers installing; `docs/ryna-agent-cores-mods.md` c
 - `cores/satisfactory/core`: the Satisfactory core in Rust, a relay: one outbound WebSocket to the API,
   answered from the Ficsit Remote Monitoring mod on `127.0.0.1` (docs section 14). Shown only to the
   factory's host, off until turned on there. `src/frm.rs` is the security boundary: test every limit.
-- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `fights`, `meter`, `prices`, `settings`), each a
+- `mods/wow/<id>/`: mods (`automation`, `chronicle`, `cleanse`, `fights`, `meter`, `prices`, `settings`), each a
   `mod.json` (the manifest the app compiles in). Settings runs in the agent and has no addon.
 - **Every addon is kept in a repository of its own** in the org `Ryna-Mods`: `core` (Ryna Core) and one
   per mod. Here each has only a `pin.json` (its release, by tag and SHA-256: `cores/wow/addon/pin.json`,
