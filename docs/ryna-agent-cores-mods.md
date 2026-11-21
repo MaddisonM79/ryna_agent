@@ -1518,8 +1518,14 @@ over it.
   `/reload` inside, docs/wow.md 9.2, so difficulty is never part of the identity). Coming back into the
   same copy (or, with no copy known, the same map within 30 minutes, the gap Logs already uses)
   resumes it; time outside is not counted as time in.
-- **It closes** when the character enters another instance or another copy, or has been outside for 30
-  minutes, or logs in after that long. A closed run is never reopened.
+- **It closes** when the character enters another instance or another copy, or the game says the
+  instance was reset (the system line a reset prints, where the addon receives it), or the character has
+  been outside for 30 minutes, or logs in after that long. A closed run is never reopened.
+- **What the copy id can and can't say** (Maddison, 2026-11-20: "shouldn't we use instance id?"). It is
+  the run's identity: the same id is the same run however long the trip outside, and a new id is a new
+  run at once, with no timer. It can't say the character has left for good, since walking out to repair
+  and walking out to stop look the same and the copy lives on until it is reset. The 30 minutes exist
+  only for that case.
 - **The open run is in the saved file** (`characters[guid].run`), written as it changes, so a
   `/reload`, a logout or a crash loses at most the moments since the last event.
 
@@ -1567,7 +1573,9 @@ and says kills aren't counted at the cap.
 #### In game
 
 Mocked up 2026-11-20 (artifact "Ryna Dungeon Runs": the strip, the card, the summary, Dungeons › Runs
-and the notice's choice), not yet agreed. No chat line anywhere.
+and the notice's choice), her calls on it the same day: the strip's five numbers as drawn (timer,
+experience per hour, kills, bosses, worth); splits against the fastest run and totals against the median;
+the summary's own damage and healing tile on, with a switch (`runSummaryMeter`). Open: when the summary appears. No chat line anywhere.
 
 - **The strip** (`runDisplay = "strip"`): one thin movable bar while inside: the timer, experience per
   hour, kills, bosses "2 of 5" once the game data or the pool knows the count (else "2").
