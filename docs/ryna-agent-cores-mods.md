@@ -1515,9 +1515,10 @@ over it.
   what the addon can see: the map id, the 30 minutes, a reset's system line, and a boss this run already
   killed being pulled again (`ENCOUNTER_START` with an id the run has a kill for is a new copy). The exact
   copy is the agent's to add afterwards: the combat log's creature GUIDs are plain text, so the fights the
-  server files under a run (docs/wow.md 20.2) can say which copy they were in. **A looted corpse may give it after all**: a loot window's
-  source is not secret inside (`GetLootSourceInfo`, the same evening, on a boss's corpse), so once the GUID's
-  shape is seen the run takes its copy from the first corpse looted, keeps the rules above until then, and
+  server files under a run (docs/wow.md 20.2) can say which copy they were in. **A looted corpse gives it after all**: a loot window's
+  source is not secret inside (`GetLootSourceInfo`, the same evening:
+  `Creature-0-8452-48-8801871-4807-1C5DBBE380` in Blackfathom Deeps, map 48, copy 8801871, creature 4807),
+  so the run takes its copy from the first corpse looted, keeps the rules above until then, and
   Chronicle's by-creature tallies inside a dungeon come from looted corpses.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
@@ -1615,7 +1616,7 @@ is what "this run against a typical one" reads in game through a `Data/` file.
 
 #### Owed in game before step 1 (docs/forever-client-api.md, "Still owed", R1 to R6)
 
-R1 the instance copy in a creature's GUID and what `GetInstanceInfo` answers; R2 `IsInInstance` as a
+(Answered 2026-11-20 but for the Kills tab and R6, which doesn't hold the build: the answers are in the client notes' "Verified facts".) R1 the instance copy in a creature's GUID and what `GetInstanceInfo` answers; R2 `IsInInstance` as a
 ghost and after a `/reload`; R3 whether a dungeon boss sends `ENCOUNTER_START`/`END` to an addon, and
 whether Chronicle's kills count the boss (still owed from 7.4); R4 whether experience and money are
 plain in combat; R5 the coin line; R6 whether Forever caps instances per hour.
