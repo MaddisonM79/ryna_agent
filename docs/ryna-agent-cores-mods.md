@@ -1528,6 +1528,13 @@ over it.
   `Creature-0-8452-48-8801871-4807-1C5DBBE380` in Blackfathom Deeps, map 48, copy 8801871, creature 4807),
   so the run takes its copy from the first corpse looted, keeps the rules above until then, and
   Chronicle's by-creature tallies inside a dungeon come from looted corpses.
+- **Corrected 2026-11-21, after Chronicle 0.7.0 in game: nothing that happens inside ends a run.** The
+  copy field of a looted corpse's GUID is not the same for every creature of one copy, so "another copy on
+  a corpse" split runs at loot windows mid-clear (and made the loot window slow: each split priced and
+  wrote a run and read everything for the next). That rule and "a killed boss pulled again" are gone: the
+  first corpse's id is kept as the run's, other ids are only counted (`otherCopies` on the event), and a
+  boss pulled again is listed again. A run ends on another instance, the reset line while outside, or the
+  30 minutes. Where the bullets here still say otherwise, this one holds.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
