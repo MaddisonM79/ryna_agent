@@ -1482,7 +1482,15 @@ steps.
   Forever.
 - **Per-session "this zone"** numbers on the session strip.
 
-### 7.7 Dungeon runs (asked 2026-11-20; designed, not built)
+### 7.7 Dungeon runs (asked 2026-11-20; step 1 built the same day, unreleased)
+
+**Built** (Ryna-Mods/chronicle#1, merged to its main 2026-11-20, no release and never seen in game): `Runs.lua`
+(the record), `RunView.lua`, `RunDisplay.lua` (the strip and the card), `RunSummary.lua` (the summary and the
+first-time choice) and `Dungeons.lua` (Dungeons › Runs); settings on the Recording tab; `/ryna runs`,
+`/ryna runs strip|card|off`, `/ryna runs test`. Where the build left the mockup: a "so far" summary shows
+bosses killed, not a comparison with a full clear; the summary doesn't appear when a death puts the
+character outside; the card's bosses still to come are the fastest run's; the game's ready-check textures
+stand for the tick and the cross. Steps 2 and 3 (the API and portal, the pools) are not started.
 
 Maddison: "i want to make a dungeon tracker. time in there, exp, kills, etc." Almost every number she
 named is already counted somewhere (Chronicle's kills carry experience, its loot carries items, Prices
