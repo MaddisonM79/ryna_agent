@@ -1509,8 +1509,14 @@ over it.
 - **One character inside one copy of one instance.** The instance is its map id (`GetInstanceInfo`'s
   eighth value, 36 for The Deadmines, the id the combat log's `ZONE_CHANGE` and `ENCOUNTER_START`
   carry). The copy is the fifth field of any creature GUID seen inside
-  (`Creature-0-<server>-<map>-<instance>-<npcId>-<spawn>`): a reset makes a new one. Reading it inside
-  an instance is probe R1 below; until it is answered the copy is unknown and the rule is time alone.
+  (`Creature-0-<server>-<map>-<instance>-<npcId>-<spawn>`): a reset makes a new one. **The addon can't
+  read it** (R1, answered 2026-11-20: a targeted mob's GUID is secret inside a dungeon even out of combat,
+  and `GetInstanceInfo` names no copy), so in game the copy is unknown and a run is told from the next by
+  what the addon can see: the map id, the 30 minutes, a reset's system line, and a boss this run already
+  killed being pulled again (`ENCOUNTER_START` with an id the run has a kill for is a new copy). The exact
+  copy is the agent's to add afterwards: the combat log's creature GUIDs are plain text, so the fights the
+  server files under a run (docs/wow.md 20.2) can say which copy they were in. Still to ask in game: whether a loot window's source GUID
+  is plain inside, which would give the addon the copy at the first corpse looted.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
@@ -1537,7 +1543,7 @@ Each a difference between entering and leaving, from things the addon already he
 |---|---|---|
 | Time inside, time in combat, time to the first pull, times entered | enter and leave; `PLAYER_REGEN_DISABLED`/`ENABLED` | the clock is `GetServerTime()` |
 | Experience: total, from kills, from quests, rested; per hour; levels gained | `UnitXP` across `PLAYER_XP_UPDATE` and `PLAYER_LEVEL_UP`; the kill line Chronicle already parses; `questDone`'s `xp` | at the level cap all of it is 0 and the view says so |
-| Kills, and by creature | Chronicle's kill tally, counted per run | the 40 most-killed creatures kept; see "Kills at the cap" |
+| Kills, and by creature | Chronicle's kill tally, counted per run | the 40 most-killed creatures kept; see "Kills at the cap". Inside a dungeon a unit's GUID and name are secret (2026-11-20), so a creature's id may never be learned there: the count comes from the experience line, the by-creature split may have to wait for the agent's log |
 | Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START`/`END` if Forever's dungeons send them (probe R3); else a kill of a creature the game data names as an encounter's | a split is the time from entering to the boss's death |
 | Loot: drops, pieces, by quality, the ten most valuable | Chronicle's loot tally, counted per run | |
 | **What the run was worth**: coin looted, vendor value, auction value | coin from `CHAT_MSG_MONEY` (probe R5); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
