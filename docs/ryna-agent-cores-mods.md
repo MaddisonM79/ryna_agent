@@ -1535,7 +1535,7 @@ over it.
   run at once, with no timer. It can't say the character has left for good, since walking out to repair
   and walking out to stop look the same and the copy lives on until it is reset. The 30 minutes exist
   only for that case.
-- **The open run is in the saved file** (`characters[guid].run`), written as it changes, so a
+- **The open run is in the saved file** (`RynaDB.chronicle.runs[guid].open`), written as it changes, so a
   `/reload`, a logout or a crash loses at most the moments since the last event.
 
 #### What it carries
@@ -1549,7 +1549,7 @@ Each a difference between entering and leaving, from things the addon already he
 | Kills, and by creature | Chronicle's kill tally, counted per run | the 40 most-killed creatures kept; see "Kills at the cap". Inside a dungeon a unit's GUID and name are secret (2026-11-20), so a creature's id may never be learned there: the count comes from the experience line, the by-creature split may have to wait for the agent's log |
 | Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START` and `ENCOUNTER_END` (id, name, difficulty, group size, and on the end success), which Forever's dungeons send an addon (2026-11-20: the Stockade, Blackfathom Deeps); never `BOSS_KILL`, which doesn't fire | a split is the time from entering to the boss's death |
 | Loot: drops, pieces, by quality, the ten most valuable | Chronicle's loot tally, counted per run | |
-| **What the run was worth**: coin looted, vendor value, auction value | coin from `CHAT_MSG_MONEY`, plain in a dungeon (2026-11-20; in a group the share line, parsed by the client's own `LOOT_MONEY_SPLIT` and `YOU_LOOT_MONEY` patterns); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
+| **What the run was worth**: coin looted, vendor value, auction value, and a total (the coin plus each item at the higher of its vendor and auction value: the two count the same items, so they are never added) | coin from `CHAT_MSG_MONEY`, plain in a dungeon (2026-11-20; in a group the share line, parsed by the client's own `LOOT_MONEY_SPLIT` and `YOU_LOOT_MONEY` patterns); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
 | Durability lost | the worn pieces' `dur` at entering and leaving (Chronicle 0.6.0) | the repair bill in coin is known only at a repairer; shown the next time one is open, later |
 | Deaths | `PLAYER_DEAD` | the group's wipes come from the bosses above |
 | Damage done, healing done, damage taken, over the run | the game's own meter (`C_DamageMeter`), each finished fight's session added up after combat, when the numbers are plain | absent when the meter isn't available |
@@ -1571,11 +1571,13 @@ and says kills aren't counted at the cap.
 - **A `run` journal event**, written once when the run closes (docs/wow.md 20.1 has the shape). The
   journal already dedupes on `(char, session, seq)`, and the API stores an event type it doesn't know
   as sent, so the addon can ship before the server understands runs and nothing is lost.
-- **`characters[guid].runs`**: the newest 100 closed runs, for the history in game (the journal is
-  pruned at 30 days, a history shouldn't be). Past 100 the oldest is dropped, after being folded into
-  **`characters[guid].runTotals[mapId]`** (runs, time, experience, the fastest run that killed every
-  boss it started), so "your best" survives.
-- **`characters[guid].run`**: the open one.
+- **`RynaDB.chronicle.runs[guid] = { open, list, totals }`**, beside the character record, not on it
+  (built 2026-11-20): the app passes a record's unknown keys through to every snapshot and the API keeps
+  them, so a hundred runs on the record would ride along in every upload. `list` is the newest 100
+  closed runs, for the history in game (the journal is pruned at 30 days, a history shouldn't be); past
+  100 the oldest is folded into `totals[mapId]` (runs, time, experience, the fastest run that killed
+  every boss it pulled), so "your best" survives; `open` is the open run. The app never reads
+  `RynaDB.chronicle`: a run reaches ryna.io only as its event.
 - Settings: `runs` (record runs, on with Chronicle), `runDisplay` (`"off"` until chosen),
   `runSummary` (the card on leaving, on).
 
