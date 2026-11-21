@@ -1482,7 +1482,7 @@ steps.
   Forever.
 - **Per-session "this zone"** numbers on the session strip.
 
-### 7.7 Dungeon runs (asked 2026-11-20; step 1 built the same day, released in Chronicle 0.7.0 and bundle 0.5.8)
+### 7.7 Dungeon runs (asked 2026-11-20; step 1 released in Chronicle 0.7.0, fixed in 0.7.1; step 2, the API, portal and connector, live 2026-11-21)
 
 **Built** (Ryna-Mods/chronicle#1, merged to its main 2026-11-20, released 2026-11-21, not yet seen in game): `Runs.lua`
 (the record), `RunView.lua`, `RunDisplay.lua` (the strip and the card), `RunSummary.lua` (the summary and the
