@@ -636,6 +636,12 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
 
 **For dungeon runs** (docs/ryna-agent-cores-mods.md 7.7; asked 2026-11-20). All inside a dungeon, one line each:
 
+From the Chronicle release after 0.6.0 these are one command (`Probe.lua`, 2026-11-20): `/ryna probe watch` once
+on zoning in (R3's events and whether registering them is refused, R5's coin line, a reset's system line, and a
+reading at the start of the next three fights, which is R4 and probe 2), `/ryna probe` with a mob targeted
+wherever R1 and R2 ask for a dump, and `/ryna probe show` for every line in a box to copy. The watch survives
+the `/reload`. The macros below ask the same things on a client without it.
+
 - **R1.** Out of combat, with a mob targeted: `/dump UnitGUID("target"), GetInstanceInfo()` (the GUID's fifth
   field is the instance copy; `GetInstanceInfo` should give the name, `"party"`, the difficulty and, eighth, the
   map id, 36 in The Deadmines). Walk out and back in without a reset and dump again: is the fifth field the
