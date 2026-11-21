@@ -1575,7 +1575,7 @@ and says kills aren't counted at the cap.
 Mocked up 2026-11-20 (artifact "Ryna Dungeon Runs": the strip, the card, the summary, Dungeons › Runs
 and the notice's choice), her calls on it the same day: the strip's five numbers as drawn (timer,
 experience per hour, kills, bosses, worth); splits against the fastest run and totals against the median;
-the summary's own damage and healing tile on, with a switch (`runSummaryMeter`). Open: when the summary appears. No chat line anywhere.
+the summary's own damage and healing tile on, with a switch (`runSummaryMeter`); the summary appears each time the character walks out, "so far" until the run closes. No chat line anywhere.
 
 - **The strip** (`runDisplay = "strip"`): one thin movable bar while inside: the timer, experience per
   hour, kills, bosses "2 of 5" once the game data or the pool knows the count (else "2").
@@ -1928,7 +1928,7 @@ A release says what changed, once, in plain words, in both places.
   Open: flight points, and the notice's wording.
 - Settled 2026-11-20 (7.7): dungeon runs are part of Chronicle; dungeons and raids first; the live
   display is the player's choice of a strip, a card or neither; a run keeps party names only with
-  "record group members" on. Open: the six probes, and the mockups.
+  "record group members" on. The mockup's calls are settled (7.7). Open: the six probes.
 - Settled 2026-11-10 (9.1): supported versions. Perfect is the newest release; reduced mode stops
   contributing to the pools and nothing else; the marks trail perfect by 2 and 4 releases; a beta
   channel comes later; the notices' wording.
