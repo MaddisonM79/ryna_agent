@@ -1,13 +1,15 @@
 // Updates: a check at launch and every 6 hours, the banner's "Update and restart", and the
 // Settings button. The work is Rust's (src-tauri/src/updates.rs); this keeps what to show.
 import { ref } from "vue";
-import { api, errorText, onUpdateProgress, type UpdateCheck, type UpdateProgress } from "./api";
-import { checkLog, UPDATE_INTERVAL_MS, type UpdatePhase } from "./updateWords";
+import { api, errorText, onUpdateProgress, type AddonCheck, type UpdateCheck, type UpdateProgress } from "./api";
+import { addonCheckLines, checkLog, UPDATE_INTERVAL_MS, type UpdatePhase } from "./updateWords";
 
 export const updateCheck = ref<UpdateCheck | null>(null);
 export const updatePhase = ref<UpdatePhase>("idle");
 export const updateProgress = ref<UpdateProgress | null>(null);
 export const updateError = ref<string | null>(null);
+/** What the last "Check for updates" the person asked for found for the addons. */
+export const addonCheck = ref<AddonCheck | null>(null);
 /** What "Later" put off (a banner's `key`); a newer release, a new band or a check from Settings
  * shows the banner again. */
 export const laterFor = ref<string | null>(null);
@@ -30,6 +32,20 @@ export async function checkForUpdates(manual: boolean): Promise<void> {
     updatePhase.value = "error";
     updateError.value = errorText(e);
     log(`Couldn't check for updates: ${updateError.value}`, "error");
+  }
+  // Asked for by hand: the addon index too, which is otherwise read at launch and each hour. Its own
+  // try, so an app check that failed doesn't hide what the addons say.
+  if (manual) await checkAddons();
+}
+
+async function checkAddons(): Promise<void> {
+  try {
+    const found = await api.checkAddonUpdates();
+    addonCheck.value = found;
+    for (const line of addonCheckLines(found)) log(line.text, line.level);
+  } catch (e) {
+    addonCheck.value = { fetched: [], pending: false, gameRunning: false, error: errorText(e) };
+    log(`Couldn't check for addon updates: ${errorText(e)}`, "error");
   }
 }
 

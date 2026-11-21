@@ -3,18 +3,20 @@
 // The same updates.ts state the banner reads; on Status and About.
 import { computed } from "vue";
 import { status } from "../store";
-import { checkButton, checkResult } from "../updateWords";
-import { checkForUpdates, updateCheck, updateError, updatePhase } from "../updates";
+import { addonCheckResult, checkButton, checkResult } from "../updateWords";
+import { addonCheck, checkForUpdates, updateCheck, updateError, updatePhase } from "../updates";
 
 withDefaults(defineProps<{ showVersion?: boolean }>(), { showVersion: true });
 const button = computed(() => checkButton(updateCheck.value, updatePhase.value));
 const result = computed(() => checkResult(updateCheck.value, updatePhase.value, updateError.value));
+const addons = computed(() => addonCheckResult(addonCheck.value));
 </script>
 
 <template>
   <span class="update-control">
     <span v-if="showVersion" class="muted">Ryna {{ status?.appVersion ?? "" }}</span>
     <span v-if="result && updatePhase !== 'checking'" class="chip" :class="result.chip" role="status">{{ result.text }}</span>
+    <span v-if="addons && updatePhase !== 'checking'" class="chip" :class="addons.chip" role="status">{{ addons.text }}</span>
     <button type="button" class="quiet" :disabled="button.disabled" @click="checkForUpdates(true)">
       {{ button.label }}
     </button>

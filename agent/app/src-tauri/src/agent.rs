@@ -819,10 +819,21 @@ fn addon_source(app: &AppHandle) -> Result<PathBuf, String> {
 /// to say: no network, or no index yet, is tried again at the next look. Returns whether what
 /// [`addon_source`] gives may have changed.
 fn refresh_addon_index(app: &AppHandle) -> bool {
+    read_addon_index(app).is_ok_and(|r| r.changed())
+}
+
+/// One read of the addon index at a time: the hourly look and "Check for updates" may meet.
+static ADDON_INDEX_LOCK: Mutex<()> = Mutex::new(());
+
+/// The read itself, with what it brought, or why it wasn't taken.
+fn read_addon_index(app: &AppHandle) -> Result<addon_store::Refreshed, String> {
     let (Ok(carried), Some(state)) = (bundled_addon(app), ryna_agent::state_dir::state_dir())
     else {
-        return false;
+        return Err("This build carries no addon to update.".into());
     };
+    let _one = ADDON_INDEX_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let key = ryna_agent::package::public_key(ADDONS_PUB);
     let done = addon_store::index_source().and_then(|source| {
         addon_store::refresh(&state, &source, &key, &carried, env!("CARGO_PKG_VERSION"))
@@ -835,12 +846,65 @@ fn refresh_addon_index(app: &AppHandle) -> bool {
             for why in &r.dropped {
                 eprintln!("ryna: the addon index has an entry this app can't use ({why})");
             }
-            r.changed()
+            Ok(r)
         }
         Err(e) => {
             eprintln!("ryna: the addon index wasn't taken: {e:#}");
-            false
+            Err(format!("{e:#}"))
         }
+    }
+}
+
+/// One addon the index brought.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddonFetched {
+    pub folder: String,
+    pub version: String,
+}
+
+/// What "Check for updates" found for the addons (`check_addon_updates`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddonCheck {
+    /// The addons the index brought just now.
+    pub fetched: Vec<AddonFetched>,
+    /// A game folder holds an addon older than what is here, so the app will bring it up to date.
+    pub pending: bool,
+    /// The game is running, so `pending` waits for it to close.
+    pub game_running: bool,
+    /// The index couldn't be read.
+    pub error: Option<String>,
+}
+
+/// The sender that wakes the addon updater's thread before its hour is up.
+static ADDON_WAKE: Mutex<Option<std::sync::mpsc::Sender<()>>> = Mutex::new(None);
+
+/// "Check for updates", for the addons: read the index now instead of at the next launch or the
+/// next hour, say what it brought, and wake the updater, which puts it in the game folders by its
+/// usual rules (at once with the game closed, else when it closes). Nothing is installed here.
+pub fn check_addon_updates(app: &AppHandle) -> AddonCheck {
+    let (fetched, error) = match read_addon_index(app) {
+        Ok(r) => (r.fetched, None),
+        Err(e) => (Vec::new(), Some(e)),
+    };
+    let pending = addons_behind(app);
+    if pending {
+        let wake = ADDON_WAKE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(tx) = wake.as_ref() {
+            let _ = tx.send(());
+        }
+    }
+    AddonCheck {
+        fetched: fetched
+            .into_iter()
+            .map(|(folder, version)| AddonFetched { folder, version })
+            .collect(),
+        pending,
+        game_running: crate::game::game_running(),
+        error,
     }
 }
 
@@ -978,6 +1042,10 @@ enum AddonUpdate {
 /// up to it under the same rules.
 pub fn begin_addon_updates(app: &AppHandle) {
     let app = app.clone();
+    let (wake, woken) = std::sync::mpsc::channel::<()>();
+    *ADDON_WAKE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(wake);
     std::thread::spawn(move || {
         std::thread::sleep(ADDON_UPDATE_DELAY);
         // Bring the installs up to what is here, waiting out a running game.
@@ -1002,35 +1070,51 @@ pub fn begin_addon_updates(app: &AppHandle) {
             if refresh_addon_index(&app) {
                 settle();
             }
-            std::thread::sleep(ADDON_INDEX_EVERY);
+            // The hour, or "Check for updates" (which has just read the index itself).
+            if woken.recv_timeout(ADDON_INDEX_EVERY).is_ok() {
+                while woken.try_recv().is_ok() {}
+                settle();
+                let _ = woken.recv_timeout(ADDON_INDEX_EVERY);
+            }
         }
     });
 }
 
-fn update_addons(app: &AppHandle) -> AddonUpdate {
-    let Ok(source) = addon_source(app) else {
-        return AddonUpdate::Nothing;
-    };
+/// The addon to install from, and the game folders holding one older than it.
+fn old_installs(app: &AppHandle) -> Option<(PathBuf, Vec<Install>)> {
+    let source = addon_source(app).ok()?;
     let bundled = addon_install::bundled_addon_version(&source);
     let chosen = install_override(app);
     let found = discovery::discover(chosen.as_deref());
-    let Ok(allowed) = targets(&found.installs, chosen.is_some(), None) else {
-        return AddonUpdate::Nothing;
-    };
+    let allowed = targets(&found.installs, chosen.is_some(), None).ok()?;
     let chosen_mods = app.state::<Agent>().live().settings.mods.clone();
-    let old: Vec<&Install> = allowed
+    let old: Vec<Install> = allowed
         .into_iter()
         .filter(|i| {
             addon_install::needs_update(i, bundled.as_deref())
                 || core_mods::needs_update(i, &source, &chosen_mods)
         })
+        .cloned()
         .collect();
+    Some((source, old))
+}
+
+/// Whether a game folder holds an addon older than what is here.
+fn addons_behind(app: &AppHandle) -> bool {
+    old_installs(app).is_some_and(|(_, old)| !old.is_empty())
+}
+
+fn update_addons(app: &AppHandle) -> AddonUpdate {
+    let Some((source, old)) = old_installs(app) else {
+        return AddonUpdate::Nothing;
+    };
     if old.is_empty() {
         return AddonUpdate::Nothing;
     }
     if crate::game::game_running() {
         return AddonUpdate::GameRunning;
     }
+    let old: Vec<&Install> = old.iter().collect();
     AddonUpdate::Done(install_into(app, &source, &old))
 }
 

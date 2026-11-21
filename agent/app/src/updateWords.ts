@@ -1,5 +1,5 @@
 // What the window says about updates. Pure, so the tests can hold it.
-import type { Band, InstallView, Support, UpdateCheck, UpdateProgress } from "./api";
+import type { AddonCheck, Band, InstallView, Support, UpdateCheck, UpdateProgress } from "./api";
 import { compareVersions } from "./describe";
 
 export type UpdatePhase = "idle" | "checking" | "downloading" | "error";
@@ -156,6 +156,44 @@ export function checkLog(check: UpdateCheck, manual: boolean): string | null {
   if (!check.configured) return manual ? "Updates aren't set up in this build." : null;
   if (check.available) return `Ryna ${check.available.version} is available (this is ${check.current}).`;
   return manual ? `Ryna ${check.current} is up to date.` : null;
+}
+
+/** An addon's folder as people know it: "Ryna_Chronicle" is Chronicle, "Ryna_Core" the Ryna addon. */
+export function addonName(folder: string): string {
+  if (folder === "Ryna_Core") return "The Ryna addon";
+  return folder.replace(/^Ryna_/, "").replace(/_/g, " ");
+}
+
+/** The activity log's lines for a "Check for updates" look at the addons. */
+export function addonCheckLines(c: AddonCheck): { text: string; level: "info" | "error" }[] {
+  const lines: { text: string; level: "info" | "error" }[] = [];
+  if (c.error) lines.push({ text: `Couldn't check for addon updates: ${c.error}`, level: "error" });
+  for (const a of c.fetched) lines.push({ text: `${addonName(a.folder)} ${a.version} downloaded.`, level: "info" });
+  if (c.pending) {
+    lines.push({
+      text: c.gameRunning
+        ? "The game is running: the new addons go into its folder when it closes."
+        : "Putting the new addons into the game folder.",
+      level: "info",
+    });
+  } else if (!c.error && c.fetched.length === 0) {
+    lines.push({ text: "The addons are up to date.", level: "info" });
+  }
+  return lines;
+}
+
+/** Beside the button after a check: where the addons stand, or nothing before one. */
+export function addonCheckResult(
+  c: AddonCheck | null,
+): { text: string; chip: "pushed" | "waiting" | "update" | "error" } | null {
+  if (!c) return null;
+  if (c.error) return { text: "Couldn't check the addons", chip: "error" };
+  if (c.pending) {
+    return c.gameRunning
+      ? { text: "New addons go in when the game closes", chip: "waiting" }
+      : { text: "Updating the addons", chip: "update" };
+  }
+  return { text: "Addons up to date", chip: "pushed" };
 }
 
 function mb(bytes: number): string {

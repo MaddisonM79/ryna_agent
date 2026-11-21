@@ -215,6 +215,13 @@ pub async fn check_for_update(app: AppHandle) -> Result<updates::UpdateCheck, St
     updates::check(&app).await
 }
 
+/// Reads the addon index now ("Check for updates" asks for the addons too): what it brought, and
+/// whether a game folder is waiting for it. The updater's own thread does any installing.
+#[tauri::command]
+pub async fn check_addon_updates(app: AppHandle) -> Result<agent::AddonCheck, String> {
+    blocking(move || Ok(agent::check_addon_updates(&app))).await
+}
+
 /// Downloads and installs the update the last check found, then starts the new version.
 /// Progress arrives as `update-progress`; it returns only if something failed.
 #[tauri::command]

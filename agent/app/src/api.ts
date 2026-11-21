@@ -368,6 +368,17 @@ export interface UpdateCheck {
   available: { version: string; notes: string | null; date: string | null } | null;
 }
 
+/** What "Check for updates" found for the addons (agent.rs `AddonCheck`). */
+export interface AddonCheck {
+  /** The addons the index brought just now. */
+  fetched: { folder: string; version: string }[];
+  /** A game folder holds an addon older than what the app now has. */
+  pending: boolean;
+  gameRunning: boolean;
+  /** The index couldn't be read. */
+  error: string | null;
+}
+
 /** While an update downloads (`update-progress`). */
 export interface UpdateProgress {
   downloaded: number;
@@ -520,6 +531,7 @@ export const api = {
   /** Opens one of the project's own pages (GitHub, ryna.io) in the browser; anything else is refused by the command. */
   openLink: (url: string) => invoke<void>("open_link", { url }),
   checkForUpdate: () => invoke<UpdateCheck>("check_for_update"),
+  checkAddonUpdates: () => invoke<AddonCheck>("check_addon_updates"),
   /** Resolves only if it failed to install: on success the app restarts into the new version. */
   installUpdate: () => invoke<void>("install_update"),
   settingsView: () => invoke<SettingsView>("settings_view"),

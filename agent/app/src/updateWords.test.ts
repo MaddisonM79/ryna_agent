@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Support, UpdateCheck } from "./api";
 import { describe as describeEvent } from "./describe";
 import {
+  addonCheckLines,
+  addonCheckResult,
+  addonName,
   addonSentence,
   banner,
   bannerText,
@@ -205,5 +208,46 @@ describe("the banner, by the API's judgment", () => {
     expect(UNSUPPORTED_SENTENCE).toBe(
       "This version of Ryna is no longer supported, so nothing syncs to ryna.io. Update to carry on.",
     );
+  });
+});
+
+describe("the addons, on Check for updates", () => {
+  const none = { fetched: [], pending: false, gameRunning: false, error: null };
+
+  it("names an addon as people know it", () => {
+    expect(addonName("Ryna_Chronicle")).toBe("Chronicle");
+    expect(addonName("Ryna_Core")).toBe("The Ryna addon");
+  });
+
+  it("says the addons are up to date when the index brought nothing and nothing waits", () => {
+    expect(addonCheckLines(none)).toEqual([{ text: "The addons are up to date.", level: "info" }]);
+    expect(addonCheckResult(none)).toEqual({ text: "Addons up to date", chip: "pushed" });
+  });
+
+  it("says what was downloaded, and that it waits for a running game to close", () => {
+    const c = { ...none, fetched: [{ folder: "Ryna_Chronicle", version: "0.7.0" }], pending: true, gameRunning: true };
+    expect(addonCheckLines(c).map((l) => l.text)).toEqual([
+      "Chronicle 0.7.0 downloaded.",
+      "The game is running: the new addons go into its folder when it closes.",
+    ]);
+    expect(addonCheckResult(c)).toEqual({ text: "New addons go in when the game closes", chip: "waiting" });
+  });
+
+  it("says it is putting them in when the game is closed", () => {
+    const c = { ...none, fetched: [{ folder: "Ryna_Meter", version: "0.5.3" }], pending: true };
+    expect(addonCheckLines(c)[1]?.text).toBe("Putting the new addons into the game folder.");
+    expect(addonCheckResult(c)).toEqual({ text: "Updating the addons", chip: "update" });
+  });
+
+  it("still says a game folder is waiting when the index was read earlier", () => {
+    const c = { ...none, pending: true, gameRunning: true };
+    expect(addonCheckLines(c)).toHaveLength(1);
+  });
+
+  it("says when the index couldn't be read, and nothing about being up to date", () => {
+    const c = { ...none, error: "no network" };
+    expect(addonCheckLines(c)).toEqual([{ text: "Couldn't check for addon updates: no network", level: "error" }]);
+    expect(addonCheckResult(c)?.chip).toBe("error");
+    expect(addonCheckResult(null)).toBeNull();
   });
 });

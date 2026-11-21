@@ -165,6 +165,7 @@ fn main() {
             commands::open_portal,
             commands::open_link,
             commands::check_for_update,
+            commands::check_addon_updates,
             commands::install_update,
             commands::settings_view,
             commands::settings_game_running,

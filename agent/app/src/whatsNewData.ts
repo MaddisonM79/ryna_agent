@@ -15,6 +15,16 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "next",
+    "headline": "Check for updates looks for new addons too.",
+    "items": [
+      {
+        "where": "app",
+        "text": "\"Check for updates\" now also looks for new versions of Ryna's addons, so you no longer have to quit and reopen the app to get one. With the game open, a new addon goes in when the game closes."
+      }
+    ]
+  },
+  {
     "version": "0.5.1",
     "headline": "Ryna's addons now update on their own.",
     "items": [
