@@ -1482,6 +1482,127 @@ steps.
   Forever.
 - **Per-session "this zone"** numbers on the session strip.
 
+### 7.7 Dungeon runs (asked 2026-11-20; designed, not built)
+
+Maddison: "i want to make a dungeon tracker. time in there, exp, kills, etc." Almost every number she
+named is already counted somewhere (Chronicle's kills carry experience, its loot carries items, Prices
+knows what an item is worth, the character sheet has durability, Meter and Fights have the damage),
+but nothing knows what a **run** is. The portal's Logs guesses runs from fights by time and by who was
+there (`apps/web/src/apps/wow/runs.ts`, whose own header says the data can't be trusted to say which
+run a fight is in), while the addon is told exactly when the character walks in and out. So the
+tracker is one new record, the run, written by Chronicle, and everything else is a difference taken
+over it.
+
+#### Her calls (2026-11-20)
+
+1. **Part of Chronicle**, not a mod of its own: the record is Chronicle's, and its history is the
+   personal half of 7.4's Dungeons section (J2 is the game's half: bosses, their loot and abilities).
+2. **Dungeons and raids first.** The record is shaped so an open-world session (a grind, a questing
+   sitting) can reuse it later; that isn't built now, because where such a session starts and ends is a guess.
+3. **A strip or a card, the player's choice** ("people have diff needs"): one setting,
+   `runDisplay = "strip" | "card" | "off"`.
+4. **Party names by setting**: with "record group members" on, a run keeps who it was with; off, only
+   class, role and level. Names stay in the person's own data and never enter a pool.
+
+#### What a run is
+
+- **One character inside one copy of one instance.** The instance is its map id (`GetInstanceInfo`'s
+  eighth value, 36 for The Deadmines, the id the combat log's `ZONE_CHANGE` and `ENCOUNTER_START`
+  carry). The copy is the fifth field of any creature GUID seen inside
+  (`Creature-0-<server>-<map>-<instance>-<npcId>-<spawn>`): a reset makes a new one. Reading it inside
+  an instance is probe R1 below; until it is answered the copy is unknown and the rule is time alone.
+- **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
+  party or raid instance and no open run matches.
+- **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
+  graveyard, a disconnect, a `/reload` (Forever writes difficulty 0 on zoning in and 1 only after a
+  `/reload` inside, docs/wow.md 9.2, so difficulty is never part of the identity). Coming back into the
+  same copy (or, with no copy known, the same map within 30 minutes, the gap Logs already uses)
+  resumes it; time outside is not counted as time in.
+- **It closes** when the character enters another instance or another copy, or has been outside for 30
+  minutes, or logs in after that long. A closed run is never reopened.
+- **The open run is in the saved file** (`characters[guid].run`), written as it changes, so a
+  `/reload`, a logout or a crash loses at most the moments since the last event.
+
+#### What it carries
+
+Each a difference between entering and leaving, from things the addon already hears:
+
+| On the run | From | Notes |
+|---|---|---|
+| Time inside, time in combat, time to the first pull, times entered | enter and leave; `PLAYER_REGEN_DISABLED`/`ENABLED` | the clock is `GetServerTime()` |
+| Experience: total, from kills, from quests, rested; per hour; levels gained | `UnitXP` across `PLAYER_XP_UPDATE` and `PLAYER_LEVEL_UP`; the kill line Chronicle already parses; `questDone`'s `xp` | at the level cap all of it is 0 and the view says so |
+| Kills, and by creature | Chronicle's kill tally, counted per run | the 40 most-killed creatures kept; see "Kills at the cap" |
+| Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START`/`END` if Forever's dungeons send them (probe R3); else a kill of a creature the game data names as an encounter's | a split is the time from entering to the boss's death |
+| Loot: drops, pieces, by quality, the ten most valuable | Chronicle's loot tally, counted per run | |
+| **What the run was worth**: coin looted, vendor value, auction value | coin from `CHAT_MSG_MONEY` (probe R5); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
+| Durability lost | the worn pieces' `dur` at entering and leaving (Chronicle 0.6.0) | the repair bill in coin is known only at a repairer; shown the next time one is open, later |
+| Deaths | `PLAYER_DEAD` | the group's wipes come from the bosses above |
+| Damage done, healing done, damage taken, over the run | the game's own meter (`C_DamageMeter`), each finished fight's session added up after combat, when the numbers are plain | absent when the meter isn't available |
+| Quests turned in, reputation gained | `QUEST_TURNED_IN`; the reputations' difference | |
+| The group: size, and per member class, role and level | `GROUP_ROSTER_UPDATE` | GUID and name only with "record group members" on |
+
+Nothing here is computed from a secret value: the live numbers come from events and from calls that
+are expected plain (probe R4 checks experience and money in combat), and the meter's are read after
+the fight. If R4 finds one secret in combat, the display updates that number when combat ends.
+
+**Kills at the cap.** Chronicle counts a kill from the experience line, so a character at the level
+cap sees none (docs/wow.md 12.1). In an instance the combat log is on by default (`combatLog =
+"instances"`), and the agent's parse has every death exactly; the server side (docs/wow.md 20) corrects
+a run's kills from the fights of the same run. In game, a capped character's run shows bosses and loot
+and says kills aren't counted at the cap.
+
+#### On the wire and in the file
+
+- **A `run` journal event**, written once when the run closes (docs/wow.md 20.1 has the shape). The
+  journal already dedupes on `(char, session, seq)`, and the API stores an event type it doesn't know
+  as sent, so the addon can ship before the server understands runs and nothing is lost.
+- **`characters[guid].runs`**: the newest 100 closed runs, for the history in game (the journal is
+  pruned at 30 days, a history shouldn't be). Past 100 the oldest is dropped, after being folded into
+  **`characters[guid].runTotals[mapId]`** (runs, time, experience, the fastest run that killed every
+  boss it started), so "your best" survives.
+- **`characters[guid].run`**: the open one.
+- Settings: `runs` (record runs, on with Chronicle), `runDisplay` (`"off"` until chosen),
+  `runSummary` (the card on leaving, on).
+
+#### In game
+
+Mockups before any of it is built, as with 7.5's views. No chat line anywhere.
+
+- **The strip** (`runDisplay = "strip"`): one thin movable bar while inside: the timer, experience per
+  hour, kills, bosses "2 of 5" once the game data or the pool knows the count (else "2").
+- **The card** (`runDisplay = "card"`): the same, larger: adds experience toward the level, what the
+  run is worth so far, deaths, and the boss splits as they happen.
+- **The summary**: on leaving, a small frame with the run so far against this character's best and
+  median for the dungeon (`runSummary`). It says "so far" until the run closes, and leaves when
+  dismissed or when the character goes back in.
+- **Dungeons › Runs** in Chronicle's window: a row per dungeon (runs, fastest, median, experience per
+  hour, last run), a dungeon opens its runs, a run opens its summary with loot and splits. Any
+  character of the account, from the saved file alone.
+- **The first-dungeon notice** (7.4) gains the choice: strip, card, or neither.
+- **An "instances this hour" line** only if Forever has the cap (probe R6).
+
+#### The portal and the pools
+
+docs/wow.md section 20: a runs table read from the `run` events, each fight filed under its run by
+the run's own times (Logs' guess stays for fights older than runs), a run page (the numbers above
+beside the fights), the connector's `wow_runs`. Then, pooled like prices and about no one: the typical
+clear time and experience per hour for a dungeon by level bracket, from at least three people, which
+is what "this run against a typical one" reads in game through a `Data/` file.
+
+#### Order
+
+1. **The addon alone** (a Chronicle release): the record, the event, the strip, the card, the summary,
+   Dungeons › Runs. Nothing on the server changes.
+2. **The API and portal**: the table, the routes, the run page, the connector, Logs reading real runs.
+3. **The pools**, and the comparison in game.
+
+#### Owed in game before step 1 (docs/forever-client-api.md, "Still owed", R1 to R6)
+
+R1 the instance copy in a creature's GUID and what `GetInstanceInfo` answers; R2 `IsInInstance` as a
+ghost and after a `/reload`; R3 whether a dungeon boss sends `ENCOUNTER_START`/`END` to an addon, and
+whether Chronicle's kills count the boss (still owed from 7.4); R4 whether experience and money are
+plain in combat; R5 the coin line; R6 whether Forever caps instances per hour.
+
 ## 8. Identity
 
 Today: one device client per game (`ryna-wow`, the Palworld agent's), each a public client at
@@ -1796,6 +1917,9 @@ A release says what changed, once, in plain words, in both places.
 - Settled 2026-11-09 (7.4): the journal is part of Chronicle, not a mod of its own; its sections
   start off, with one notice at the first dungeon; quest tracking is in, the map stays Questie's.
   Open: flight points, and the notice's wording.
+- Settled 2026-11-20 (7.7): dungeon runs are part of Chronicle; dungeons and raids first; the live
+  display is the player's choice of a strip, a card or neither; a run keeps party names only with
+  "record group members" on. Open: the six probes, and the mockups.
 - Settled 2026-11-10 (9.1): supported versions. Perfect is the newest release; reduced mode stops
   contributing to the pools and nothing else; the marks trail perfect by 2 and 4 releases; a beta
   channel comes later; the notices' wording.

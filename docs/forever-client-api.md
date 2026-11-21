@@ -634,6 +634,27 @@ The first fourteen were answered on 2026-11-08 and the journal probes on 2026-11
     (does a secret icon draw?)
 17. Out of combat, with nothing to cure: cast a cure on yourself. Refused or cast? Mana, global cooldown?
 
+**For dungeon runs** (docs/ryna-agent-cores-mods.md 7.7; asked 2026-11-20). All inside a dungeon, one line each:
+
+- **R1.** Out of combat, with a mob targeted: `/dump UnitGUID("target"), GetInstanceInfo()` (the GUID's fifth
+  field is the instance copy; `GetInstanceInfo` should give the name, `"party"`, the difficulty and, eighth, the
+  map id, 36 in The Deadmines). Walk out and back in without a reset and dump again: is the fifth field the
+  same? Reset the dungeon, go in, dump again: is it different? Probe 2 above (is the GUID secret in combat)
+  matters here too.
+- **R2.** `/dump IsInInstance()` inside; again as a ghost outside after a death; again inside after a `/reload`,
+  with `/dump GetInstanceInfo()` (the difficulty is expected to change from 0 to 1 on the reload).
+- **R3.** Before a boss:
+  `/run local f=CreateFrame("Frame") for _,e in ipairs({"ENCOUNTER_START","ENCOUNTER_END","BOSS_KILL"}) do f:RegisterEvent(e) end f:SetScript("OnEvent",function(_,e,...) print("RynaR3",e,...) end)`
+  (does registering raise the "blocked" dialog; what prints on the pull and on the kill?). After the boss dies,
+  open Ryna's window, Kills: is the boss there (the question 7.4 still owes)?
+- **R4.** In combat, as a macro: `/dump issecretvalue(UnitXP("player")), issecretvalue(UnitXPMax("player")), issecretvalue(GetMoney())`
+  (expect three `false`).
+- **R5.** Before looting coin from a corpse, in a group if possible:
+  `/run local f=CreateFrame("Frame") f:RegisterEvent("CHAT_MSG_MONEY") f:SetScript("OnEvent",function(_,_,m) print("RynaR5",issecretvalue(m) or m) end)`
+  (the line as an addon receives it: your own share, and plain?).
+- **R6.** Does Forever cap instances per hour, as Classic did at five? A blue post or a refusal seen in game
+  answers it; if neither, reset and re-enter a dungeon six times inside an hour and note what the sixth says.
+
 ## Links
 
 The Sources table has the main ones. Beyond it:
