@@ -1,9 +1,10 @@
 [
   {
-    "version": "next",
+    "version": "0.5.2",
     "headline": "Check for updates looks for new addons too.",
     "items": [
-      {"where": "app", "text": "\"Check for updates\" now also looks for new versions of Ryna's addons, so you no longer have to quit and reopen the app to get one. With the game open, a new addon goes in when the game closes."}
+      {"where": "app", "text": "\"Check for updates\" now also looks for new versions of Ryna's addons, so you no longer have to quit and reopen the app to get one. With the game open, a new addon goes in when the game closes."},
+      {"where": "app", "text": "This update brings Chronicle 0.7.0, which tracks your dungeon runs: time, experience, kills, bosses and what the loot was worth."}
     ]
   },
   {
