@@ -1566,7 +1566,8 @@ and says kills aren't counted at the cap.
 
 #### In game
 
-Mockups before any of it is built, as with 7.5's views. No chat line anywhere.
+Mocked up 2026-11-20 (artifact "Ryna Dungeon Runs": the strip, the card, the summary, Dungeons › Runs
+and the notice's choice), not yet agreed. No chat line anywhere.
 
 - **The strip** (`runDisplay = "strip"`): one thin movable bar while inside: the timer, experience per
   hour, kills, bosses "2 of 5" once the game data or the pool knows the count (else "2").
