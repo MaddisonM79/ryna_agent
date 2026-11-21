@@ -1515,8 +1515,10 @@ over it.
   what the addon can see: the map id, the 30 minutes, a reset's system line, and a boss this run already
   killed being pulled again (`ENCOUNTER_START` with an id the run has a kill for is a new copy). The exact
   copy is the agent's to add afterwards: the combat log's creature GUIDs are plain text, so the fights the
-  server files under a run (docs/wow.md 20.2) can say which copy they were in. Still to ask in game: whether a loot window's source GUID
-  is plain inside, which would give the addon the copy at the first corpse looted.
+  server files under a run (docs/wow.md 20.2) can say which copy they were in. **A looted corpse may give it after all**: a loot window's
+  source is not secret inside (`GetLootSourceInfo`, the same evening, on a boss's corpse), so once the GUID's
+  shape is seen the run takes its copy from the first corpse looted, keeps the rules above until then, and
+  Chronicle's by-creature tallies inside a dungeon come from looted corpses.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
@@ -1544,9 +1546,9 @@ Each a difference between entering and leaving, from things the addon already he
 | Time inside, time in combat, time to the first pull, times entered | enter and leave; `PLAYER_REGEN_DISABLED`/`ENABLED` | the clock is `GetServerTime()` |
 | Experience: total, from kills, from quests, rested; per hour; levels gained | `UnitXP` across `PLAYER_XP_UPDATE` and `PLAYER_LEVEL_UP`; the kill line Chronicle already parses; `questDone`'s `xp` | at the level cap all of it is 0 and the view says so |
 | Kills, and by creature | Chronicle's kill tally, counted per run | the 40 most-killed creatures kept; see "Kills at the cap". Inside a dungeon a unit's GUID and name are secret (2026-11-20), so a creature's id may never be learned there: the count comes from the experience line, the by-creature split may have to wait for the agent's log |
-| Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START`/`END` if Forever's dungeons send them (probe R3); else a kill of a creature the game data names as an encounter's | a split is the time from entering to the boss's death |
+| Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START` and `ENCOUNTER_END` (id, name, difficulty, group size, and on the end success), which Forever's dungeons send an addon (2026-11-20: the Stockade, Blackfathom Deeps); never `BOSS_KILL`, which doesn't fire | a split is the time from entering to the boss's death |
 | Loot: drops, pieces, by quality, the ten most valuable | Chronicle's loot tally, counted per run | |
-| **What the run was worth**: coin looted, vendor value, auction value | coin from `CHAT_MSG_MONEY` (probe R5); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
+| **What the run was worth**: coin looted, vendor value, auction value | coin from `CHAT_MSG_MONEY`, plain in a dungeon (2026-11-20; in a group the share line, parsed by the client's own `LOOT_MONEY_SPLIT` and `YOU_LOOT_MONEY` patterns); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
 | Durability lost | the worn pieces' `dur` at entering and leaving (Chronicle 0.6.0) | the repair bill in coin is known only at a repairer; shown the next time one is open, later |
 | Deaths | `PLAYER_DEAD` | the group's wipes come from the bosses above |
 | Damage done, healing done, damage taken, over the run | the game's own meter (`C_DamageMeter`), each finished fight's session added up after combat, when the numbers are plain | absent when the meter isn't available |
@@ -1554,8 +1556,8 @@ Each a difference between entering and leaving, from things the addon already he
 | The group: size, and per member class, role and level | `GROUP_ROSTER_UPDATE` | GUID and name only with "record group members" on |
 
 Nothing here is computed from a secret value: the live numbers come from events and from calls that
-are expected plain (probe R4 checks experience and money in combat), and the meter's are read after
-the fight. If R4 finds one secret in combat, the display updates that number when combat ends.
+are plain (experience and money in combat inside a dungeon, R4, 2026-11-20), and the meter's are read
+after the fight.
 
 **Kills at the cap.** Chronicle counts a kill from the experience line, so a character at the level
 cap sees none (docs/wow.md 12.1). In an instance the combat log is on by default (`combatLog =
