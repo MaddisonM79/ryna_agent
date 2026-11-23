@@ -1539,8 +1539,17 @@ over it.
   a corpse" split runs at loot windows mid-clear (and made the loot window slow: each split priced and
   wrote a run and read everything for the next). That rule and "a killed boss pulled again" are gone: the
   first corpse's id is kept as the run's, other ids are only counted (`otherCopies` on the event), and a
-  boss pulled again is listed again. A run ends on another instance, the reset line while outside, or the
-  30 minutes. Where the bullets here still say otherwise, this one holds.
+  boss pulled again is listed again. A run ends on another instance, the reset line while outside, another
+  group (next bullet), or the 30 minutes. Where the bullets here still say otherwise, this one holds.
+- **Another group is another copy** (2026-11-23: Maddison left one Stockade group, joined the next and
+  walked in; nobody reset anything, so nothing closed the run and its clock went on in the new copy). The
+  open run keeps who it was with: every other member seen while it was open, each as a hash of their GUID
+  or name (never the GUID or the name, whatever "record group members" says, and never in the event or on
+  a closed run), and the group as last read while outside. Coming back to the same map in a group with
+  nobody from the run closes it where the character walked out and opens a new one. Alone on either side,
+  one member in common, or a member the client won't name, and the run goes on: it is never cut on a
+  guess. Not covered, and still merged until the 30 minutes: a new copy entered alone, or with one of the
+  same people.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
