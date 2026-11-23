@@ -341,6 +341,19 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   `GetLootSourceInfo` is the per-source read (Team, Chronicle `Chronicle.lua:436`).
   `GetLootRollItemInfo`, `RollOnLoot` and `GetLootSourceInfo` all exist (`/dump ... ~= nil` gave
   `true, true, true`, Team, 2026-11-08). Their return shapes on Forever are not yet checked.
+- **The loot history is the modern one, by encounter** (game, 2026-11-23): `C_LootHistory` has
+  `GetAllEncounterInfos`, `GetInfoForEncounter`, `GetLootHistoryTime`, `GetSortedDropsForEncounter` and
+  `GetSortedInfoForDrop`, and `LOOT_HISTORY_UPDATE_ENCOUNTER(encounterID)` and
+  `LOOT_HISTORY_UPDATE_DROP(encounterID, lootListKey)` fire as a roll goes. The encounter id is
+  `ENCOUNTER_END`'s, so the game itself says which boss dropped what. A drop is `{ itemHyperlink,
+  lootListKey, startTime, duration, allPassed, isTied, playerRollState, rollInfos, winner }`; `winner`
+  (absent until decided) is `{ playerName, playerClass, playerGUID, roll, state, isSelf, isWinner }`, all
+  plain inside a dungeon out of combat. `state` is `Enum.EncounterLootDropRollState`: 0 need, 3 greed,
+  4 not yet rolled were seen; 1 off-spec, 2 transmog and 5 pass are the engine's and unseen.
+  `LOOT_HISTORY_ROLL_COMPLETE`, `LOOT_HISTORY_ROLL_CHANGED` and `LOOT_HISTORY_FULL_UPDATE` are refused
+  (not events here); `GetLootMethod` is missing. `START_LOOT_ROLL(rollID)` and
+  `LOOT_ROLLS_COMPLETE(lootListKey)` fire; `LOOT_ITEM_ROLL_WON` didn't for another player's win.
+  Chronicle's run drops read it (ryna-agent-cores-mods 7.7).
 
 ### Talents and specs
 
@@ -583,6 +596,7 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | `CHAT_MSG_MONEY` reaches an addon plain; in a group it is the share line, "Your share of the loot is 42 Copper." (the client's `LOOT_MONEY_SPLIT`) | Game (2026-11-20) | `/ryna probe watch`, six lines in Blackfathom Deeps; the solo line (`YOU_LOOT_MONEY`) not yet seen |
 | `BOSS_KILL` did not fire for a dungeon boss whose `ENCOUNTER_START` and `ENCOUNTER_END` (success 1) both did: Ghamoo-ra, encounter 2916, Blackfathom Deeps (map 48) | Game (2026-11-20) | `/ryna probe watch`, registered for all three |
 | The fifth field of a looted corpse's GUID is **not** one value for a whole instance copy: a run that treated a different value as a new copy started over at loot windows mid-clear (Chronicle 0.7.0, the kill count going back to zero, each time on looting). Thirteen runs split that way in one Blackfathom Deeps visit carried thirteen different values (12688983, 14277873, 4359379, …), so it changes about as often as the corpse does and says nothing about the copy | Game and the API's stored events (2026-11-21) | Maddison, in a dungeon with Chronicle 0.7.0; `/ryna probe watch` prints each looted corpse's GUID from the next Chronicle release, to see how it varies |
+| The loot history is by encounter and plain: after Saltspine (encounter 3480, Excavation Site: Wetlands, map 2998) `C_LootHistory.GetSortedInfoForDrop(3480, 9193473)` gave the item's link, `winner = { playerName, playerClass = "WARLOCK", playerGUID, roll = 23, state = 0, isSelf = false, isWinner = true }` and five `rollInfos`; `CHAT_MSG_LOOT` carried each choice ("… has selected Greed for: [item]"), the winning roll ("Need Roll - 23 for [item] by …") and "… won: [item]", all plain, names included | Game (2026-11-23) | Maddison, `/ryna probe watch` and `/ryna probe loot` (Chronicle 0.7.3). Not yet seen: the inside of a `rollInfos` entry (whether a losing roll carries its number), a rolled drop from trash, the history after a `/reload` |
 | `C_AddOnProfiler` exists on Forever and answers an addon: `GetAddOnMetric(name, Enum.AddOnProfilerMetric.CountTimeOver50Ms)` per addon and `GetApplicationMetric` for the client (a session in a dungeon: AllTheThings 2, ElvUI_Libraries 8, HealBot 3, the client 28, and no Ryna addon above 0). It is the way to tell whether an addon is stalling frames | Game (2026-11-21) | Maddison's macro, asked because loot windows felt slow with Chronicle 0.7.1; the slowness was the server |
 | A dungeon boss sends an addon `ENCOUNTER_START` and `ENCOUNTER_END`: `ENCOUNTER_START 2759 "Dextren Ward" 1 5` (encounter id, name, difficulty, group size) and `ENCOUNTER_END 2759 "Dextren Ward" 1 5 1` then a table (the same four, success 1, and a sixth value that prints as a table, not yet read) | Game (2026-11-20) | Maddison's R3 macro, from her chat frame; whether registering raised a dialog, `BOSS_KILL`, and the Kills tab aren't reported yet |
 | The character sheet's reads (Chronicle 0.6.0, `Sheet.lua`; api `docs/wow.md` 19): out of combat `UnitStat`, `GetCritChance` and `UnitHealthMax` are not secret; `C_Traits.GetNodeInfo(configID, nodeID)` gives `posX`, `posY`, `activeRank`, `ranksPurchased`, `maxRanks`, `isVisible` and `groupIDs` (a node of the class tree: `9680 5730 0 0 1 true 11616`); the spellbook lists every rank known, each its own slot, with "Rank N" in both `GetSpellBookItemInfo().subName` and `C_Spell.GetSpellSubtext` (Lesser Heal 2050, 2052, 2053 in slots 18 to 20) and `GetSpellBookItemLevelLearned` (Shoot: empty subName, level 1). Not yet checked: the inactive spec's nodes through `GetCombatConfigIDForSpecGroup`, `C_CurrencyInfo.GetCurrencyListInfo`, `GetPVPLifetimeStats`, the class trainer's list | Game (2026-11-19); Blz 70959 | Maddison's probes on a level 23 priest; Blz `Blizzard_PlayerSpells/Camelot`, `Blizzard_UIPanels_Game/Camelot/PaperDollFrame.lua`, `Blizzard_TokenUI/Camelot` |

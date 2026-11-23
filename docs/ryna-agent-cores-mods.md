@@ -1511,6 +1511,12 @@ over it.
    `runDisplay = "strip" | "card" | "off"`.
 4. **Party names by setting**: with "record group members" on, a run keeps who it was with; off, only
    class, role and level. Names stay in the person's own data and never enter a pool.
+5. **Loot rolls always carry names** (2026-11-23, asked as "what loot [bosses] drop and who the winner
+   was. Need vs greed rolls too?"; "Everyone's rolls"; "Always record"): a run keeps each rolled drop
+   under its boss with the winner and every member's choice and roll, by name, whatever "record group
+   members" says. It is the one place a run names another player without that setting. The names stay
+   in the person's own data, are shown to whoever can see the character, and never enter a pool; a
+   drop never keeps a player's GUID.
 
 #### What a run is
 
@@ -1565,6 +1571,7 @@ Each a difference between entering and leaving, from things the addon already he
 | Bosses: which, when, how long, killed or wiped | `ENCOUNTER_START` and `ENCOUNTER_END` (id, name, difficulty, group size, and on the end success), which Forever's dungeons send an addon (2026-11-20: the Stockade, Blackfathom Deeps); never `BOSS_KILL`, which doesn't fire | a split is the time from entering to the boss's death |
 | Loot: drops, pieces, by quality, the ten most valuable | Chronicle's loot tally, counted per run | |
 | **What the run was worth**: coin looted, vendor value, auction value, and a total (the coin plus each item at the higher of its vendor and auction value: the two count the same items, so they are never added) | coin from `CHAT_MSG_MONEY`, plain in a dungeon (2026-11-20; in a group the share line, parsed by the client's own `LOOT_MONEY_SPLIT` and `YOU_LOOT_MONEY` patterns); vendor from the item's sell price; auction from the Prices mod's `Data/` table when Prices is on | priced when the run closes, "as of the run"; auction value absent without Prices |
+| **Drops by boss**: each item the group rolled for, who won it and with what, and every member's choice and roll (2026-11-23) | the game's own loot history (`C_LootHistory`, by encounter id, so the boss is the game's word and not a guess), re-read on `LOOT_HISTORY_UPDATE_DROP` and when the run pauses or closes | at most 60 drops and 40 rolls each; names always (her call 5); a field the client doesn't hand over plainly is left out; loot nobody rolled for (below the threshold, or trash) is only in the tally above |
 | Durability lost | the worn pieces' `dur` at entering and leaving (Chronicle 0.6.0) | the repair bill in coin is known only at a repairer; shown the next time one is open, later |
 | Deaths | `PLAYER_DEAD` | the group's wipes come from the bosses above |
 | Damage done, healing done, damage taken, over the run | the game's own meter (`C_DamageMeter`), each finished fight's session added up after combat, when the numbers are plain | absent when the meter isn't available |
