@@ -1,7 +1,7 @@
 {
   "id": "wow",
   "name": "World of Warcraft: Forever",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "api": 2,
   "apiMin": 2,
   "runtime": { "kind": "builtin" },

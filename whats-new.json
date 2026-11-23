@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.5.3",
+    "headline": "Dungeon runs now show who won each boss's loot.",
+    "items": [
+      {"where": "app", "text": "This update brings Chronicle 0.8.0: a dungeon run keeps each item the group rolled for under its boss, with who won it and what everyone chose."},
+      {"where": "app", "text": "It also brings Ryna Core 0.5.2, and the thanks on the About tab now name Rotus."}
+    ]
+  },
+  {
     "version": "0.5.2",
     "headline": "Check for updates looks for new addons too.",
     "items": [
