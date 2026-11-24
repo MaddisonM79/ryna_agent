@@ -13,7 +13,7 @@ name = "ryna-wow-app"
 path = "src/main.rs"
 
 [build-dependencies]
-tauri-build = { version = "=2.7.4", features = [] }
+tauri-build = { version = "=2.7.6", features = [] }
 
 [dependencies]
 anyhow.workspace = true
@@ -27,7 +27,7 @@ serde_json.workspace = true
 tauri = { version = "=2.12.5", features = ["tray-icon"] }
 tauri-plugin-autostart = "=2.7.0"
 tauri-plugin-dialog = "=2.8.4"
-tauri-plugin-opener = "=2.7.2"
+tauri-plugin-opener = "=2.7.3"
 # The in-app updater (GitHub Releases latest.json, minisign-verified): driven from Rust only, so
 # it has no npm package. The relaunch after a macOS install is the core AppHandle::restart.
 tauri-plugin-updater = "=2.14.1"
