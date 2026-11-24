@@ -82,9 +82,12 @@ Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm ins
   never says "see ryna.io". A feature isn't done until that view exists; a design names it first.
   The portal is the more robust form of the same thing. `docs/ryna-agent-cores-mods.md` 7.5 has
   the rule, the audit of what is owed and the order. UI gets a mockup Maddison agrees to first.
-- **The game install is read only.** Never write under `/Applications/World of Warcraft/`, and
-  never run the game. Maddison runs the in-game probes.
-- **Don't open `WTF/Account/*/SavedVariables`** or other personal files in the install.
+- **Treat the game install with care.** Reading it to troubleshoot is fine, saved variables
+  (`WTF/Account/*/SavedVariables`) included: it is Maddison's own data and often the only evidence of
+  what the addon really wrote. Keep what it holds about other players out of commits, issues and
+  anything public. Don't write under `/Applications/World of Warcraft/` while the game is running (it
+  rewrites its saved files at logout); with it closed, back a file up before changing it and check
+  the result still loads. Maddison runs the in-game probes.
 - **Palworld fixtures are scrubbed.** Nothing from a real world goes in `cores/palworld/test`: capture
   through `scripts/capture-rawdata.ts`, which scrubs names and ids before it writes. Never read the
   game's save container for a test, and never put a token in a log, an event or the state file.
