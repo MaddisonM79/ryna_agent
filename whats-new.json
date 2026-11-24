@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.5.4",
+    "headline": "Syncing can't stall on a saved file that grew too big.",
+    "items": [
+      {"where": "app", "text": "This update brings Ryna Core 0.5.3: sightings of other players are dropped from your saved file once the app has uploaded them. A long-played account's file had grown too big to sync at all."},
+      {"where": "app", "text": "It also brings Chronicle 0.8.1: a dungeon run ends when you come back to the same dungeon with another group."}
+    ]
+  },
+  {
     "version": "0.5.3",
     "headline": "Dungeon runs now show who won each boss's loot.",
     "items": [

@@ -3905,7 +3905,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "ryna"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -3917,7 +3917,7 @@ dependencies = [
 
 [[package]]
 name = "ryna-agent"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "base64 0.23.1",
  "directories",
@@ -3939,7 +3939,7 @@ dependencies = [
 
 [[package]]
 name = "ryna-satisfactory-core"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "getrandom 0.4.3",
  "reqwest 0.12.28",
@@ -3953,7 +3953,7 @@ dependencies = [
 
 [[package]]
 name = "ryna-wow-app"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "anyhow",
  "ryna-agent",
@@ -3973,7 +3973,7 @@ dependencies = [
 
 [[package]]
 name = "ryna-wow-core"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "aes-gcm",
  "anyhow",
