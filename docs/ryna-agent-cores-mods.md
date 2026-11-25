@@ -1550,6 +1550,17 @@ over it.
   one member in common, or a member the client won't name, and the run goes on: it is never cut on a
   guess. Not covered, and still merged until the 30 minutes: a new copy entered alone, or with one of the
   same people.
+- **The same group, a new copy** (2026-11-24: a full clear of Dalaran, 83 seconds outside, and the same
+  five walked back in; only the leader is told of a reset, so nothing closed the run). A dead boss can't
+  be pulled, so a boss the run killed before the character walked out, pulled after it walked back in, is
+  a new copy. The run is cut at that walk back in: what it held when it walked out closes as left then,
+  and what it gathered since is the new run, entered when it came back. For that the open run keeps
+  itself as it was at the walk back in (never in the event, on a closed run or in a view), taken only when
+  a boss was killed since the last one taken, so a wipe's walk back doesn't move the cut. Until the boss
+  is pulled the strip still shows the old run's numbers. A pull right after its own kill with no walk
+  between is still only listed again (the rule 0.7.1 dropped stays dropped). Not covered: a new copy in
+  which no boss of the old one is pulled again, and a boss killed in the new copy before a walk out and
+  the first old boss's pull moves the cut to that later walk.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
