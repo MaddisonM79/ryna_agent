@@ -1561,6 +1561,14 @@ over it.
   between is still only listed again (the rule 0.7.1 dropped stays dropped). Not covered: a new copy in
   which no boss of the old one is pulled again, and a boss killed in the new copy before a walk out and
   the first old boss's pull moves the cut to that later walk.
+- **By hand** (2026-11-25, her ask: "a right click way to reset the dungeon track"). No rule above can
+  be sure of a copy, so the player can say it: a right-click on the live strip or card opens a menu of one
+  thing, Start a new run, and `/ryna runs new` does the same. The open run closes as any run does (now,
+  or where the character walked out when it is paused) and, inside, a new one opens in the same step;
+  nothing is thrown away. A menu and not the click itself, so a stray click in a fight ends nothing; on a
+  client without the menu the first right-click asks in chat and a second within 10 seconds does it. The
+  kept run is marked `byHand` (the saved file only, never the event), so `/ryna runs forget split` doesn't
+  take it for a piece 0.7.0 cut off. The strip's hover says what a right-click does.
 - **It opens** on `PLAYER_ENTERING_WORLD` or `ZONE_CHANGED_NEW_AREA` when `IsInInstance()` says a
   party or raid instance and no open run matches.
 - **It pauses, not ends, when the character is outside**: a repair trip, a run back from the
