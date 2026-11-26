@@ -1034,7 +1034,7 @@ pages):
 | Quests | Nothing | Quests | 7.4's Quests section; the completed count per character meanwhile |
 | History: levels, deaths, zones, sessions | **History** section, levels only | History, Trends | A **History** tab: deaths, zones, sessions by day, with the week's totals |
 | Census | Four checkboxes | Population | A **Census** section in two halves, Maddison's words for them: **Your contributions** (what this account has seen and sent: counts by faction, class and level band, never names) and **Global contributions** (the realm's pooled picture, from a data file) |
-| Guild roster | Nothing (the game's own guild pane) | Guilds | With the guild stage |
+| Guild roster | Nothing (the game's own guild pane) | Guilds | 7.8's Guild section (proposal, 2026-11-26) |
 | Fights | Nothing | Logs, Fight | A **Fights** section in the manner of Details (below) |
 | Prices | Tooltip lines; `/ryna prices` | **Nothing** | An **Auctions** section over the snapshot (search, low and median, listed, age) and who sells what; and the portal owes Prices a page |
 | Automation | A status line (the chat report is off) | none | What it did this session (sold, repaired, accepted, trained), as a list in the window |
@@ -1672,6 +1672,300 @@ is what "this run against a typical one" reads in game through a `Data/` file.
 ghost and after a `/reload`; R3 whether a dungeon boss sends `ENCOUNTER_START`/`END` to an addon, and
 whether Chronicle's kills count the boss (still owed from 7.4); R4 whether experience and money are
 plain in combat; R5 the coin line; R6 whether Forever caps instances per hour.
+
+### 7.8 Guild: the roster seen in game, officers' tools, attendance (proposal, 2026-11-26)
+
+**Nothing is built.** Asked 2026-11-22 ("one for a guild management"); her picks the same day: the
+roster and activity view, officer tools, events and attendance. The bank ledger is not in it.
+
+Chronicle already scans the roster at login and every ten minutes into `RynaDB.guilds`, the app
+sends it and the portal has a Guilds page, while 7.5's table says of the game "Nothing (the game's
+own guild pane)". So most of this is the view 7.5 owes, and the new parts are what changed between
+two scans, the actions, and who came.
+
+**A mod of its own**, `Ryna-Mods/guild` (`Ryna_Guild`), `actsInGame` because of the officer tools.
+Chronicle keeps recording the roster (it is part of a character's record and the census reads it);
+Guild reads `RynaDB.guilds` and keeps its own state under `RynaDB.guild`. With Chronicle off, Guild
+says so in its section and does nothing.
+
+#### In game first (7.5)
+
+A **Guild** section of Ryna's window, three views:
+
+- **Roster.** Every member: name, rank, level, class, zone, note, online or when last on. Sorted and
+  searched in the window's own manner, by the picker for any guild a character of the account is in.
+- **Activity.** What changed between scans, newest first: joined, left, levelled, changed rank,
+  changed note, came back after N days. And **quiet**: members not seen for 14, 30, 60 and 90 days,
+  which is the list an officer prunes from. The game's own event log (`QueryGuildEventLog`,
+  `GetGuildEventInfo`, both present) says who invited, promoted or removed whom; where it answers,
+  an activity row carries it.
+- **Events.** The guild's calendar events (`C_Calendar` is there, with `GetNumGuildEvents`,
+  `GetGuildEventInfo` and sign-up events) beside the runs that were guild runs, and for each who
+  signed up and who came.
+
+The portal adds what 7.5 lets it: the roster over months, attendance per member over a season,
+every guild across the account's characters.
+
+#### Activity is a difference
+
+Each scan is compared with the last one kept for that guild, and the differences are appended to
+`RynaDB.guild.activity[guildKey]`, capped (500 rows, oldest dropped). A member is matched by GUID
+(the roster's seventeenth value, plain: `Player-6931-0067FBFD`), so a rename is not a leave and a
+join. A scan that reads fewer than half the members the last one did is not compared: the roster
+loads in pieces, and a half-loaded one would report sixty people leaving.
+
+#### Officer tools: a click each, never a batch
+
+`C_GuildInfo` has `SetNote`, `Promote`, `Demote`, `Invite`, `Uninvite` and `RemoveFromGuild`
+(2026-11-26). Which of them an addon may call from a click is **not known**: none has been called.
+The rule is Ryna's already: an addon reacts to the player's action and never manufactures one. So:
+
+- A member's row has the actions the player's rank allows (`CanEditPublicNote`, `CanGuildPromote`,
+  `CanGuildDemote`, `CanGuildRemove`, `CanGuildInvite`, and `C_GuildInfo.CanEditOfficerNote`), and
+  each is one click on one member, with the game's own confirmation for a removal.
+- The quiet list makes pruning quick (a Remove button down the list) and never does it for the
+  player. No "remove all 90 days quiet".
+- A call the client refuses an addon becomes "open the game's guild pane on this member" instead.
+- Nothing here runs unasked, so the mod's `actsInGame` wording says: "changes your guild only when
+  you click".
+
+#### Attendance
+
+A run (7.7) is a **guild run** when the player marks it so on the run card, or when most of its
+group were on the roster as it started (three of five counts, two doesn't). A guild run
+keeps which roster members were in it, by GUID, whatever "record group members" says: the roster
+already names them, and attendance without names is nothing. A calendar event is matched to the
+guild runs that started within its evening. Attendance per member is then runs attended out of
+guild runs held while they were on the roster.
+
+**Sharing it between officers** is the only new server work: attendance is each officer's own
+record until the portal's Guilds page pools the guild runs of everyone in that guild who runs Ryna
+(the same run from two members is one run, by instance, start and group). Later than the view.
+
+#### What it records about other people
+
+The roster as today (7.5, the README), plus the differences between rosters, plus which members
+were in the player's own guild runs. All of it is what a guild member sees in the guild pane and in
+their own group. It is sent with the character as the roster is. Officer notes are kept only for a
+character who may see them, as now, and are shown on the portal only to that account.
+
+#### Owed in game
+
+G1 each acting call from a click, on an alt of Maddison's with a rank that may: `SetNote`,
+`Promote`, `Demote`, `Invite`, `Uninvite`; which raise the "blocked" dialog. G2 what
+`QueryGuildEventLog` and `GetGuildEventInfo` answer. G3 a guild calendar event read back:
+`GetNumGuildEvents`, `GetGuildEventInfo`, and the sign-ups. G4 whether the roster's GUID for a member
+equals `UnitGUID` of the same member in a party.
+
+#### Hers to call
+
+- The bank ledger: left out (not picked). Say if it should be the fourth view.
+- The quiet thresholds (14, 30, 60, 90 days) and the guild-run rule (most of the group).
+- Whether attendance is shown to every member of the guild on the portal, or to officers only.
+
+### 7.9 Vouch: what a group says of the people it played with (proposal, 2026-11-26)
+
+**Nothing is built, and this changes Ryna's rules, so it is written here first.** "Vouch" is a
+working name, hers to change. Asked 2026-11-22 ("player reporting and tracking"), and in her words:
+"a player reporting/tracking system that is community driven. Lets say i go in a group and need on
+5 items, all 1h weapons and say 'im a fury warrior' that is shitty of me. this gives players a way
+to help the community know if someone is bad or not. we can then allow players to see their own
+ratings and comments (not who sent them though) about them."
+
+#### What it changes, on purpose
+
+Three lines that held until now, each moved knowingly:
+
+1. 7.5: "nothing about another player is looked up or listed in game". With Vouch a player's tags
+   show on their tooltip and when they join the group.
+2. The README's "What leaves your computer": the addon now sends to other players (a short code
+   over the addon channel), and what a group member did in a run goes to the API with a tag.
+3. The census "names no one in its numbers", and its lookup shows what `/who` would. Vouch is a
+   named record about a character, shown to anyone signed in to Ryna.
+
+What stays: nothing is sold or published, nothing is on the open internet or in a search engine,
+every lookup has an account behind it and is logged, chat is never read, and the raw record of
+what someone did is never shown to anyone but that person.
+
+#### Her calls (2026-11-22 to 2026-11-26)
+
+1. **Tags only, no free text** ("i concede the text field. that will be ugggggg"). Positive and
+   negative.
+2. **Weighted from the first report**, not hidden until three people agree ("requiring 3 people to
+   be corroborated is rough").
+3. **The facts go to the server** and are used for the scoring; what is shown out is less than
+   what is used ("we need be careful here on what is shown out vs what is used internally").
+4. **A person sees what is recorded about them**, tags and the events behind them, once the
+   character is tied to their account, 47 hours after an event lands; the score itself moves in
+   "near real time".
+5. **Everyone else sees the tag, its band and an impact chip**: "the community should know why
+   someone might be low scored". Everyone else means anyone signed in to Ryna, not the open internet.
+6. **An event leaves when it leaves the score.** Nothing is kept past its use.
+7. **Ownership is proved in game or confirmed by the admin**, and shown as two flags, not one.
+8. **No disputes in the first version.** We can't authenticate a removal request either (the
+   README says so already of the census), so the weights and the decay are the remedy.
+
+#### The tags
+
+Wording describes what happened in groups, never what a person is.
+
+| Tag | Kind | The facts behind it | From |
+|---|---|---|---|
+| Needs on gear they can't use | negative | Need rolls on items the character's class can't equip, or that are no upgrade path for it (a count per run) | the run's drops, which already keep every roll (7.7, 2026-11-23) |
+| Often inactive in groups | negative | fights taken part in out of fights held; minutes away or offline; minutes not casting during fights | the meter's session per fight; `UnitIsAFK`, `UnitIsConnected`; `UNIT_SPELLCAST_SUCCEEDED` counted per member |
+| Leaves runs early | negative | left before the last boss, or before the run closed, and how far in | the group roster over the run |
+| Pulls threat off the tank | negative | taunts cast by a member who isn't the tank; time a non-tank held a boss | the combat log file, by the agent after the run; threat alone is weak evidence and never enough |
+| Versatile | positive | a healer's damage, a damage dealer's healing, interrupts and dispels, as shares of the group's | the meter's session per fight |
+| Good at their role | positive | none | the reporter's view |
+| Patient and helpful | positive | none | the reporter's view |
+| Led the group well | positive | none | the reporter's view |
+| Fair with loot | positive | passed on what another could use (a count) | the run's drops |
+
+Not in it: anything said in chat, and where someone stood on the damage meter. "Unkind to the
+group" was offered and not picked: nothing but chat could back it.
+
+**The numbers never apply a tag.** A healer in an easy run heals little, and someone boosting a
+friend's alt is passive by design. A person picks the tag; the facts attach as evidence.
+
+#### In game first (7.5)
+
+- **The run card's summary** gains a row a group member: their class and role, and the tags as
+  buttons, two clicks to vouch or report. Picking a tag shows that member's facts for the run
+  beside it (the reporter sees them, on their own machine, and only after picking). It can be done
+  from Dungeons › Runs for seven days after.
+- **A tooltip line** on a player: their confirmed and likely tags, the strongest two, with the band.
+- **A line when the group forms or someone joins**: "1 member: needs on gear they can't use
+  (likely)". One line, once a member, and it is off in combat.
+- **A Vouch section of the window**: *About you* (the player's own characters: tags, bands, impact
+  chips, and the events once 47 hours old), *Your reports* (what this account has sent, and whether
+  each counted), and *This group* (the members now, with their tags).
+- Pooled tags reach the game through the data layer (`Data/vouch.lua`, 7): only characters with a
+  tag at "unconfirmed" or above on this realm, "as of" the file's time, which the section shows.
+
+The portal adds a character's page (the tags, bands and chips; for the owner the events), history
+over time, and the admin's confirmations.
+
+#### A report, and what makes it count
+
+A report is: the reporter's account and character, the run (7.7's record, already sent), the
+member's GUID, a tag, and the facts for that member in that run.
+
+- **The run was real.** Ryna clients in a group exchange a token over the addon channel when the
+  group forms (`SendAddonMessage` on `PARTY` delivers in a dungeon, with a plain sender, 2026-11-26).
+  A run two Ryna clients both recorded with the same token is **witnessed**; a run only the reporter
+  recorded is **unwitnessed** and counts half. The rated person needs no Ryna.
+- **One report a tag, a member, a run, an account.** A second replaces the first.
+- **A reporter can't report their own characters**, by the account's own character list.
+- **Facts are checked where there are two records**: both clients' meters for the same fights.
+  Where they disagree by more than a tenth the facts don't count, and the report is opinion only.
+
+#### The weights (Nyx's proposal, hers to tune)
+
+Each report is worth 1 reporter, 1.5 with facts that held, and half of that unwitnessed.
+
+| Reporter-equivalents | Confidence | Band shown |
+|---|---|---|
+| 1 | 20% | Unconfirmed |
+| 2 | 45% | Likely |
+| 3 | 70% | Likely |
+| 4 | 85% | Confirmed |
+| 5 | 95% | Confirmed |
+| 6 or more | 99% | Confirmed |
+
+- **One run counts as 2 at most**, 3 when facts back it. A single run can reach "likely" and never
+  "confirmed": four friends in one premade must not be able to mark someone for good.
+- **Decay**: full weight for 30 days, then a straight line to nothing at day 90. At nothing the
+  report, its facts and its events are deleted (her call 6).
+- **The impact chip** is minor, moderate or major, from the tag's confidence and how recent it is.
+  Steps, not a number: an exact figure that ticks up would tell the owner the moment a second person
+  reported.
+- **One overall score** is not designed. Open below.
+
+#### Shown, and used
+
+| | Holds | Seen by |
+|---|---|---|
+| Raw facts | "9 of 12 fights", "away 14 minutes", the rolls | the reporter on their own run card; the server |
+| Events | the same, said without the run: "needed on 5 items your class can't equip", "sat out 3 of 12 fights". No date, no dungeon, no group size; merged once two runs contribute | the character's owner, 47 hours after they land |
+| The tag, its band, its impact chip | "needs on gear they can't use: likely, moderate" | anyone signed in to Ryna, in game and on the portal |
+
+Honest limit: the score moves in near real time, so someone who watches their tooltip knows which
+night it dropped, and the reporter is one of four people. Hiding the sender doesn't hide the run.
+The 47 hours buys a cooling-off, not secrecy.
+
+#### Whose character it is
+
+The owner's view shows more than the public one, so "this character is in my saved file" is not
+enough: the file can be edited.
+
+- **Proved in game.** The account gets a one-time code in a data file the agent writes. Logged in
+  as the character, the addon sends it over party or guild. Any other Ryna client that hears it
+  reports "this code came from `Maddiep Ryna`": the game stamps the sender, and an addon can't forge
+  it. The server ties the character to the account. Names are compared with the separator
+  normalised: the stamp has a space, `UnitFullName` gives the two parts, a whisper wants a hyphen.
+- **Confirmed by the admin**, until there are enough Ryna users for the first to be easy: the
+  portal's Admin shows a claim with what the API knows (hours played growing over days, levels, gold
+  and zones in a believable order, one computer, no other claim, and other accounts' census
+  sightings agreeing, which is the one signal the claimant can't write), and Maddison confirms it.
+  Revocable. A second claim on a character freezes both.
+- **Two flags**, `adminConfirmed` and `gameConfirmed`, each true or false, shown as they are. Either
+  opens the owner's view. Neither: the public view only.
+
+#### What the server holds, and for how long
+
+Per report: accounts, the run, the member's GUID and name, the tag, the facts. Until the report's
+weight is nothing (90 days), then deleted. Aggregates per character and tag live as long as one
+report under them does. Nothing about a character with no live report. The lookup log as the
+census's.
+
+#### Abuse, and what answers it
+
+| Someone | Answered by |
+|---|---|
+| edits the saved file to invent a run | unwitnessed runs count half; one run caps at 2; nothing confirms without a second run |
+| brings friends to mark a person | the same cap: one run, however many in it, can't confirm |
+| makes accounts to report one person | a report needs a run with that person in it, recorded by an account's own character; a sign-in each |
+| reports everyone they meet | a reporter whose reports are never matched by anyone else's is weighed down (later; counted from the start) |
+| claims another's character to read their events | the two confirmations above |
+| sends our prefix to fake a code | the code is the account's own and one-time; the sender is the game's stamp |
+
+#### Where it lives
+
+A mod of its own, `Ryna-Mods/vouch` (`Ryna_Vouch`), off until turned on, needing Chronicle for runs
+and drops. Whether its `actsInGame` is true is a wording question: it sends addon messages, and
+6's wording has to say so. The API gets a route section in `docs/wow.md`, the portal a page, the
+connector nothing at first.
+
+#### Stages
+
+1. **Local.** Tags and facts on the run card, the reporter's own notebook, tooltips from it. Nothing
+   sent. Useful with one user, and it is where the facts get proved against real runs.
+2. **Guild.** Reports shared among guildmates over the guild channel, shown as "3 guildmates". No
+   server. Useful with five users.
+3. **The pool.** Everything above: the handshake, the API, the weights, the owner's view, the admin's
+   confirmation, the portal page. The README's contract changes in the same release.
+
+#### Owed before any of it
+
+- V1 **Blizzard's view.** Only the 2009 add-on policy was found (free, readable, no harm to realms
+  or other players, Blizzard may disable any function), and no ruling on shared rating addons;
+  Forever restricts addons that "automate communications". A question to WoWUI@blizzard.com is
+  hers to send. A no ends stage 3 and leaves stage 1.
+- V2 addon messages **in combat** and in a raid (all four probes were out of combat).
+- V3 which items a class "can't use": the proficiency table, and whether "no upgrade path" can be
+  said at all without guessing a spec. Start with can't equip, which is certain.
+- V4 minutes not casting: `UNIT_SPELLCAST_SUCCEEDED` arrives for party members with the spell
+  hidden; whether it is steady enough to count, across a whole run.
+
+#### Hers to call
+
+- The name.
+- The numbers: the table, the cap of 2, the 30 and 90 days, the half for unwitnessed.
+- Whether there is one overall score, and what it is made of.
+- Whether the tag list is fixed by her or grows by vote.
+- Whether a person can opt out of being shown at all (it would be honoured for a confirmed owner
+  only, which is the same wall as a removal request).
+- Stage 2's reach: guildmates only, or friends too.
 
 ## 8. Identity
 
