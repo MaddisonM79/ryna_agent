@@ -1676,7 +1676,7 @@ plain in combat; R5 the coin line; R6 whether Forever caps instances per hour.
 ### 7.8 Guild: the roster seen in game, officers' tools, attendance (proposal, 2026-11-26)
 
 **Nothing is built.** Asked 2026-11-22 ("one for a guild management"); her picks the same day: the
-roster and activity view, officer tools, events and attendance. The bank ledger is not in it.
+roster and activity view, officer tools, events and attendance. The bank ledger comes later.
 
 Chronicle already scans the roster at login and every ten minutes into `RynaDB.guilds`, the app
 sends it and the portal has a Guilds page, while 7.5's table says of the game "Nothing (the game's
@@ -1759,9 +1759,15 @@ equals `UnitGUID` of the same member in a party.
 
 #### Settled, and taken as read (2026-11-26)
 
-The proposal as written (Maddison: "everything is ok"): no bank ledger, the quiet thresholds (14,
-30, 60, 90 days) and the guild-run rule (most of the group). Taken as the first version's answer,
-hers to change: **attendance on the portal is shown to officers only**, the narrower of the two.
+The proposal as written (Maddison: "everything is ok"): the quiet thresholds (14, 30, 60, 90 days)
+and the guild-run rule (most of the group). Her answers to the either-ors (question cards, the same
+day):
+
+- **Each guild chooses who sees attendance** on the portal: officers only until the guild master
+  opens it to every member. In game a person sees their own runs either way.
+- **The bank ledger is the planned fourth view**, not in the first version: what went in and out
+  and who moved it, from the bank's own log. The section leaves room for it, and it needs probes of
+  its own (what the bank log tells an addon).
 
 ### 7.9 Verity: what a group says of the people it played with (proposal, 2026-11-26)
 
@@ -1964,13 +1970,19 @@ Settled by Maddison: the name, Verity; no question to Blizzard; and the proposal
 ("everything is ok"), which settles the numbers: the table, the cap of 2 (3 with facts), 30 and 90
 days, and half for an unwitnessed run.
 
-Taken as the first version's answer where the proposal asked an either-or, each hers to change:
+Her answers to the either-ors (question cards, 2026-11-26):
 
-- **No overall score.** Tags, bands and chips only.
+- **Tags plus a simple standing**, one word that sums the tags up, and no number. Nyx's first cut,
+  hers to reword: **Well regarded** (a confirmed positive tag and no negative one at likely or
+  above), **Caution** (a confirmed negative tag and no confirmed positive one), **Mixed** (both),
+  and no standing at all while every tag is unconfirmed or there are none: one report never makes
+  a standing.
 - **The tag list is fixed**, by her.
 - **No opt-out** from being shown (it could only be honoured for a confirmed owner, the same wall
   as a removal request).
-- **Stage 2 reaches guildmates only.**
+- **Stage 2 reaches guildmates and friends**: over the guild channel, and by whisper to friends
+  who run Ryna (a whisper is addressed `First-Last`, and one that isn't delivered says nothing, so
+  a friend is asked first whether Ryna answers). Shown as "3 guildmates, 1 friend".
 
 ## 8. Identity
 
