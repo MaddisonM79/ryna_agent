@@ -95,8 +95,11 @@ Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm ins
   row, nothing in Settings or About.
 - **Installed third-party addons are evidence, never a source.** Note their licence, and never
   copy their code.
-- **Never record anything about another person** beyond what the docs already allow: nothing about
-  sellers or bidders, and per-listing auction rows never leave the client.
+- **Other people's data: take what the purpose needs and leave the rest.** The aim is that nobody's
+  play is exposed, sold or published. What is kept or sent about another player is what the docs
+  allow (so nothing about sellers or bidders, and per-listing auction rows stay on the client);
+  reading more to troubleshoot or build is fine, and keeping or sending more is a design change,
+  written into the docs first.
 - **A new translatable string** goes in its addon's `Locales/enUS.lua`. The strings check fails
   otherwise.
 - **What's new is written once**, in `whats-new.json` at the root (docs 9.2): a change a player
@@ -113,4 +116,4 @@ Palworld core (`.github/workflows/palworld.yml`), in `cores/palworld`: `pnpm ins
   is never changed. `agent/README.md` "Who can release" has the whole of it. Every `uses:` is
   pinned to a commit SHA; Dependabot opens PRs on Tuesdays.
 
-<!-- global: v2, reviewed 2026-11-14 -->
+<!-- global: v3, reviewed 2026-11-26 -->
