@@ -1757,16 +1757,16 @@ G1 each acting call from a click, on an alt of Maddison's with a rank that may: 
 `GetNumGuildEvents`, `GetGuildEventInfo`, and the sign-ups. G4 whether the roster's GUID for a member
 equals `UnitGUID` of the same member in a party.
 
-#### Hers to call
+#### Settled, and taken as read (2026-11-26)
 
-- The bank ledger: left out (not picked). Say if it should be the fourth view.
-- The quiet thresholds (14, 30, 60, 90 days) and the guild-run rule (most of the group).
-- Whether attendance is shown to every member of the guild on the portal, or to officers only.
+The proposal as written (Maddison: "everything is ok"): no bank ledger, the quiet thresholds (14,
+30, 60, 90 days) and the guild-run rule (most of the group). Taken as the first version's answer,
+hers to change: **attendance on the portal is shown to officers only**, the narrower of the two.
 
-### 7.9 Vouch: what a group says of the people it played with (proposal, 2026-11-26)
+### 7.9 Verity: what a group says of the people it played with (proposal, 2026-11-26)
 
-**Nothing is built, and this changes Ryna's rules, so it is written here first.** "Vouch" is a
-working name, hers to change. Asked 2026-11-22 ("player reporting and tracking"), and in her words:
+**Nothing is built, and this changes Ryna's rules, so it is written here first.** It is named **Verity**
+(Maddison, 2026-11-26). Asked 2026-11-22 ("player reporting and tracking"), and in her words:
 "a player reporting/tracking system that is community driven. Lets say i go in a group and need on
 5 items, all 1h weapons and say 'im a fury warrior' that is shitty of me. this gives players a way
 to help the community know if someone is bad or not. we can then allow players to see their own
@@ -1776,11 +1776,11 @@ ratings and comments (not who sent them though) about them."
 
 Three lines that held until now, each moved knowingly:
 
-1. 7.5: "nothing about another player is looked up or listed in game". With Vouch a player's tags
+1. 7.5: "nothing about another player is looked up or listed in game". With Verity a player's tags
    show on their tooltip and when they join the group.
 2. The README's "What leaves your computer": the addon now sends to other players (a short code
    over the addon channel), and what a group member did in a run goes to the API with a tag.
-3. The census "names no one in its numbers", and its lookup shows what `/who` would. Vouch is a
+3. The census "names no one in its numbers", and its lookup shows what `/who` would. Verity is a
    named record about a character, shown to anyone signed in to Ryna.
 
 What stays: nothing is sold or published, nothing is on the open internet or in a search engine,
@@ -1830,16 +1830,16 @@ friend's alt is passive by design. A person picks the tag; the facts attach as e
 #### In game first (7.5)
 
 - **The run card's summary** gains a row a group member: their class and role, and the tags as
-  buttons, two clicks to vouch or report. Picking a tag shows that member's facts for the run
+  buttons, two clicks to commend or report. Picking a tag shows that member's facts for the run
   beside it (the reporter sees them, on their own machine, and only after picking). It can be done
   from Dungeons › Runs for seven days after.
 - **A tooltip line** on a player: their confirmed and likely tags, the strongest two, with the band.
 - **A line when the group forms or someone joins**: "1 member: needs on gear they can't use
   (likely)". One line, once a member, and it is off in combat.
-- **A Vouch section of the window**: *About you* (the player's own characters: tags, bands, impact
+- **A Verity section of the window**: *About you* (the player's own characters: tags, bands, impact
   chips, and the events once 47 hours old), *Your reports* (what this account has sent, and whether
   each counted), and *This group* (the members now, with their tags).
-- Pooled tags reach the game through the data layer (`Data/vouch.lua`, 7): only characters with a
+- Pooled tags reach the game through the data layer (`Data/verity.lua`, 7): only characters with a
   tag at "unconfirmed" or above on this realm, "as of" the file's time, which the section shows.
 
 The portal adds a character's page (the tags, bands and chips; for the owner the events), history
@@ -1859,7 +1859,7 @@ member's GUID, a tag, and the facts for that member in that run.
 - **Facts are checked where there are two records**: both clients' meters for the same fights.
   Where they disagree by more than a tenth the facts don't count, and the report is opinion only.
 
-#### The weights (Nyx's proposal, hers to tune)
+#### The weights (Nyx's numbers, accepted 2026-11-26: "everything is ok")
 
 Each report is worth 1 reporter, 1.5 with facts that held, and half of that unwitnessed.
 
@@ -1931,7 +1931,7 @@ census's.
 
 #### Where it lives
 
-A mod of its own, `Ryna-Mods/vouch` (`Ryna_Vouch`), off until turned on, needing Chronicle for runs
+A mod of its own, `Ryna-Mods/verity` (`Ryna_Verity`), off until turned on, needing Chronicle for runs
 and drops. Whether its `actsInGame` is true is a wording question: it sends addon messages, and
 6's wording has to say so. The API gets a route section in `docs/wow.md`, the portal a page, the
 connector nothing at first.
@@ -1947,25 +1947,30 @@ connector nothing at first.
 
 #### Owed before any of it
 
-- V1 **Blizzard's view.** Only the 2009 add-on policy was found (free, readable, no harm to realms
-  or other players, Blizzard may disable any function), and no ruling on shared rating addons;
-  Forever restricts addons that "automate communications". A question to WoWUI@blizzard.com is
-  hers to send. A no ends stage 3 and leaves stage 1.
+- V1 **Blizzard's view: not asked** (Maddison, 2026-11-26: "We are not emailing blizzard"). What was
+  found: only the 2009 add-on policy (free, readable, no harm to realms or other players, Blizzard
+  may disable any function), no ruling on shared rating addons, and that Forever restricts addons
+  that "automate communications". So the risk is carried knowingly: Blizzard can switch a function
+  off, and stage 1 would stand without the addon channel or the pool.
 - V2 addon messages **in combat** and in a raid (all four probes were out of combat).
 - V3 which items a class "can't use": the proficiency table, and whether "no upgrade path" can be
   said at all without guessing a spec. Start with can't equip, which is certain.
 - V4 minutes not casting: `UNIT_SPELLCAST_SUCCEEDED` arrives for party members with the spell
   hidden; whether it is steady enough to count, across a whole run.
 
-#### Hers to call
+#### Settled, and taken as read (2026-11-26)
 
-- The name.
-- The numbers: the table, the cap of 2, the 30 and 90 days, the half for unwitnessed.
-- Whether there is one overall score, and what it is made of.
-- Whether the tag list is fixed by her or grows by vote.
-- Whether a person can opt out of being shown at all (it would be honoured for a confirmed owner
-  only, which is the same wall as a removal request).
-- Stage 2's reach: guildmates only, or friends too.
+Settled by Maddison: the name, Verity; no question to Blizzard; and the proposal as written
+("everything is ok"), which settles the numbers: the table, the cap of 2 (3 with facts), 30 and 90
+days, and half for an unwitnessed run.
+
+Taken as the first version's answer where the proposal asked an either-or, each hers to change:
+
+- **No overall score.** Tags, bands and chips only.
+- **The tag list is fixed**, by her.
+- **No opt-out** from being shown (it could only be honoured for a confirmed owner, the same wall
+  as a removal request).
+- **Stage 2 reaches guildmates only.**
 
 ## 8. Identity
 
