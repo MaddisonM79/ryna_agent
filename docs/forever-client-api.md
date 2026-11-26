@@ -265,14 +265,18 @@ Each entry: what we expected, what Forever does, how we know, what to do.
 - **Forever**: no roster API change is listed against 12.1.5 (W160), so `C_GuildInfo.GuildRoster`
   and `GetGuildRosterInfo` should behave as on retail; Forever adds preferred-play-settings
   functions (W160). Chronicle's guild scan has run on Forever (Team, `cores/wow/addon/README.md`
-  "refreshed at login and every 10 minutes"). Return order of `GetGuildRosterInfo`: **unknown on
-  Forever**, read by position with care.
+  "refreshed at login and every 10 minutes"). `GetGuildRosterInfo` answers in retail's order
+  (2026-11-26, "Verified facts"), the name written `First Last` with a space.
 
 ### Group, units and names
 
 - Names: a Forever character has a first and last name, and the last name sits where the realm
   goes (ElvUI `Game/Shared/General/Core.lua:70`; Pawn `Pawn.lua:588`, "unique across all
   rulesets/realms"). Ryna already uses `First-Last` (Team `cores/wow/addon/README.md`).
+  `UnitFullName("player")` gives the two apart (`Maddiep`, `Ryna`), but the game writes a name
+  with a **space** where it stamps one: the guild roster's name and an addon message's sender are
+  `First Last`. A whisper is addressed `First-Last` (2026-11-26, "Verified facts"). Compare names
+  with the separator normalised.
 - GUIDs: "the server ID and spawn ID portions of creature, vehicle, pet and game
   object GUIDs have been replaced with obfuscated values" (blue post 2026-10-16 in W160).
   **Verified in game (Team, 2026-11-08)**: `UnitGUID("target")` on one Defias Cutpurse, three times
@@ -525,6 +529,8 @@ Each entry: what we expected, what Forever does, how we know, what to do.
   "Trial accounts can no longer send addon messages" (blue post 2026-10-08 in W160). In dungeons
   and raids chat is in messaging lockdown and chat text can be secret (WSV;
   `C_ChatInfo.InChatMessagingLockdown`, retail docs).
+- **Addon messages deliver on Forever** (2026-11-26, "Verified facts"): party, guild and whisper,
+  inside a dungeon out of combat, with the sender plain. Not yet seen: in combat, and a raid.
 
 ### SavedVariables and `AddOns.txt`
 
@@ -600,6 +606,11 @@ docs; "Addons" means seen in the installed Forever addons. All dated 2026-11-08 
 | `C_AddOnProfiler` exists on Forever and answers an addon: `GetAddOnMetric(name, Enum.AddOnProfilerMetric.CountTimeOver50Ms)` per addon and `GetApplicationMetric` for the client (a session in a dungeon: AllTheThings 2, ElvUI_Libraries 8, HealBot 3, the client 28, and no Ryna addon above 0). It is the way to tell whether an addon is stalling frames | Game (2026-11-21) | Maddison's macro, asked because loot windows felt slow with Chronicle 0.7.1; the slowness was the server |
 | A dungeon boss sends an addon `ENCOUNTER_START` and `ENCOUNTER_END`: `ENCOUNTER_START 2759 "Dextren Ward" 1 5` (encounter id, name, difficulty, group size) and `ENCOUNTER_END 2759 "Dextren Ward" 1 5 1` then a table (the same four, success 1, and a sixth value that prints as a table, not yet read) | Game (2026-11-20) | Maddison's R3 macro, from her chat frame; whether registering raised a dialog, `BOSS_KILL`, and the Kills tab aren't reported yet |
 | The character sheet's reads (Chronicle 0.6.0, `Sheet.lua`; api `docs/wow.md` 19): out of combat `UnitStat`, `GetCritChance` and `UnitHealthMax` are not secret; `C_Traits.GetNodeInfo(configID, nodeID)` gives `posX`, `posY`, `activeRank`, `ranksPurchased`, `maxRanks`, `isVisible` and `groupIDs` (a node of the class tree: `9680 5730 0 0 1 true 11616`); the spellbook lists every rank known, each its own slot, with "Rank N" in both `GetSpellBookItemInfo().subName` and `C_Spell.GetSpellSubtext` (Lesser Heal 2050, 2052, 2053 in slots 18 to 20) and `GetSpellBookItemLevelLearned` (Shoot: empty subName, level 1). Not yet checked: the inactive spec's nodes through `GetCombatConfigIDForSpecGroup`, `C_CurrencyInfo.GetCurrencyListInfo`, `GetPVPLifetimeStats`, the class trainer's list | Game (2026-11-19); Blz 70959 | Maddison's probes on a level 23 priest; Blz `Blizzard_PlayerSpells/Camelot`, `Blizzard_UIPanels_Game/Camelot/PaperDollFrame.lua`, `Blizzard_TokenUI/Camelot` |
+| Addon messages deliver: inside a dungeon, out of combat (`InChatMessagingLockdown()` false), `C_ChatInfo.RegisterAddonMessagePrefix` answered 0 (1 when already registered) and `SendAddonMessage` answered 0 on `PARTY`, `GUILD` and `WHISPER`; each arrived as `CHAT_MSG_ADDON` at once with a plain sender written with a space, `"Maddiep Ryna"`, where `UnitFullName("player")` gives `Maddiep`, `Ryna`. A whisper addressed `Maddiep-Ryna` arrived; one addressed `Maddiep` answered 0 too and never arrived, three times: the send's answer doesn't prove delivery. Unknown: in combat, a raid | Game (2026-11-26) | Maddison, `/ryna probe comms` (Chronicle 0.8.4) |
+| Party members inside a dungeon, the same in and out of combat: `UnitName` and `UnitGUID` plain; `UnitIsAFK`, `UnitIsConnected`, `UnitIsVisible`, `UnitIsDeadOrGhost`, `UnitGroupRolesAssigned` and `UnitLevel` plain (`UnitIsVisible` false for one member away from the rest); `UnitInRange` secret, both values, even out of combat | Game (2026-11-26) | Maddison, `/ryna probe group` |
+| `UNIT_SPELLCAST_SUCCEEDED` reaches an addon for `party1` to `party4` with the unit plain and the spell id and cast GUID secret: an addon learns that a member cast and when, never what. What was cast is in the combat log file only | Game (2026-11-26) | Maddison, `/ryna probe casts` |
+| The damage meter's sessions: the current one (session type 1) read seconds after a fight, out of combat, has every source's `name`, `sourceGUID`, `classFilename` and `totalAmount` plain, for damage done, healing done, absorbs and damage taken; an enemy source has a name and no GUID or class. The overall one (type 0) is not the run: 66 and then 68 sources over 30,133 seconds for a party of five, and there every other player's name is secret while class and amount are plain. `Enum.DamageMeterType` is DamageDone 0, Dps 1, HealingDone 2, Hps 3, Absorbs 4, Interrupts 5, Dispels 6, DamageTaken 7, AvoidableDamageTaken 8, Deaths 9, EnemyDamageTaken 10; the Dps and Hps sessions carry the same `totalAmount` as the done ones; `IsDamageMeterAvailable()` gave `true` and an empty string | Game (2026-11-26) | Maddison, `/ryna probe meter` (Chronicle 0.7.4 and 0.8.4) |
+| The guild: `GetGuildRosterInfo(i)` answers in retail's order: name (`First Last`), rank name, rank index, level, class, zone, note, officer note, online, status, class file name, -1, 4, false, false, 3, GUID (`Player-6931-0067FBFD`). `C_GuildInfo` has `SetNote`, `Promote`, `Demote`, `Invite`, `Uninvite`, `RemoveFromGuild`, `SetGuildRankOrder`, `GetGuildNewsInfo`, `IsGuildOfficer`, `MemberExistsByName`, `CanViewOfficerNote` and `CanEditOfficerNote` (the last two are not globals); the globals `GuildPromote`, `GuildDemote`, `GuildUninvite`, `GuildInvite`, `SetGuildMemberRank`, `QueryGuildEventLog`, `GetNumGuildEvents`, `GetGuildEventInfo`, `GetGuildRosterLastOnline`, `CanEditPublicNote`, `CanGuildPromote`, `CanGuildDemote`, `CanGuildRemove` and `CanGuildInvite` exist, `GuildRosterSetPublicNote` and `GuildRosterSetOfficerNote` don't. `C_Calendar` (90 functions) has `OpenCalendar`, `GetNumDayEvents`, `GetNumGuildEvents`, `GetGuildEventInfo`, `CreateGuildSignUpEvent` and `EventGetInvite`; `C_Club` exists. Unknown: which of the acting calls an addon may make from a click (none was called) | Game (2026-11-26) | Maddison, `/ryna probe guild` (Chronicle 0.7.4) |
 
 ## How to probe
 
