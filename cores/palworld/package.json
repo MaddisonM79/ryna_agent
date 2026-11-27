@@ -1,6 +1,6 @@
 {
   "name": "ryna-palworld-core",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "description": "Ryna's Palworld core: parses the Mac App Store Palworld saves and pushes snapshots, run by the Ryna agent as a sidecar.",
   "license": "MIT",

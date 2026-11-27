@@ -15,6 +15,20 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "0.5.5",
+    "headline": "A new mod, Guild, and every Ryna command in the minimap menu.",
+    "items": [
+      {
+        "where": "app",
+        "text": "A new mod, Guild, off until you turn it on in Mods: your guild's roster in Ryna's window, what changed (who joined, left, levelled or changed rank) and who has gone quiet. It only shows; nothing in it changes your guild."
+      },
+      {
+        "where": "app",
+        "text": "This update brings Ryna Core 0.5.4: the minimap button wears Ryna's own icon, and its menu lists every /ryna command, so there is nothing to remember."
+      }
+    ]
+  },
+  {
     "version": "0.5.4",
     "headline": "Syncing can't stall on a saved file that grew too big.",
     "items": [
