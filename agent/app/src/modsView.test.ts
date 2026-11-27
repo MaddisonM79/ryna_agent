@@ -89,6 +89,13 @@ group("the Mods tab's grid", () => {
     expect(rows(html)).toHaveLength(2);
   });
 
+  it("marks a mod the addon index introduced as new, and no other", async () => {
+    const html = await render([mod("chronicle", "0.4.0"), mod("verity", null, { learned: true, defaultOn: false, on: false })]);
+    const [chronicle, verity] = rows(html);
+    expect(verity).toContain(">New<");
+    expect(chronicle).not.toContain(">New<");
+  });
+
   it("keeps the words that were there", async () => {
     const html = await render(OLD);
     expect(html).toContain("This mod acts in the game for you.");

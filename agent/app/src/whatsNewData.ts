@@ -15,6 +15,16 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "next",
+    "headline": "New mods arrive without waiting for a new Ryna.",
+    "items": [
+      {
+        "where": "app",
+        "text": "A new mod now shows up in Mods by itself, marked New, without an update of the app. It is always off until you turn it on."
+      }
+    ]
+  },
+  {
     "version": "0.5.5",
     "headline": "A new mod, Guild, and every Ryna command in the minimap menu.",
     "items": [

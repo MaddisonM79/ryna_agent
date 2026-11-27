@@ -23,8 +23,8 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
-use ryna_agent::mods::{ModManifest, ModSource};
-use serde::Serialize;
+use ryna_agent::mods::{ModManifest, ModSource, Requires};
+use serde::{Deserialize, Serialize};
 
 use crate::addon_install::{self, compare_versions, ADDON_NAME};
 use crate::discovery::Install;
@@ -70,6 +70,79 @@ pub fn bundled() -> &'static [ModManifest] {
             })
             .collect()
     })
+}
+
+/// Beside the folders the app installs from, when some came from the addon index: the mods among
+/// them that this build doesn't carry ([`crate::addon_store`] writes it as it lays them out).
+pub const LEARNED_FILE: &str = ".mods.json";
+
+/// A mod this build of the app was never told about, as the signed addon index describes it
+/// (docs 6.2, "A mod the app doesn't carry").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Learned {
+    pub id: String,
+    pub name: String,
+    pub summary: String,
+    #[serde(default)]
+    pub acts_in_game: bool,
+    pub folder: String,
+    pub version: String,
+    pub api: u32,
+}
+
+/// The mods the index introduced, read from beside `core_source`. Each is an `addon` mod with one
+/// folder, and **off until the person turns it on, whatever the index says**: nothing a person
+/// didn't choose goes into their game. One whose id or folder a bundled mod already has is left
+/// out (the bundled one wins), as is one whose folder isn't there.
+pub fn learned(core_source: &Path) -> Vec<ModManifest> {
+    let Some(dir) = core_source.parent() else {
+        return Vec::new();
+    };
+    let listed: Vec<Learned> = std::fs::read(dir.join(LEARNED_FILE))
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default();
+    let core = crate::wow_core::manifest();
+    let mut out: Vec<ModManifest> = Vec::new();
+    for l in listed {
+        let taken = bundled()
+            .iter()
+            .chain(out.iter())
+            .any(|m| m.id == l.id || m.addons.contains(&l.folder));
+        if taken || l.folder == ADDON_NAME || !has_toc_named(&dir.join(&l.folder), &l.folder) {
+            continue;
+        }
+        out.push(ModManifest {
+            id: l.id,
+            core: core.id.clone(),
+            name: l.name,
+            version: l.version,
+            summary: l.summary,
+            kind: KIND.to_string(),
+            acts_in_game: l.acts_in_game,
+            source: ModSource::Bundled,
+            requires: Requires {
+                core: None,
+                api: Some(l.api),
+            },
+            default_on: false,
+            addons: vec![l.folder],
+        });
+    }
+    out
+}
+
+/// Every mod a front end offers: the bundled ones, then any the index introduced.
+pub fn all(core_source: Option<&Path>) -> Vec<ModManifest> {
+    let mut mods = bundled().to_vec();
+    mods.extend(core_source.map(learned).unwrap_or_default());
+    mods
+}
+
+/// Whether `m` is a mod the index introduced, not one this build carries.
+pub fn is_learned(m: &ModManifest) -> bool {
+    !bundled().iter().any(|b| b.id == m.id)
 }
 
 /// Whether `m` is on: the person's choice (`chosen`, by mod id), else its `defaultOn`.
@@ -179,6 +252,8 @@ pub struct ModStatus {
     pub bundled: String,
     /// The addon folders it installs.
     pub addons: Vec<String>,
+    /// It came from the addon index: newer than this build of the app, which doesn't carry it.
+    pub learned: bool,
     pub installs: Vec<ModInstall>,
 }
 
@@ -189,13 +264,13 @@ impl ModStatus {
     }
 }
 
-/// Every bundled mod's status across `installs`.
+/// Every mod's status across `installs`: the bundled ones, then any the index introduced.
 pub fn statuses(
     installs: &[Install],
     core_source: Option<&Path>,
     chosen: &BTreeMap<String, bool>,
 ) -> Vec<ModStatus> {
-    bundled()
+    all(core_source)
         .iter()
         .map(|m| {
             let folder = m.addons.first().map(String::as_str).unwrap_or_default();
@@ -209,6 +284,7 @@ pub fn statuses(
                 on: is_on(m, chosen),
                 bundled: bundled_version(core_source, m),
                 addons: m.addons.clone(),
+                learned: is_learned(m),
                 // An agent mod is in no install: there's nothing of it in the game.
                 installs: installs
                     .iter()
@@ -256,7 +332,7 @@ pub fn apply(
 ) -> Result<Vec<ModChange>> {
     let mut changes = Vec::new();
     let has_core = addon_install::has_addon(install);
-    for m in bundled()
+    for m in all(Some(core_source))
         .iter()
         .filter(|m| only.is_none_or(|id| m.id == id) && !is_agent_mod(m))
     {
@@ -309,7 +385,7 @@ pub fn needs_update(
     if !addon_install::has_addon(install) {
         return false;
     }
-    bundled()
+    all(Some(core_source))
         .iter()
         .filter(|m| !is_agent_mod(m) && is_on(m, chosen))
         .flat_map(|m| m.addons.iter().map(move |folder| (m, folder)))
@@ -754,6 +830,7 @@ mod tests {
             on,
             bundled: "0.3.0".into(),
             addons: vec!["Ryna_Chronicle".into()],
+            learned: false,
             installs: vec![ModInstall {
                 install: "/wow/_forever_".into(),
                 installed,

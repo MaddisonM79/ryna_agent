@@ -494,7 +494,7 @@ pub fn logout(app: &AppHandle) -> Result<(), String> {
 /// Whether the mod `id` is on (the person's choice, else its manifest's default).
 pub fn mod_on(app: &AppHandle, id: &str) -> bool {
     let chosen = app.state::<Agent>().live().settings.mods.clone();
-    core_mods::bundled()
+    core_mods::all(addon_source(app).ok().as_deref())
         .iter()
         .find(|m| m.id == id)
         .is_some_and(|m| core_mods::is_on(m, &chosen))
@@ -1135,7 +1135,9 @@ pub struct ModToggleResult {
 /// Turn a mod on or off: kept in the settings, then each install it belongs in (as `install_addon`
 /// picks them) gets its folders put in or taken out.
 pub fn set_mod_enabled(app: &AppHandle, id: &str, on: bool) -> Result<ModToggleResult, String> {
-    let m = core_mods::bundled()
+    // The bundled mods, and any the addon index introduced since this build.
+    let offered = core_mods::all(addon_source(app).ok().as_deref());
+    let m = offered
         .iter()
         .find(|m| m.id == id)
         .ok_or_else(|| format!("There's no mod called {id}."))?;

@@ -1,9 +1,13 @@
 //! The addon index (docs/ryna-agent-cores-mods.md 6.2): the one signed file that says which
 //! version of each addon is the newest, and the rule for what the app takes from it.
 //!
-//! The app carries a copy of every addon. The index (`addons.json` on the latest release of
-//! `Ryna-Mods/ryna`) can offer a newer one of a folder this build already knows, never a folder it
-//! doesn't. This module is the format and the choice, with no file or network in it:
+//! The app carries a copy of every addon it was built with. The index (`addons.json` on the latest
+//! release of `Ryna-Mods/ryna`) can offer a newer one of a folder this build already knows, and
+//! (Maddison, 2026-11-26) **a mod this build has never heard of**, when its entry says what the mod
+//! is (`mod`: its id, name, summary and whether it acts in the game). Such a mod is fetched like an
+//! update, listed as new, and is always off until the person turns it on. A folder the index names
+//! without saying what it is stays ignored. This module is the format and the choice, with no file
+//! or network in it:
 //! [`parse`] reads an index whose signature the caller has already checked ([`crate::addon_store`]),
 //! and [`choose`] picks, for each folder, the carried copy or the index's.
 
@@ -26,6 +30,25 @@ pub const MAX_ZIP_BYTES: u64 = 128 * 1024 * 1024;
 /// The format this build reads.
 pub const SCHEMA: u32 = 1;
 
+/// The folder name a mod the index introduces must start with: what the core's manifest says the
+/// app writes (`Interface/AddOns/Ryna_*/`).
+pub const LEARNED_PREFIX: &str = "Ryna_";
+
+/// What a mod is, for an app that doesn't carry it: enough to list it in Mods and say what it does.
+/// Signed with the index, like everything in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModInfo {
+    /// Short, lowercase: `guild`.
+    pub id: String,
+    pub name: String,
+    /// What it does, as the Mods list says it.
+    pub summary: String,
+    /// It does something in the game for the player: said before it can be turned on.
+    #[serde(default)]
+    pub acts_in_game: bool,
+}
+
 /// One addon in the index.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +68,10 @@ pub struct Entry {
     /// Lowercase hex.
     pub sha256: String,
     pub size: u64,
+    /// A mod's own description, which lets an app that doesn't carry the folder offer it. Absent
+    /// for the core, and for a mod only apps that carry it should install.
+    #[serde(default, rename = "mod", skip_serializing_if = "Option::is_none")]
+    pub mod_info: Option<Box<ModInfo>>,
 }
 
 /// An index that was read: the entries that are well formed, and why each other one was dropped.
@@ -83,8 +110,36 @@ fn is_version(s: &str) -> bool {
             .all(|p| !p.is_empty() && p.len() <= 9 && p.bytes().all(|b| b.is_ascii_digit()))
 }
 
+/// Text an app may show: something in it, no longer than `max` characters, and no control or
+/// format character (a bidi override, a zero-width space).
+fn is_plain_text(s: &str, max: usize) -> bool {
+    !s.trim().is_empty()
+        && s.chars().count() <= max
+        && !s.chars().any(|c| {
+            c.is_control() || matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
+        })
+}
+
+fn is_mod_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 32
+        && s.as_bytes()[0].is_ascii_lowercase()
+        && s.bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
 /// Why `e` can't be used, or None when it is well formed.
 fn entry_fault(e: &Entry) -> Option<String> {
+    if let Some(m) = &e.mod_info {
+        if !is_mod_id(&m.id) || !is_plain_text(&m.name, 60) || !is_plain_text(&m.summary, 1000) {
+            return Some("what it says of its mod isn't an id, a name and a summary".into());
+        }
+        if !e.folder.starts_with(LEARNED_PREFIX) || e.api_min.is_some() {
+            return Some(format!(
+                "a mod's folder starts with {LEARNED_PREFIX}, and only the core has a lowest level"
+            ));
+        }
+    }
     if !is_folder_name(&e.folder) {
         return Some("its folder isn't a plain name".into());
     }
@@ -190,9 +245,22 @@ fn candidate(e: &Entry, carried: &str, app_version: &str) -> bool {
             .is_none_or(|min| compare_versions(app_version, min).is_ge())
 }
 
+/// Whether the index's `e` is a mod this app doesn't carry and may take: it says what the mod is,
+/// it fits the core being installed, and this app is new enough for it.
+fn new_mod(e: &Entry, known: &Known, api: u32, api_min: u32, app_version: &str) -> bool {
+    e.mod_info.is_some()
+        && e.folder != known.core_folder
+        && !known.mods.contains_key(&e.folder)
+        && fits(e.api, api, api_min)
+        && e.min_app
+            .as_deref()
+            .is_none_or(|min| compare_versions(app_version, min).is_ge())
+}
+
 /// For each folder this app knows, the carried copy or the index's (docs 6.2, "What it picks").
-/// Every known folder is in the answer; a folder the index names that this app doesn't know is in
-/// neither.
+/// Every known folder is in the answer. A folder the index names that this app doesn't know is in
+/// it only when the entry says what mod it is and it fits the core picked ([`new_mod`]): always the
+/// index's copy, there being no other.
 pub fn choose(index: &Index, known: &Known, app_version: &str) -> BTreeMap<String, Pick> {
     let entry = |folder: &str| index.entries.iter().find(|e| e.folder == folder);
     // A mod's best copy for a core at (api, api_min), or None when no copy of it fits that core.
@@ -219,6 +287,11 @@ pub fn choose(index: &Index, known: &Known, app_version: &str) -> BTreeMap<Strin
         if let Some(mods) = mods {
             let mut picks: BTreeMap<String, Pick> = mods.into_iter().collect();
             picks.insert(known.core_folder.clone(), Pick::Fetched(core.clone()));
+            for e in &index.entries {
+                if new_mod(e, known, core.api, api_min, app_version) {
+                    picks.insert(e.folder.clone(), Pick::Fetched(e.clone()));
+                }
+            }
             return picks;
         }
     }
@@ -233,6 +306,11 @@ pub fn choose(index: &Index, known: &Known, app_version: &str) -> BTreeMap<Strin
         })
         .collect();
     picks.insert(known.core_folder.clone(), Pick::Carried);
+    for e in &index.entries {
+        if new_mod(e, known, known.core_api, known.core_api_min, app_version) {
+            picks.insert(e.folder.clone(), Pick::Fetched(e.clone()));
+        }
+    }
     picks
 }
 
@@ -250,6 +328,7 @@ mod tests {
             url: format!("{ALLOWED_PREFIX}x/releases/download/v{version}/{folder}-{version}.zip"),
             sha256: "ab".repeat(32),
             size: 10,
+            mod_info: None,
         }
     }
 
@@ -382,5 +461,89 @@ mod tests {
         let mut core = entry("Ryna_Core", "0.6.0", 2);
         core.api_min = None;
         assert!(fetched(&choose(&index(vec![core]), &known(), "0.5.0")).is_empty());
+    }
+    fn guild(version: &str, api: u32) -> Entry {
+        Entry {
+            mod_info: Some(Box::new(ModInfo {
+                id: "guild".into(),
+                name: "Guild".into(),
+                summary: "Your guild's roster, and what changed.".into(),
+                acts_in_game: false,
+            })),
+            api_min: None,
+            ..entry("Ryna_Guild", version, api)
+        }
+    }
+
+    #[test]
+    fn a_mod_this_app_never_carried_is_taken_when_the_index_says_what_it_is() {
+        let picks = choose(&index(vec![guild("0.1.0", 2)]), &known(), "0.5.0");
+        assert_eq!(picks["Ryna_Guild"], Pick::Fetched(guild("0.1.0", 2)));
+        assert_eq!(picks.len(), 4, "the three it carries, and the new one");
+        // A folder the index only names, without saying what it is, stays ignored.
+        let bare = entry("Ryna_Bare", "1.0.0", 2);
+        assert!(!choose(&index(vec![bare]), &known(), "0.5.0").contains_key("Ryna_Bare"));
+        // One that needs a level this core doesn't serve, or a newer app, waits.
+        assert!(
+            !choose(&index(vec![guild("0.1.0", 3)]), &known(), "0.5.0").contains_key("Ryna_Guild")
+        );
+        let mut newer = guild("0.1.0", 2);
+        newer.min_app = Some("0.6.0".into());
+        assert!(!choose(&index(vec![newer.clone()]), &known(), "0.5.0").contains_key("Ryna_Guild"));
+        assert!(choose(&index(vec![newer]), &known(), "0.6.0").contains_key("Ryna_Guild"));
+    }
+
+    #[test]
+    fn a_new_mod_follows_the_core_that_is_picked() {
+        // Core 1.0.0 serves only level 3, and both carried mods have a level 3 release.
+        let set = vec![
+            entry("Ryna_Core", "1.0.0", 3),
+            entry("Ryna_Meter", "2.0.0", 3),
+            entry("Ryna_Prices", "2.0.0", 3),
+        ];
+        let with = |g: Entry| choose(&index([set.clone(), vec![g]].concat()), &known(), "0.5.0");
+        assert!(
+            with(guild("0.2.0", 3)).contains_key("Ryna_Guild"),
+            "it fits the new core"
+        );
+        let old = with(guild("0.1.0", 2));
+        assert_eq!(fetched(&old).len(), 3, "the core still moves");
+        assert!(
+            !old.contains_key("Ryna_Guild"),
+            "a level 2 mod is left out, not installed broken"
+        );
+    }
+
+    #[test]
+    fn what_an_entry_says_of_its_mod_is_checked() {
+        let json = |m: &str, folder: &str| {
+            format!(
+                r#"{{"schema":1,"serial":7,"addons":[{{"folder":"{folder}","version":"0.1.0","api":2,
+                "url":"{ALLOWED_PREFIX}guild/releases/download/v0.1.0/x.zip","sha256":"{}","size":10,"mod":{m}}}]}}"#,
+                "ab".repeat(32)
+            )
+        };
+        let good = r#"{"id":"guild","name":"Guild","summary":"The roster.","actsInGame":true}"#;
+        let read = parse(json(good, "Ryna_Guild").as_bytes()).unwrap();
+        assert_eq!(read.entries[0].mod_info.as_ref().unwrap().id, "guild");
+        assert!(read.entries[0].mod_info.as_ref().unwrap().acts_in_game);
+        for (bad, folder) in [
+            (
+                r#"{"id":"Guild","name":"Guild","summary":"x"}"#,
+                "Ryna_Guild",
+            ),
+            (r#"{"id":"guild","name":"","summary":"x"}"#, "Ryna_Guild"),
+            (
+                r#"{"id":"guild","name":"Guild","summary":"a\u202Eb"}"#,
+                "Ryna_Guild",
+            ),
+            (good, "Other_Guild"),
+        ] {
+            let read = parse(json(bad, folder).as_bytes()).unwrap();
+            assert!(
+                read.entries.is_empty() && read.dropped.len() == 1,
+                "{bad} {folder}"
+            );
+        }
     }
 }

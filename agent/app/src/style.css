@@ -416,6 +416,11 @@ label.setting {
   font-size: 12px;
 }
 
+.mod-text .new-mod {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
 .mods-grid .mod-status {
   display: flex;
   flex-direction: column;

@@ -270,10 +270,34 @@ release is never changed.
   update, and the updater's key can't sign an index. Its trusted comment names `file:addons.json`. The
   zips aren't signed one by one: the signed index names each one's SHA-256 and size, and a zip that
   differs is thrown away. Nothing is read from an index before its signature is good.
-- **What an entry may be.** Only a folder this build of the app already knows (the core's, or a
-  bundled addon mod's): the index can update an addon, never introduce one. Only an `https://` URL
-  under `https://github.com/Ryna-Mods/`. Anything else in an entry (an unknown folder, another host,
-  a bad hash, a version that doesn't parse) drops that entry and keeps the rest.
+- **What an entry may be.** A folder this build of the app already knows (the core's, or a bundled
+  addon mod's), or a mod it doesn't carry whose entry says what it is (next). Only an `https://` URL
+  under `https://github.com/Ryna-Mods/`. Anything else in an entry (another host, a bad hash, a
+  version that doesn't parse) drops that entry and keeps the rest, and a folder the app doesn't know
+  that says nothing of itself is ignored, as before.
+- **A mod the app doesn't carry** (Maddison, 2026-11-26: "we are pulling in mods from our site. do
+  it"; until then the index could update an addon and never introduce one, so a new mod waited for
+  a release of the app, as Guild did). An entry may carry `mod`: `{ id, name, summary, actsInGame }`,
+  written in the bundle's `bundle.json` and signed with the index. An app that doesn't carry that
+  folder then takes the mod like an update (the same zip rules, the same hash) and lists it in Mods,
+  marked **New**. What this hands the addons key, and what holds it:
+  - It can now put a new addon folder within reach of every install. So a mod that arrives this way
+    is **always off until the person turns it on**: the entry has no `defaultOn`, and one that sent
+    it would be ignored. Nothing a person didn't choose goes into their game.
+  - Its "acts in the game" line is shown under its toggle before it can be turned on, as for any
+    mod, and a mod that acts may arrive this way (Nyx's reading of "do it"; hers to narrow).
+  - Its folder must start with `Ryna_` (what the core's manifest says the app writes), its id can't
+    be a bundled mod's nor its folder a bundled folder (the bundled one wins), it has one folder,
+    and its words are plain text of bounded length (no control or direction characters).
+  - It must fit the core being installed (its level between the core's lowest and its own) and, with
+    `minApp`, this app; one that doesn't is left out, never installed broken.
+  - The zip is downloaded when the index is read, whether or not the mod is on, so turning it on
+    later needs no network; it reaches the game only on a toggle. It is held under
+    `<state>/addons/` like any fetched addon, and listed from `current/.mods.json`, written beside
+    the folders as they are laid out, so the list and the folders can't disagree.
+  - An app older than this (0.5.5 and before) reads the same index and ignores both the field and
+    the folder: the format's `schema` stays 1.
+  When a later app carries the mod, its own manifest takes over and the index's words are unused.
 - **The zip** holds exactly one top folder, the entry's, with its `<Folder>.toc`; a path that would
   land outside it, a link, or more than the size cap refuses the zip. After unpacking, the TOC's
   `## Version` and `## X-Ryna-API` must be the entry's, or it is thrown away.

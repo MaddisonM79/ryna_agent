@@ -4,7 +4,7 @@
 // the card's head; and the last result for the whole card under it, never inside a row.
 import { computed } from "vue";
 import type { InstallView, ModView } from "../api";
-import { ACTS_IN_GAME, flavorName, modRow, modsAction, pathPieces, type ModsResult } from "../describe";
+import { ACTS_IN_GAME, NEW_MOD, flavorName, modRow, modsAction, pathPieces, type ModsResult } from "../describe";
 
 const props = defineProps<{
   mods: ModView[];
@@ -75,6 +75,7 @@ const actions = computed(() =>
         </span>
         <label class="mod-text" :for="`mod-${m.id}`">
           {{ m.name }}
+          <span v-if="m.learned" class="chip new-mod">{{ NEW_MOD }}</span>
           <span class="muted">{{ m.summary }}</span>
           <span v-if="m.actsInGame" class="acts-in-game">{{ ACTS_IN_GAME }}</span>
         </label>

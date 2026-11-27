@@ -171,6 +171,15 @@ fn set_key(carry: &Carry, picks: &BTreeMap<String, Pick>, app_version: &str) -> 
     let mut key = format!("app {app_version}\n");
     for (folder, pick) in picks {
         let line = match pick {
+            // A mod this build doesn't carry: its words are part of what was laid out.
+            Pick::Fetched(e) if e.mod_info.is_some() && !carry.dirs.contains_key(folder) => {
+                let m = e
+                    .mod_info
+                    .as_ref()
+                    .map(|m| m.id.as_str())
+                    .unwrap_or_default();
+                format!("{folder} new {m} {} {}\n", e.version, e.sha256)
+            }
             Pick::Fetched(e) => format!("{folder} fetched {} {}\n", e.version, e.sha256),
             Pick::Carried => {
                 let version = if folder == ADDON_NAME {
@@ -219,6 +228,28 @@ fn assemble(
         };
         addon_install::copy_dir(&from, &new.join(folder))?;
     }
+    // The mods this build doesn't carry, as the index describes them: what `mods::learned` reads
+    // to list them. Written beside the folders, so the list and the folders can't disagree.
+    let learned: Vec<mods::Learned> = picks
+        .iter()
+        .filter(|(folder, _)| !carry.dirs.contains_key(*folder))
+        .filter_map(|(folder, pick)| match pick {
+            Pick::Fetched(e) => e.mod_info.as_ref().map(|m| mods::Learned {
+                id: m.id.clone(),
+                name: m.name.clone(),
+                summary: m.summary.clone(),
+                acts_in_game: m.acts_in_game,
+                folder: folder.clone(),
+                version: e.version.clone(),
+                api: e.api,
+            }),
+            Pick::Carried => None,
+        })
+        .collect();
+    std::fs::write(
+        new.join(mods::LEARNED_FILE),
+        serde_json::to_vec_pretty(&learned)?,
+    )?;
     std::fs::write(new.join(".set"), &key)?;
     let _ = std::fs::remove_dir_all(&current);
     std::fs::rename(&new, &current).context("laying out the addons to install")?;
@@ -567,6 +598,94 @@ mod tests {
         r.publish(2, vec![meter]);
         let again = r.refresh(&state, &core).unwrap();
         assert!(!again.changed(), "{again:?}");
+    }
+
+    #[test]
+    fn a_mod_the_app_never_carried_is_fetched_listed_as_new_and_off_until_turned_on() {
+        use crate::discovery::Install;
+        let tmp = tempfile::tempdir().unwrap();
+        let state = tmp.path().join("state");
+        let core = carried(tmp.path(), "0.5.0", "0.5.0");
+        assert!(
+            mods::learned(&core).is_empty(),
+            "nothing from the index yet"
+        );
+
+        let r = Release::new(tmp.path());
+        let zip = addon_zip("Ryna_Verity", "0.1.0", 2);
+        let mut verity = r.entry("Ryna_Verity", "0.1.0", 2, &zip);
+        // The index says what it is, and (wrongly) that it should be on: the app decides that.
+        verity["mod"] = serde_json::json!({
+            "id": "verity", "name": "Verity", "summary": "What groups say.", "actsInGame": true, "defaultOn": true,
+        });
+        // A folder the index names without saying what it is, is never fetched.
+        let bare = r.entry("Ryna_Bare", "1.0.0", 2, &addon_zip("Ryna_Bare", "1.0.0", 2));
+        r.publish(1, vec![verity.clone(), bare]);
+        let done = r.refresh(&state, &core).unwrap();
+        assert_eq!(done.fetched, [("Ryna_Verity".into(), "0.1.0".into())]);
+
+        let from = source_dir(&state, &core, "0.5.0");
+        assert_eq!(version_at(&from, "Ryna_Verity").as_deref(), Some("0.1.0"));
+        let learned = mods::learned(&from);
+        assert_eq!(learned.len(), 1);
+        let m = &learned[0];
+        assert_eq!(
+            (m.id.as_str(), m.name.as_str(), m.version.as_str()),
+            ("verity", "Verity", "0.1.0")
+        );
+        assert!(
+            m.acts_in_game,
+            "its acting in the game is said as the index says it"
+        );
+        assert!(
+            !m.default_on,
+            "and it is off until the person turns it on, whatever the index says"
+        );
+        assert_eq!(m.addons, ["Ryna_Verity"]);
+        assert!(mods::is_learned(m));
+
+        // In the list, off; in the game only once it is turned on.
+        let install = Install {
+            path: tmp.path().join("_forever_"),
+            flavor: Some("wowf".into()),
+        };
+        addon_install::install(&from, &install).unwrap();
+        let none = BTreeMap::new();
+        mods::apply(&install, &from, &none, Some("verity")).unwrap();
+        let status = mods::statuses(std::slice::from_ref(&install), Some(&from), &none);
+        let row = status.iter().find(|s| s.id == "verity").unwrap();
+        assert!(row.learned && !row.on && !row.installs[0].installed);
+        assert!(status
+            .iter()
+            .filter(|s| s.id != "verity")
+            .all(|s| !s.learned));
+        let on = BTreeMap::from([("verity".to_string(), true)]);
+        let changes = mods::apply(&install, &from, &on, Some("verity")).unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(
+            addon_install::installed_folder_version(&install, "Ryna_Verity").as_deref(),
+            Some("0.1.0")
+        );
+        mods::apply(&install, &from, &none, Some("verity")).unwrap();
+        assert!(
+            !addon_install::addon_dir_named(&install, "Ryna_Verity").exists(),
+            "off again: taken out"
+        );
+
+        // A zip that isn't the one the index hashed is refused, and nothing changes.
+        let state2 = tmp.path().join("state2");
+        std::fs::write(
+            r.dir.join("Ryna_Verity-0.1.0.zip"),
+            addon_zip("Ryna_Verity", "0.1.0", 2)
+                .iter()
+                .rev()
+                .copied()
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap();
+        r.publish(2, vec![verity]);
+        assert!(r.refresh(&state2, &core).is_err());
+        assert!(mods::learned(&source_dir(&state2, &core, "0.5.0")).is_empty());
     }
 
     #[test]

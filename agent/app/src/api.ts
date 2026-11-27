@@ -173,6 +173,8 @@ export interface ModView {
   /** The version this app would install. */
   bundled: string;
   addons: string[];
+  /** It arrived through the addon index after this build of the app: said beside its name. Absent from an older core. */
+  learned?: boolean;
   installs: ModInstall[];
 }
 

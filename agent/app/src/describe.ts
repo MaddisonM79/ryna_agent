@@ -230,6 +230,8 @@ export function installedLines(r: InstallResult): string[] {
 
 /** Under the toggle of a mod that does something in the game for the player, every time. */
 export const ACTS_IN_GAME = "This mod acts in the game for you.";
+/** Beside the name of a mod that came through the addon index, newer than this build of the app. */
+export const NEW_MOD = "New";
 
 /** A mod's state in one install (the core's `mods::row_words`). */
 export function modRow(m: ModView, install: string): { text: string; chip: "pushed" | "waiting" | "update" } {
