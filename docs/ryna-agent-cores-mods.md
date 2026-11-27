@@ -1801,14 +1801,33 @@ day):
 
 ### 7.9 Verity: what a group says of the people it played with (proposal, 2026-11-26)
 
-**The pool's server half is built ahead of the addon (2026-11-26), and nothing sends to it yet:**
-the two journal events it takes, the weights, the band, chip and standing, the owner's view at 47
-hours, claims with the admin's confirmation, the lookup log, 90 days then deleted, and a portal page
-whose tab shows to the admin alone until Maddison opens it (the API's `docs/wow.md` section 22 is the
-contract the addon follows). **Not built:** the mod itself (stages 1 and 2), the token exchange and
-the in-game ownership code, the game's copy of pooled tags (`Data/verity.lua`), the cross-check of
-facts between two clients (until then a witnessed report's facts are taken as given), a page for
-someone else's character, and the README's changed contract, which goes out with the mod.
+**Built so far.** The pool's server half (2026-11-26): the two journal events it takes, the weights,
+the band, chip and standing, the owner's view at 47 hours, claims with the admin's confirmation, the
+lookup log, 90 days then deleted, and a portal page whose tab shows to the admin alone until Maddison
+opens it (the API's `docs/wow.md` section 22 is the contract the addon follows). And the mod's first
+version (`Ryna-Mods/verity`, 0.1.0, 2026-11-27; her answer to "how far": "Local and sending"):
+
+- A Verity section of the window with three views (the drawing she agreed 2026-11-27): *Recent
+  groups* (the runs of seven days, a row a member: role, the facts, the tags given; a click opens
+  the tag menu, tick or untick), *This group* and *Your reports*. The tags are in Verity's own
+  section, not yet on Chronicle's run card.
+- Facts for three tags, said only when certain: Need rolls and those on gear the class can never
+  equip (armour weight, shields, the Classic weapon lists), passes, and bosses killed after a
+  member left. The other tags carry none yet.
+- A tick is held five minutes, in which it can be unticked and nothing was sent; then it is the
+  `verity` journal event, and can't be taken back (the pool has no removal). Logging out sends
+  what is pending.
+- The run's code: each client makes one, says it to the party or raid (`T:<code>` on the prefix
+  `RynaVerity`; never in combat, never under chat lockdown, at most once in twenty seconds), keeps
+  the smallest it hears from a member the game stamps, and writes it as `verityRun`.
+- The tooltip line and the line when someone joins are **the player's own notebook only** ("you
+  noted: ..."), each with a setting.
+
+**Not built:** the pool's tags in game (`Data/verity.lua`, which the app would write), so nothing
+anyone else said shows in game yet; *About you* in game; the in-game ownership code; facts for
+inactive, threat and versatile; the tags on the run card; stage 2 (guildmates); the cross-check of
+facts between two clients (until then a witnessed report's facts are taken as given); a page for
+someone else's character.
 
 **This changes Ryna's rules, so it is written here first.** It is named **Verity**
 (Maddison, 2026-11-26). Asked 2026-11-22 ("player reporting and tracking"), and in her words:
