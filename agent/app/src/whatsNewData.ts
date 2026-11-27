@@ -15,6 +15,16 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
+    "version": "next",
+    "headline": "No more notices for an addon update that isn't there.",
+    "items": [
+      {
+        "where": "app",
+        "text": "The addon in your game is now judged by its own version numbers, not the app's, so an up to date addon is no longer called old and the game no longer offers an addon update that doesn't exist."
+      }
+    ]
+  },
+  {
     "version": "0.5.6",
     "headline": "New mods arrive without waiting for a new Ryna.",
     "items": [

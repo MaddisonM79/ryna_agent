@@ -145,7 +145,15 @@ describe("the banner, by the API's judgment", () => {
 
   // mcarnes, 2026-11-13: the app at 0.4.0 said "this version is no longer supported" and "Up to
   // date" at once, because the addon in the game folder was still 0.3.6.
-  const oldInGame = { version: "0.4.0", addon: "0.3.6", minimum: "0.3.9", preferred: null, perfect: "0.4.0" };
+  // The addon is judged by marks of its own (`addonMarks`), here the same numbers as the app's.
+  const oldInGame = {
+    version: "0.4.0",
+    addon: "0.3.6",
+    minimum: "0.3.9",
+    preferred: null,
+    perfect: "0.4.0",
+    addonMarks: { minimum: "0.3.9", preferred: null, perfect: "0.4.0" },
+  };
   const older = { installs: [{ addon: "older" as const }], bundled: "0.4.0" };
 
   it("names the addon in the game folder when that alone is below the mark, and offers to install this app's", () => {
@@ -163,7 +171,7 @@ describe("the banner, by the API's judgment", () => {
   });
 
   it("says the same in amber for reduced, and Later holds until the addon changes", () => {
-    const reduced = { ...oldInGame, minimum: null, preferred: "0.3.9" };
+    const reduced = { ...oldInGame, minimum: null, preferred: "0.3.9", addonMarks: { minimum: null, preferred: "0.3.9", perfect: "0.4.0" } };
     const b = banner(current, null, judged("reduced", reduced), older)!;
     expect(b.tone).toBe("reduced");
     expect(b.text).toBe(addonSentence("reduced", "0.3.6"));
@@ -186,6 +194,15 @@ describe("the banner, by the API's judgment", () => {
     // No addon judged, or nothing known about the game folders: as before.
     expect(banner(current, null, judged("unsupported", { ...oldInGame, addon: null }), older)?.addon).toBeNull();
     expect(banner(current, null, judged("unsupported", oldInGame))?.addon).toBeNull();
+  });
+
+  it("never calls the addon old for having a lower number than the app", () => {
+    // 2026-11-27: the app at 0.5.6 and the newest addon, 0.5.4, which count versions apart.
+    const apart = { version: "0.5.5", addon: "0.5.4", minimum: "0.5.4", preferred: "0.5.6", perfect: "0.5.6" };
+    const local = { installs: [{ addon: "current" as const }], bundled: "0.5.4" };
+    expect(banner(newer, null, judged("reduced", apart), local)).toMatchObject({ text: REDUCED_SENTENCE, addon: null });
+    const marked = { ...apart, addonMarks: { minimum: "0.5.0", preferred: "0.5.2", perfect: "0.5.4" } };
+    expect(banner(newer, null, judged("reduced", marked), local)).toMatchObject({ text: REDUCED_SENTENCE, addon: null });
   });
 
   it("logs a band only when it moves to reduced or unsupported", () => {

@@ -38,15 +38,24 @@ export function bandSentence(band: Band): string | null {
 /**
  * The addon in the game folder is what's old, and the app isn't: the API judges the worse of the
  * two (an install's TOC, as the heartbeat sent it), and updating the app doesn't touch the game
- * folder. Null when the app itself is below the mark too (its update brings the addon), or the
- * judgment names no addon.
+ * folder. The addon is judged by marks of its own (`addonMarks`): it counts its versions apart
+ * from the app, so a lower number than the app's is not an old addon. Null when the app itself is
+ * below its mark too (its update brings the addon), or the judgment names no addon.
  */
 export function oldAddon(support: Support | null): string | null {
   if (!support?.addon) return null;
-  const mark = support.band === "unsupported" ? support.minimum : support.band === "reduced" ? support.preferred : null;
+  const mark = addonMark(support);
   if (!mark || compareVersions(support.addon, mark) >= 0) return null;
-  if (support.version && compareVersions(support.version, mark) < 0) return null;
+  const own = support.band === "unsupported" ? support.minimum : support.preferred;
+  if (own && support.version && compareVersions(support.version, own) < 0) return null;
   return support.addon;
+}
+
+/** The addon's mark for the band the judgment is in, or null. */
+function addonMark(support: Support | null): string | null {
+  const marks = support?.addonMarks;
+  if (!marks) return null;
+  return (support.band === "unsupported" ? marks.minimum : support.band === "reduced" ? marks.preferred : null) ?? null;
 }
 
 /** The same two sentences, about the addon in the game folder (`installed`, its version). */
@@ -115,7 +124,7 @@ export function banner(
   if (sentence) {
     const tone = band === "unsupported" ? "unsupported" : "reduced";
     const installed = oldAddon(support);
-    const mark = band === "unsupported" ? support?.minimum : support?.preferred;
+    const mark = addonMark(support);
     // This app's addon fixes it only when it clears the mark itself.
     const fixes = !!local?.bundled && !!mark && compareVersions(local.bundled, mark) >= 0;
     if (installed && local && fixes) {

@@ -425,7 +425,8 @@ mod tests {
     fn judged(band: &str, perfect: &str) -> Support {
         Support::from_value(&json!({ "band": band, "version": "0.3.5", "addon": "0.3.5",
             "minimum": "0.3.5", "preferred": "0.3.7", "perfect": perfect,
-            "note": "0.3.4 mis-reads auction prices", "update": "https://ryna.io/wow/guide#upkeep" }))
+            "note": "0.3.4 mis-reads auction prices", "update": "https://ryna.io/wow/guide#upkeep",
+            "addonMarks": { "minimum": "0.3.5", "preferred": "0.3.7", "perfect": perfect } }))
         .unwrap()
     }
 

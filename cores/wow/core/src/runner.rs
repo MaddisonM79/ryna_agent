@@ -962,7 +962,8 @@ mod tests {
     fn judged(band: &str) -> serde_json::Value {
         json!({ "band": band, "version": crate::AGENT_VERSION, "addon": "0.3.4", "channel": "stable",
                 "minimum": "0.3.1", "preferred": "999.0.0", "perfect": "999.0.0", "note": null,
-                "update": "https://ryna.io/wow/guide#upkeep" })
+                "update": "https://ryna.io/wow/guide#upkeep",
+                "addonMarks": { "minimum": "0.3.1", "preferred": "999.0.0", "perfect": "999.0.0" } })
     }
 
     fn agent_status(addon: &Path) -> serde_json::Value {

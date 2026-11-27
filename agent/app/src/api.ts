@@ -229,6 +229,8 @@ export interface Support {
   note: string | null;
   /** Where to read how to update. */
   update: string | null;
+  /** Ryna Core's own marks, which `addon` was judged by; null or absent when it has none. */
+  addonMarks?: { minimum: string | null; preferred: string | null; perfect: string | null } | null;
 }
 
 /** That judgment as kept (the core's `support::KnownSupport`). */

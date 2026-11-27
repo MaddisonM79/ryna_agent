@@ -80,6 +80,15 @@ impl Band {
     }
 }
 
+/// One thing's marks (the app's, or Ryna Core's).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Marks {
+    pub minimum: Option<String>,
+    pub preferred: Option<String>,
+    pub perfect: Option<String>,
+}
+
 /// The API's `support`, as read (each string held to a sane length; missing ones None).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +107,10 @@ pub struct Support {
     pub note: Option<String>,
     /// Where to read how to update.
     pub update: Option<String>,
+    /// Ryna Core's own marks, which `addon` was judged by (the API's `addonMarks`, 2026-11-27: the
+    /// addon counts its versions apart from the app). None when the API has none for it.
+    #[serde(default)]
+    pub addon_marks: Option<Marks>,
 }
 
 fn text(v: &Value, key: &str, max: usize) -> Option<String> {
@@ -123,6 +136,14 @@ impl Support {
             perfect: text(v, "perfect", 40),
             note: text(v, "note", 200),
             update: text(v, "update", 200).filter(|u| u.starts_with("https://")),
+            addon_marks: v
+                .get("addonMarks")
+                .filter(|m| m.is_object())
+                .map(|m| Marks {
+                    minimum: text(m, "minimum", 40),
+                    preferred: text(m, "preferred", 40),
+                    perfect: text(m, "perfect", 40),
+                }),
         })
     }
 
@@ -268,11 +289,12 @@ pub fn latest_agent(support: &Support) -> Option<String> {
         .then(|| perfect.to_string())
 }
 
-/// `latest.addon` for one install: `perfect` only when that install's TOC is older than it. An
-/// addon through 0.3.9 compares `latest.addon` with its frozen `0.3.2`, so filling it when the TOC
-/// is already current would offer an update that isn't there.
+/// `latest.addon` for one install: Ryna Core's own `perfect` (never the app's: the two count
+/// versions apart, and the app's would offer an addon that doesn't exist), and only when that
+/// install's TOC is older than it. An addon through 0.3.9 compares `latest.addon` with its frozen
+/// `0.3.2`, so filling it when the TOC is already current would offer an update that isn't there.
 pub fn latest_addon(support: &Support, toc: Option<&str>) -> Option<String> {
-    let perfect = support.perfect.as_deref()?;
+    let perfect = support.addon_marks.as_ref()?.perfect.as_deref()?;
     older_than(toc?, perfect)
         .unwrap_or(false)
         .then(|| perfect.to_string())
@@ -393,13 +415,18 @@ mod tests {
         let mut s = Support::from_value(&wire("behind")).unwrap();
         s.perfect = Some("999.0.0".into());
         assert_eq!(latest_agent(&s).as_deref(), Some("999.0.0"));
-        assert_eq!(latest_addon(&s, Some("0.3.9")).as_deref(), Some("999.0.0"));
+        // The app's newest release says nothing of the addon's: with no marks of its own, none is offered.
+        assert_eq!(latest_addon(&s, Some("0.3.9")), None);
+        let mut wire = wire("behind");
+        wire["addonMarks"] = json!({ "minimum": null, "preferred": "0.5.2", "perfect": "0.5.4" });
+        let mut s = Support::from_value(&wire).unwrap();
+        s.perfect = Some("999.0.0".into());
+        assert_eq!(latest_addon(&s, Some("0.5.3")).as_deref(), Some("0.5.4"));
+        assert_eq!(latest_addon(&s, Some("0.5.4")), None);
         assert_eq!(latest_addon(&s, None), None);
         s.perfect = Some(crate::AGENT_VERSION.into());
         assert_eq!(latest_agent(&s), None);
-        assert_eq!(latest_addon(&s, Some(crate::AGENT_VERSION)), None);
         s.perfect = None;
         assert_eq!(latest_agent(&s), None);
-        assert_eq!(latest_addon(&s, Some("0.0.1")), None);
     }
 }
