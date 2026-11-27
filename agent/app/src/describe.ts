@@ -228,10 +228,20 @@ export function installedLines(r: InstallResult): string[] {
   return [...r.installed.map((d) => `Installed ${what} into ${d.path}`), ...modChangeLines(r.mods ?? [])];
 }
 
-/** Under the toggle of a mod that does something in the game for the player, every time. */
+/** Under the name of a mod that does something in the game for the player, every time. */
 export const ACTS_IN_GAME = "This mod acts in the game for you.";
 /** Beside the name of a mod that came through the addon index, newer than this build of the app. */
 export const NEW_MOD = "New";
+
+/**
+ * A mod's one button: an addon mod is installed into the game or uninstalled from it (Maddison,
+ * 2026-11-27: a tick box read as "enabled", and off here means the folder is gone); the Settings
+ * mod has nothing in the game, so it is turned on or off.
+ */
+export function modButton(m: ModView): string {
+  if (m.kind === "agent") return m.on ? "Turn off" : "Turn on";
+  return m.on ? "Uninstall" : "Install";
+}
 
 /** A mod's state in one install (the core's `mods::row_words`). */
 export function modRow(m: ModView, install: string): { text: string; chip: "pushed" | "waiting" | "update" } {
@@ -244,17 +254,17 @@ export function modRow(m: ModView, install: string): { text: string; chip: "push
   if (m.on && installed) {
     const v = installed.version;
     if (v && compareVersions(v, m.bundled) < 0) {
-      text = `On · ${v} installed, ${m.bundled} available`;
+      text = `Installed · ${v}, ${m.bundled} available`;
       chip = "update";
     } else {
-      text = v ? `On · ${v} installed` : "On · installed";
+      text = v ? `Installed · ${v}` : "Installed";
       chip = "pushed";
     }
   } else if (m.on) {
-    text = "On · not installed yet: install the addon";
+    text = "Not in the game yet: install the addon";
     chip = "waiting";
   } else {
-    text = installed ? "Off · still installed" : "Off";
+    text = installed ? "Uninstalled · still in the game folder" : "Not installed";
     chip = "waiting";
   }
   if (installed && installed.offInGame > 0) {

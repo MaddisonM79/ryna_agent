@@ -1,6 +1,6 @@
 import { describe as group, expect, it } from "vitest";
 import type { ModView } from "./api";
-import { ACTS_IN_GAME, compareVersions, installedLines, modAction, modChangeLines, modRow, modToggledLines } from "./describe";
+import { ACTS_IN_GAME, compareVersions, installedLines, modAction, modButton, modChangeLines, modRow, modToggledLines } from "./describe";
 
 const AT = "/wow/_forever_";
 
@@ -21,29 +21,32 @@ function mod(on: boolean, installed: boolean, version: string | null, offInGame 
 
 group("a mod's row in the Game tab", () => {
   it("says it's on and what's installed", () => {
-    expect(modRow(mod(true, true, "0.3.0"), AT)).toEqual({ text: "On · 0.3.0 installed", chip: "pushed" });
+    expect(modRow(mod(true, true, "0.3.0"), AT)).toEqual({ text: "Installed · 0.3.0", chip: "pushed" });
     expect(modRow(mod(true, true, "0.2.6"), AT)).toEqual({
-      text: "On · 0.2.6 installed, 0.3.0 available",
+      text: "Installed · 0.2.6, 0.3.0 available",
       chip: "update",
     });
     expect(modRow(mod(true, false, null), AT)).toEqual({
-      text: "On · not installed yet: install the addon",
+      text: "Not in the game yet: install the addon",
       chip: "waiting",
     });
   });
 
   it("says it's off, and when the folder is still there", () => {
-    expect(modRow(mod(false, false, null), AT)).toEqual({ text: "Off", chip: "waiting" });
-    expect(modRow(mod(false, true, "0.3.0"), AT).text).toBe("Off · still installed");
+    expect(modRow(mod(false, false, null), AT)).toEqual({ text: "Not installed", chip: "waiting" });
+    // The row's one button says what a click does: an addon is installed or uninstalled.
+    expect([modButton(mod(false, false, null)), modButton(mod(true, true, "0.3.0"))]).toEqual(["Install", "Uninstall"]);
+    expect(modButton({ ...mod(true, false, null), kind: "agent" })).toBe("Turn off");
+    expect(modRow(mod(false, true, "0.3.0"), AT).text).toBe("Uninstalled · still in the game folder");
   });
 
   it("says when the game has it off, as the in-game toggle left it", () => {
     expect(modRow(mod(true, true, "0.3.0", 1), AT)).toEqual({
-      text: "On · 0.3.0 installed · off in the game for 1 character",
+      text: "Installed · 0.3.0 · off in the game for 1 character",
       chip: "waiting",
     });
     expect(modRow(mod(true, true, "0.3.0", 3), AT).text).toMatch(/for 3 characters$/);
-    expect(modRow(mod(true, true, "0.3.0"), "/elsewhere").text).toBe("On · not installed yet: install the addon");
+    expect(modRow(mod(true, true, "0.3.0"), "/elsewhere").text).toBe("Not in the game yet: install the addon");
   });
 
   it("has the sentence for a mod that acts in the game", () => {

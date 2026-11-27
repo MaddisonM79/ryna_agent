@@ -70,22 +70,26 @@ group("the Mods tab's grid", () => {
       expect(count(row, /class="mod-text"/g)).toBe(1);
       expect(count(row, /class="mod-status"/g)).toBe(1);
       expect(count(row, /class="[^"]*\bchip\b/g)).toBe(1);
-      expect(row).not.toContain("<button");
+      // One button a row: Install or Uninstall (Turn on or off for Settings), never a tick box.
+      expect(count(row, /<button/g)).toBe(1);
+      expect(row).not.toContain("checkbox");
     }
+    expect(all[0]).toMatch(/aria-label="Uninstall Chronicle"[^>]*>\s*Uninstall\s*</);
+    expect(all[3]).toMatch(/>\s*Turn off\s*</);
     // Settings has no update and still has its state where the others have theirs.
     expect(all[3]).toContain("On · runs in the app");
   });
 
   it("offers the one install every row's update was, once, in the card's head", async () => {
     const html = await render(OLD);
-    expect(count(html, /<button/g)).toBe(1);
     const head = html.slice(0, html.indexOf('class="mods-grid"'));
+    expect(count(head, /<button/g)).toBe(1);
     expect(head).toContain("Update all to 0.4.0");
   });
 
   it("offers nothing when everything is current", async () => {
     const html = await render([mod("chronicle", "0.4.0"), SETTINGS]);
-    expect(html).not.toContain("<button");
+    expect(html.slice(0, html.indexOf('class="mods-grid"'))).not.toContain("<button");
     expect(rows(html)).toHaveLength(2);
   });
 
@@ -93,13 +97,16 @@ group("the Mods tab's grid", () => {
     const html = await render([mod("chronicle", "0.4.0"), mod("verity", null, { learned: true, defaultOn: false, on: false })]);
     const [chronicle, verity] = rows(html);
     expect(verity).toContain(">New<");
+    // Not installed until asked for: its button installs it.
+    expect(verity).toMatch(/aria-label="Install Verity"[^>]*>\s*Install\s*</);
+    expect(verity).toContain("Not installed");
     expect(chronicle).not.toContain(">New<");
   });
 
   it("keeps the words that were there", async () => {
     const html = await render(OLD);
     expect(html).toContain("This mod acts in the game for you.");
-    expect(html).toContain("On · 0.3.9 installed, 0.4.0 available");
+    expect(html).toContain("Installed · 0.3.9, 0.4.0 available");
   });
 });
 

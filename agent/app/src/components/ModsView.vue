@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // The Mods tab as drawn (ModsSection holds the state and does the work): one grid for every mod,
-// so the switches, the words and the states line up in columns; the one button the mods share in
+// so the buttons (Install or Uninstall), the words and the states line up in columns; the one button the mods share in
 // the card's head; and the last result for the whole card under it, never inside a row.
 import { computed } from "vue";
 import type { InstallView, ModView } from "../api";
-import { ACTS_IN_GAME, NEW_MOD, flavorName, modRow, modsAction, pathPieces, type ModsResult } from "../describe";
+import { ACTS_IN_GAME, NEW_MOD, flavorName, modButton, modRow, modsAction, pathPieces, type ModsResult } from "../describe";
 
 const props = defineProps<{
   mods: ModView[];
@@ -65,20 +65,23 @@ const actions = computed(() =>
     <ul v-if="mods.length && installs.length" class="mods-grid">
       <li v-for="m in mods" :key="m.id" class="mod">
         <span class="mod-switch">
-          <input
-            :id="`mod-${m.id}`"
-            type="checkbox"
-            :checked="m.on"
-            :disabled="toggling !== null"
-            @change="emit('toggle', m, ($event.target as HTMLInputElement).checked)"
-          />
+          <button
+            type="button"
+            class="small"
+            :class="{ quiet: m.on }"
+            :aria-label="`${modButton(m)} ${m.name}`"
+            :disabled="toggling !== null || installing !== null"
+            @click="emit('toggle', m, !m.on)"
+          >
+            {{ toggling === m.id ? "Working…" : modButton(m) }}
+          </button>
         </span>
-        <label class="mod-text" :for="`mod-${m.id}`">
+        <div class="mod-text">
           {{ m.name }}
           <span v-if="m.learned" class="chip new-mod">{{ NEW_MOD }}</span>
           <span class="muted">{{ m.summary }}</span>
           <span v-if="m.actsInGame" class="acts-in-game">{{ ACTS_IN_GAME }}</span>
-        </label>
+        </div>
         <div class="mod-status">
           <div v-for="i in installs" :key="i.path" class="mod-state">
             <span class="chip" :class="modRow(m, i.path).chip">{{ modRow(m, i.path).text }}</span>

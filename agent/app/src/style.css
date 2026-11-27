@@ -401,13 +401,12 @@ label.setting {
   padding-right: 10px;
 }
 
-.mods-grid .mod-switch input {
-  margin: 3px 0 0;
+.mods-grid .mod-switch button {
+  min-width: 84px;
 }
 
 .mods-grid .mod-text {
   padding-right: 16px;
-  cursor: pointer;
 }
 
 .mod-text .muted,

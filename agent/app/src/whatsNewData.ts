@@ -16,8 +16,12 @@ export interface NewsNote {
 export const NEWS: NewsNote[] = [
   {
     "version": "next",
-    "headline": "No more notices for an addon update that isn't there.",
+    "headline": "Mods are installed and uninstalled with a button, and no more notices for an addon update that isn't there.",
     "items": [
+      {
+        "where": "app",
+        "text": "Each mod now has an Install or Uninstall button in place of a tick box, and says Installed or Not installed. Uninstalling a mod takes its folder out of the game; your saved data stays."
+      },
       {
         "where": "app",
         "text": "The addon in your game is now judged by its own version numbers, not the app's, so an up to date addon is no longer called old and the game no longer offers an addon update that doesn't exist."

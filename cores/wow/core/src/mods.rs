@@ -413,18 +413,21 @@ pub fn row_words(m: &ModStatus, path: &str) -> (String, ryna_agent::core::Chip) 
     let mut words = match (m.on, installed) {
         (true, Some(i)) => match i.version.as_deref() {
             Some(v) if compare_versions(v, &m.bundled).is_lt() => (
-                format!("On · {v} installed, {} available", m.bundled),
+                format!("Installed · {v}, {} available", m.bundled),
                 Chip::Update,
             ),
-            Some(v) => (format!("On · {v} installed"), Chip::Pushed),
-            None => ("On · installed".to_string(), Chip::Pushed),
+            Some(v) => (format!("Installed · {v}"), Chip::Pushed),
+            None => ("Installed".to_string(), Chip::Pushed),
         },
         (true, None) => (
-            "On · not installed yet: install the addon".to_string(),
+            "Not in the game yet: install the addon".to_string(),
             Chip::Waiting,
         ),
-        (false, Some(_)) => ("Off · still installed".to_string(), Chip::Waiting),
-        (false, None) => ("Off".to_string(), Chip::Waiting),
+        (false, Some(_)) => (
+            "Uninstalled · still in the game folder".to_string(),
+            Chip::Waiting,
+        ),
+        (false, None) => ("Not installed".to_string(), Chip::Waiting),
     };
     if let Some(n) = here
         .map(|i| i.off_in_game)
@@ -725,7 +728,7 @@ mod tests {
         let automation = of(&s, "automation");
         assert!(!automation.on && !automation.default_on && automation.acts_in_game);
         assert!(!automation.at(&here).unwrap().installed);
-        assert_eq!(row_words(&automation, &here).0, "Off");
+        assert_eq!(row_words(&automation, &here).0, "Not installed");
         assert!(!addon_install::addon_dir_named(&inst, "Ryna_Automation").exists());
 
         // Turned on: its folder goes in, Chronicle's is untouched.
@@ -841,31 +844,31 @@ mod tests {
         let words = |s: ModStatus| row_words(&s, "/wow/_forever_");
         assert_eq!(
             words(m(true, true, Some("0.3.0"), 0)),
-            ("On · 0.3.0 installed".into(), Chip::Pushed)
+            ("Installed · 0.3.0".into(), Chip::Pushed)
         );
         assert_eq!(
             words(m(true, true, Some("0.2.6"), 0)),
-            ("On · 0.2.6 installed, 0.3.0 available".into(), Chip::Update)
+            ("Installed · 0.2.6, 0.3.0 available".into(), Chip::Update)
         );
         assert_eq!(
             words(m(true, false, None, 0)),
             (
-                "On · not installed yet: install the addon".into(),
+                "Not in the game yet: install the addon".into(),
                 Chip::Waiting
             )
         );
         assert_eq!(
             words(m(false, false, None, 0)),
-            ("Off".into(), Chip::Waiting)
+            ("Not installed".into(), Chip::Waiting)
         );
         assert_eq!(
             words(m(false, true, Some("0.3.0"), 0)).0,
-            "Off · still installed"
+            "Uninstalled · still in the game folder"
         );
         assert_eq!(
             words(m(true, true, Some("0.3.0"), 2)),
             (
-                "On · 0.3.0 installed · off in the game for 2 characters".into(),
+                "Installed · 0.3.0 · off in the game for 2 characters".into(),
                 Chip::Waiting
             )
         );

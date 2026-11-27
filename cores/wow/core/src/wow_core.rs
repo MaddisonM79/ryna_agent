@@ -451,9 +451,12 @@ mod tests {
             ]
         );
         assert_eq!(rows[1].value, "Addon not installed");
-        assert_eq!(rows[2].value, "On · not installed yet: install the addon");
-        assert_eq!(rows[3].value, "Off", "Automation is off by default");
-        assert_eq!(rows[4].value, "Off", "Prices is off by default");
+        assert_eq!(rows[2].value, "Not in the game yet: install the addon");
+        assert_eq!(
+            rows[3].value, "Not installed",
+            "Automation is off by default"
+        );
+        assert_eq!(rows[4].value, "Not installed", "Prices is off by default");
 
         let hb = core.heartbeat(&ctx);
         assert_eq!(
