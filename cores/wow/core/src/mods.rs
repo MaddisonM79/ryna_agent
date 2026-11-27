@@ -37,6 +37,7 @@ pub const BUNDLED_MOD_JSON: &[&str] = &[
     include_str!("../../../../mods/wow/fights/mod.json"),
     include_str!("../../../../mods/wow/meter/mod.json"),
     include_str!("../../../../mods/wow/cleanse/mod.json"),
+    include_str!("../../../../mods/wow/guild/mod.json"),
     include_str!("../../../../mods/wow/settings/mod.json"),
 ];
 
@@ -502,6 +503,11 @@ mod tests {
         let cleanse = bundled().iter().find(|m| m.id == "cleanse").unwrap();
         assert!(!cleanse.default_on && !cleanse.acts_in_game);
         assert_eq!(cleanse.addons, ["Ryna_Cleanse"]);
+        // Guild's first version only shows the roster and what changed in it: off by default, and
+        // it acts on nothing (officer tools, when they come, change that flag).
+        let guild = bundled().iter().find(|m| m.id == "guild").unwrap();
+        assert!(!guild.default_on && !guild.acts_in_game);
+        assert_eq!(guild.addons, ["Ryna_Guild"]);
         // Settings runs in the agent: no folder, nothing in the game, off until turned on.
         let settings = bundled().iter().find(|m| m.id == "settings").unwrap();
         assert!(is_agent_mod(settings) && settings.addons.is_empty());
@@ -518,6 +524,7 @@ mod tests {
             "Ryna_Fights",
             "Ryna_Meter",
             "Ryna_Cleanse",
+            "Ryna_Guild",
         ] {
             let a = dir.join("release").join(name);
             std::fs::create_dir_all(&a).unwrap();

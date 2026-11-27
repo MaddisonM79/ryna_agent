@@ -443,6 +443,7 @@ mod tests {
                 "Fights",
                 "Meter",
                 "Cleanse",
+                "Guild",
                 "Settings",
                 "Log",
                 "Fights, last 12 h",

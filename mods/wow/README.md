@@ -1,5 +1,5 @@
 > **Every mod's addon is kept in a repository of its own**: [automation](https://github.com/Ryna-Mods/automation),
-> [chronicle](https://github.com/Ryna-Mods/chronicle), [cleanse](https://github.com/Ryna-Mods/cleanse), [fights](https://github.com/Ryna-Mods/fights),
+> [chronicle](https://github.com/Ryna-Mods/chronicle), [cleanse](https://github.com/Ryna-Mods/cleanse), [fights](https://github.com/Ryna-Mods/fights), [guild](https://github.com/Ryna-Mods/guild),
 > [meter](https://github.com/Ryna-Mods/meter) and [prices](https://github.com/Ryna-Mods/prices), each with
 > its tests and its own version. Here a mod is its `mod.json` (the manifest the app compiles in) and a
 > `pin.json` (the release the app carries, by tag and SHA-256); `node scripts/fetch-addons.mjs` unpacks
@@ -177,6 +177,11 @@ is the whole of it).
   during a fight. It casts only from the player's click. `/ryna cleanse`; a Cleanse tab; settings
   `cleanseShow` and `cleanseAlone`; the window's place in `RynaDB.cleanse`. Nothing in chat, nothing
   sent. What the client allows it is in docs/forever-client-api.md, "Auras and dispels".
+- `guild/`: **Guild**, off by default (`defaultOn: false`, `actsInGame: false`), in a repository of its
+  own ([Ryna-Mods/guild](https://github.com/Ryna-Mods/guild)): a Guild section of the window with the
+  roster, what changed between readings and who has gone quiet. It reads what Chronicle recorded
+  (`RynaDB.guilds`) and keeps the differences in `RynaDB.guild`; nothing acts. `/ryna guild`. The
+  design, and what is still owed (officer tools, events and attendance), is docs section 7.8.
 - `settings/`: **Settings**, off by default (`kind: "agent"`, `defaultOn: false`, `actsInGame:
   false`; docs/ryna-agent-cores-mods.md 7.2): addon settings copied between characters and backed
   up to ryna.io, encrypted on this machine (the API's docs/wow.md section 15). All of it is the core's
