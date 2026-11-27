@@ -15,7 +15,7 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
-    "version": "next",
+    "version": "0.5.6",
     "headline": "New mods arrive without waiting for a new Ryna.",
     "items": [
       {
