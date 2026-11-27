@@ -1,6 +1,6 @@
 [
   {
-    "version": "next",
+    "version": "0.5.7",
     "headline": "Mods are installed and uninstalled with a button, and no more notices for an addon update that isn't there.",
     "items": [
       {"where": "app", "text": "Each mod now has an Install or Uninstall button in place of a tick box, and says Installed or Not installed. Uninstalling a mod takes its folder out of the game; your saved data stays."},

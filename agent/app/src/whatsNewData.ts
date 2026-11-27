@@ -15,7 +15,7 @@ export interface NewsNote {
 
 export const NEWS: NewsNote[] = [
   {
-    "version": "next",
+    "version": "0.5.7",
     "headline": "Mods are installed and uninstalled with a button, and no more notices for an addon update that isn't there.",
     "items": [
       {
