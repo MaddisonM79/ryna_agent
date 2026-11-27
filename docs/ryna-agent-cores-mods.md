@@ -1675,8 +1675,14 @@ plain in combat; R5 the coin line; R6 whether Forever caps instances per hour.
 
 ### 7.8 Guild: the roster seen in game, officers' tools, attendance (proposal, 2026-11-26)
 
-**Nothing is built.** Asked 2026-11-22 ("one for a guild management"); her picks the same day: the
-roster and activity view, officer tools, events and attendance. The bank ledger comes later.
+**Built so far (2026-11-26):** the mod's first version (`Ryna-Mods/guild` 0.1.0, unreleased: the
+Roster, Activity and Quiet views in one section of the window, nothing that acts) and the server's
+half of Activity (the API compares rosters at ingest by the same rules and the portal's Guild page
+lists what changed and who is quiet; the API's `docs/wow.md` section 21). **Not built:** officer
+tools (owed G1), the game's guild event log (G2), Events and attendance (G3, and the addon marking
+guild runs), who sees attendance, the bank ledger. Asked 2026-11-22 ("one for a guild management");
+her picks the same day: the roster and activity view, officer tools, events and attendance. The bank
+ledger comes later.
 
 Chronicle already scans the roster at login and every ten minutes into `RynaDB.guilds`, the app
 sends it and the portal has a Guilds page, while 7.5's table says of the game "Nothing (the game's
@@ -1771,7 +1777,16 @@ day):
 
 ### 7.9 Verity: what a group says of the people it played with (proposal, 2026-11-26)
 
-**Nothing is built, and this changes Ryna's rules, so it is written here first.** It is named **Verity**
+**The pool's server half is built ahead of the addon (2026-11-26), and nothing sends to it yet:**
+the two journal events it takes, the weights, the band, chip and standing, the owner's view at 47
+hours, claims with the admin's confirmation, the lookup log, 90 days then deleted, and a portal page
+whose tab shows to the admin alone until Maddison opens it (the API's `docs/wow.md` section 22 is the
+contract the addon follows). **Not built:** the mod itself (stages 1 and 2), the token exchange and
+the in-game ownership code, the game's copy of pooled tags (`Data/verity.lua`), the cross-check of
+facts between two clients (until then a witnessed report's facts are taken as given), a page for
+someone else's character, and the README's changed contract, which goes out with the mod.
+
+**This changes Ryna's rules, so it is written here first.** It is named **Verity**
 (Maddison, 2026-11-26). Asked 2026-11-22 ("player reporting and tracking"), and in her words:
 "a player reporting/tracking system that is community driven. Lets say i go in a group and need on
 5 items, all 1h weapons and say 'im a fury warrior' that is shitty of me. this gives players a way
